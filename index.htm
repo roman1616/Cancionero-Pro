@@ -251,7 +251,7 @@ function handleFileSelect(event) {
     function toggleTheme() { document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); } // Cambia entre tema oscuro y claro
     function toggleFS() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); } // Entra o sale del modo pantalla completa
 
-      /* GUARDADO DE ARCHIVO: Fuerza compartir en Móvil y Descarga en PC */
+        /* GUARDADO DE ARCHIVO: Fuerza compartir en Móvil y Descarga en PC */
     async function saveFile() { // Exporta el contenido editado a un archivo .txt
         setEdit(false); // Finaliza la edición antes de guardar para limpiar el texto
         const contenido = songContent.innerText; // Captura el texto puro de la canción
@@ -271,6 +271,7 @@ function handleFileSelect(event) {
                 console.log("Compartir cancelado o fallido, pasando a descarga..."); // Si falla, sigue al bloque de abajo
             }
         }
+
         // 2. LÓGICA DE DESCARGA (Para PC o si falló el compartir en Móvil)
         const url = URL.createObjectURL(blob); // Genera una dirección temporal para los datos del archivo
         const a = document.createElement('a'); // Crea un elemento de enlace invisible
@@ -282,8 +283,12 @@ function handleFileSelect(event) {
         URL.revokeObjectURL(url); // Libera la memoria utilizada por la URL temporal
     }
 
+
+
     // Reanuda el "hack" de video si el usuario sale y vuelve a la pestaña del navegador
- 
+    document.addEventListener('visibilitychange', () => { // Detecta cuando el usuario vuelve a ver la página [1]
+        if (document.visibilityState === 'visible' && isWakeActive) v.play(); // Reactiva el video para mantener la pantalla encendida
+    });
 
     // Inicio de la aplicación
     resaltar(); // Ejecuta el resaltado inicial al cargar la página
