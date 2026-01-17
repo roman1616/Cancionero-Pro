@@ -11,7 +11,7 @@
         .catch(err => console.log("Error:", err));
          }
 </script>
-    
+
     <!-- Color de la barra de estado en Android -->
     <meta name="theme-color" content="#1a1a1a">
 
@@ -57,7 +57,7 @@
             border-radius: 6px; cursor: pointer; font-size: 14px;
             white-space: nowrap; transition: 0.2s;
         }
-        
+
         button.active { background: var(--accent) !important; color: #fff !important; } /* Estado visual de botón activado */
         #save-btn { display: none; background: #16a34a; color: white; } /* Botón de guardado oculto por defecto */
         #save-btn.enabled { display: inline-block; } /* Se muestra solo cuando hay cambios que guardar */
@@ -70,14 +70,14 @@
             overflow-x: auto; /* Permite ver líneas largas sin cortarlas */
             white-space: nowrap; 
         }
-        
+
         pre { 
             white-space: pre !important; /* Respeta saltos de línea y espacios múltiples */
             font-size: 18px; line-height: 1.4; margin: 0; outline: none;
             display: inline-block; 
             min-width: 100%;
         }
-        
+
         /* Clases auxiliares para acordes y formatos */
         pre.bold-mode { font-weight: bold !important; } /* Aplica negrita a todo el texto */
         .chord { color: var(--chord); font-weight: bold; } /* Color distintivo para los acordes */
@@ -100,7 +100,7 @@
         <button onclick="trasponer(1)">Tono +</button> <!-- Sube un semitono a todos los acordes -->
         <button id="not-btn" onclick="toggleNotacion()">Latino</button> <!-- Alterna entre Do/Re/Mi y C/D/E -->
     </div>
-    
+
     <div class="group">
         <button onclick="stopScroll()">⏹</button> <!-- Detiene el desplazamiento automático -->
         <button onclick="updateScroll(-0.5)">-</button> <!-- Reduce la velocidad del scroll -->
@@ -133,8 +133,7 @@ Escribe tu primera canción......</pre><!-- Recordatorio de configuración para 
 <!-- Hack de Video: Video de 1px en base64 para evitar el apagado de pantalla en 2026 -->
 <video id="wakeLockVideo" loop playsinline muted style="display:none;"> <!-- Video invisible para forzar actividad del sistema -->
     <source src="data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAABCmbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAABDcAAQAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAB0dHJhawAAAFx0a2hkAAAAAwAAAAAAAAAAAAAAAQAAAAAAAAQ3AAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAABV21kaWEAAAAgbWRoZAAAAAAAAAAAAAAAAAAAB9AAAAfQAVcQAAAAAAAALWhkbHIAAAAAAAAAAHZpZGVvAAAAAAAAAAAAAAAAVmlkZW9IYW5kbGVyAAAAAQVtaW5mAAAAEGRtbmYAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAOFzdGJsAAAAp3N0c2QAAAAAAAAAAQAAAJdhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAEAAQABIAAAASAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGP//AAAALWF2Y0MBQsAN/+EAFWdCwA3ZAsTsBEAAAPpAADqYAAXpYhALZAgAABpAAAALc3R0cwAAAAAAAAABAAAAAQAAAfQAAABMc3RzYwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN0c3oAAAAAAAAAAAAAAAEAAABMc3RjbwAAAAAAAAABAAAALAAAAGJ1ZHRhAAAAWm1ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXIAAAAAAAAAAAAAAAAAAAAAAAAALWlsc3QAAAAlqXRvbwAAAB1kYXRhAAAAAQAAAABIYW5kQnJha2UgMS4zLjMAAAAkbWRhdGFuY2hvcm5hYmxlX2NvbnRlbnQAAAAnZYiEAtkCAAAH0AAAGkAAAAt" type="video/mp4"> <!-- Datos binarios del video de 1px -->
-</video>
-   
+</video>    
     
 <script>
     /* VARIABLES DE ESTADO */
@@ -224,55 +223,49 @@ function handleFileSelect(event) {
     reader.readAsText(file);                                                   // Inicia la lectura del archivo como texto plano
 }
 
-           /* --- VÍNCULO SCROLL -> PANTALLA --- */
+    /* --- VÍNCULO SCROLL -> PANTALLA --- */
     function updateScroll(delta) { // Gestiona el desplazamiento automático y el bloqueo de pantalla
         setEdit(false); // Desactiva el modo edición al iniciar el movimiento
         mantenerEncendidoAgresivo(true); // Activa el hack de video para evitar que la pantalla se apague [2]
-@@ -246,50 +246,52 @@
-        mantenerEncendidoAgresivo(false); // Asegura que la pantalla pueda volver a su estado normal
-    }
 
-      /* GUARDADO DE ARCHIVO: Optimizado para PC (Descarga) y Móvil (Compartir) */
-    async function saveFile() {
-        setEdit(false); // Desactiva el modo edición para limpiar el texto
-        const contenido = songContent.innerText; // Captura el texto puro de la canción
-        const blob = new Blob([contenido], { type: 'text/plain' }); // Crea el archivo en memoria
-        const file = new File([blob], currentFileName, { type: 'text/plain' }); // Prepara el archivo con su nombre
+        currentSpeed = Math.max(0, Math.min(20, currentSpeed + delta)); // Ajusta velocidad entre 0 y 20
+        document.getElementById('speed-val').innerText = currentSpeed % 1 === 0 ? currentSpeed : currentSpeed.toFixed(1); // Muestra velocidad con 1 decimal
+        clearInterval(scrollInterval); // Limpia cualquier intervalo de scroll previo
 
-        try {
-            // Verifica si es un móvil con capacidad de compartir Y si no es una PC
-            // En 2026, navigator.share en PC suele fallar o no ser lo que el usuario busca
-            if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
-                await navigator.share({
-                    files: [file],
-                    title: currentFileName,
-                    text: 'Canción exportada desde Cancionero Pro'
-                });
-            } else {
-                // LÓGICA DE DESCARGA PARA PC
-                const url = URL.createObjectURL(blob); // Crea una URL temporal para el archivo
-                const a = document.createElement('a'); // Crea un elemento de enlace invisible
-                a.href = url; // Asigna la ruta del archivo
-                a.download = currentFileName; // Define el nombre de la descarga
-                document.body.appendChild(a); // Lo añade momentáneamente al documento
-                a.click(); // Simula el clic de descarga
-                document.body.removeChild(a); // Lo elimina tras la descarga
-                URL.revokeObjectURL(url); // Libera la memoria de la URL temporal
-            }
-        } catch (e) {
-            console.log("Error al guardar o compartir:", e);
-            // Fallback: Si el compartir falla, intentar descarga clásica de todos modos
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = currentFileName; a.click();
+        if (currentSpeed > 0) { // Si hay velocidad, inicia el desplazamiento
+            scrollInterval = setInterval(() => { window.scrollBy(0, 1); }, 100 / currentSpeed); // Desplaza 1px según el cálculo de velocidad
+        } else { // Si la velocidad baja a cero
+            mantenerEncendidoAgresivo(false); // Libera el bloqueo de pantalla para ahorrar batería
         }
     }
 
+    function stopScroll() { // Detiene por completo el movimiento de la página
+        currentSpeed = 0; // Reinicia el valor de velocidad a cero
+        updateScroll(0); // Ejecuta la actualización para limpiar intervalos y estados
+        mantenerEncendidoAgresivo(false); // Asegura que la pantalla pueda volver a su estado normal
+    }
 
+    /* OTRAS UTILIDADES */
+    function changeFS(delta) { fontSize += delta; songContent.style.fontSize = fontSize + "px"; resaltar(); } // Ajusta tamaño de letra y reaplica formato
+    function toggleBold() { songContent.classList.toggle('bold-mode'); document.getElementById('bold-btn').classList.toggle('active'); } // Alterna negrita en todo el texto
+    function toggleTheme() { document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); } // Cambia entre tema oscuro y claro
+    function toggleFS() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); } // Entra o sale del modo pantalla completa
 
-
-
-
+    // Guardado de archivo: Usa el menú de compartir del móvil si está disponible
+    async function saveFile() { // Exporta el contenido editado a un archivo .txt
+        setEdit(false); // Finaliza la edición antes de guardar
+        const blob = new Blob([songContent.innerText], { type: 'text/plain' }); // Crea el objeto de datos del archivo
+        const file = new File([blob], currentFileName, { type: 'text/plain' }); // Prepara el archivo con su nombre original
+        try {
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) { // Verifica si el móvil permite compartir archivos [4]
+                await navigator.share({ files: [file] }); // Abre el menú nativo (WhatsApp, Drive, etc.) [6]
+            } else { // Si no es móvil o no permite compartir
+                const url = URL.createObjectURL(blob); // Crea una URL temporal para el archivo
+                const a = document.createElement('a'); // Crea un enlace de descarga oculto
+                a.href = url; a.download = currentFileName; a.click(); // Fuerza la descarga al dispositivo
+            }
+        } catch (e) {} // Captura errores silenciosamente si el usuario cancela
+    }
 
     // Reanuda el "hack" de video si el usuario sale y vuelve a la pestaña del navegador
     document.addEventListener('visibilitychange', () => { // Detecta cuando el usuario vuelve a ver la página [1]
@@ -283,4 +276,3 @@ function handleFileSelect(event) {
     resaltar(); // Ejecuta el resaltado inicial al cargar la página
 </script>
 </body>
-</html>
