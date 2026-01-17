@@ -251,21 +251,39 @@ function handleFileSelect(event) {
     function toggleTheme() { document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); } // Cambia entre tema oscuro y claro
     function toggleFS() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); } // Entra o sale del modo pantalla completa
 
-    // Guardado de archivo: Usa el menú de compartir del móvil si está disponible
+       /* GUARDADO DE ARCHIVO: Optimizado para PC (Descarga directa) y Móvil (Compartir) */
     async function saveFile() { // Exporta el contenido editado a un archivo .txt
-        setEdit(false); // Finaliza la edición antes de guardar
-        const blob = new Blob([songContent.innerText], { type: 'text/plain' }); // Crea el objeto de datos del archivo
+        setEdit(false); // Finaliza la edición antes de guardar para limpiar el texto
+        const contenido = songContent.innerText; // Captura el texto puro de la canción
+        const blob = new Blob([contenido], { type: 'text/plain' }); // Crea el objeto de datos en la memoria
         const file = new File([blob], currentFileName, { type: 'text/plain' }); // Prepara el archivo con su nombre original
+
         try {
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) { // Verifica si el móvil permite compartir archivos [4]
-                await navigator.share({ files: [file] }); // Abre el menú nativo (WhatsApp, Drive, etc.) [6]
-            } else { // Si no es móvil o no permite compartir
-                const url = URL.createObjectURL(blob); // Crea una URL temporal para el archivo
-                const a = document.createElement('a'); // Crea un enlace de descarga oculto
-                a.href = url; a.download = currentFileName; a.click(); // Fuerza la descarga al dispositivo
+            // Verifica si es un móvil Y si tiene capacidad de compartir
+            if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) { 
+                await navigator.share({ // Abre el menú nativo (WhatsApp, Drive, etc.) en móviles
+                    files: [file],
+                    title: currentFileName,
+                    text: 'Canción exportada desde Cancionero Pro'
+                });
+            } else { // Si detecta que es una PC o no puede compartir nativamente
+                const url = URL.createObjectURL(blob); // Crea una URL temporal para los datos del archivo
+                const a = document.createElement('a'); // Crea un elemento de enlace invisible
+                a.href = url; // Asigna la ruta del archivo temporal
+                a.download = currentFileName; // Define el nombre con el que se guardará el archivo
+                document.body.appendChild(a); // Inserta el enlace en el documento para que sea ejecutable
+                a.click(); // Dispara automáticamente la descarga en la carpeta de la PC
+                document.body.removeChild(a); // Elimina el enlace temporal para limpiar el código
+                window.URL.revokeObjectURL(url); // Libera la memoria del navegador borrando la URL temporal
             }
-        } catch (e) {} // Captura errores silenciosamente si el usuario cancela
+        } catch (e) { // En caso de que el usuario cancele o ocurra un error
+            console.log("Error al guardar:", e); // Registra el problema en la consola de desarrollador
+            const url = URL.createObjectURL(blob); // Fallback: Intenta una descarga clásica como último recurso
+            const a = document.createElement('a');
+            a.href = url; a.download = currentFileName; a.click();
+        }
     }
+
 
     // Reanuda el "hack" de video si el usuario sale y vuelve a la pestaña del navegador
     document.addEventListener('visibilitychange', () => { // Detecta cuando el usuario vuelve a ver la página [1]
