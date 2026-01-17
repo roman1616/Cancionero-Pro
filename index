@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <!-- Enlace al manifiesto -->
+    <link rel="manifest" href="https://www.dropbox.com/scl/fi/el9tkusu6sszh0epml6fh/manifest.json?rlkey=cm7gwf0x3g8b3ryserxcw0deu&st=peya6pog&raw=1"> 
+    <script>
+    // 2. Registro del Service Worker (Pega aquí tu enlace raw=1 de Dropbox)
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('https://www.dropbox.com/scl/fi/vxr8hdv4etw5xtrqu5u9a/sw.js?rlkey=gnbcsf1fx8b97zngtv7ix2i4f&st=oar4896k&raw=1')
+        .then(() => console.log("PWA lista"))
+        .catch(err => console.log("Error:", err));
+         }
+</script>
+    
+    <!-- Color de la barra de estado en Android -->
+    <meta name="theme-color" content="#1a1a1a">
+
+    <meta charset="UTF-8"> <!-- Define la codificación de caracteres universal -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <!-- Optimiza para móviles y evita zoom accidental -->
+    <title>Cancionero Pro 2026</title>
+    <style>
+        /* Variables de color para Temas Claro y Oscuro */
+        :root {
+            --bg: #ffffff; --text: #111111; --bar: #f1f5f9;
+            --btn-bg: #ffffff; --btn-brd: #cbd5e1; --accent: #2563eb;
+            --chord: #d32f2f;
+        }
+        [data-theme="dark"] {
+            --bg: #0b0b0b; --text: #e2e8f0; --bar: #1a1a1a;
+            --btn-bg: #2d2d2d; --btn-brd: #404040;
+            --chord: #60a5fa;
+        }
+
+        /* Configuración base: Fuente monoespaciada para alinear acordes */
+        html, body { 
+            width: 100%; margin: 0; padding: 0; 
+            background-color: var(--bg); color: var(--text);
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        /* Barra de herramientas superior fija con scroll lateral en móviles */
+        .app-bar {
+            position: fixed; top: 0; left: 0; width: 100%; 
+            background: var(--bar); display: flex; align-items: center;
+            border-bottom: 1px solid var(--btn-brd); 
+            z-index: 1000; height: 60px; padding: 0 5px; gap: 4px;
+            overflow-x: auto; scrollbar-width: none; /* Oculta barra de scroll en la botonera */
+        }
+
+        /* Grupos de botones con borde divisorio */
+        .group { display: flex; gap: 4px; padding: 0 8px; align-items: center; border-right: 1px solid var(--btn-brd); height: 40px; }
+
+        /* Estilo base de los botones interactivos */
+        button {
+            padding: 10px 12px; border: 1px solid var(--btn-brd); 
+            background: var(--btn-bg); color: var(--text);
+            border-radius: 6px; cursor: pointer; font-size: 14px;
+            white-space: nowrap; transition: 0.2s;
+        }
+        
+        button.active { background: var(--accent) !important; color: #fff !important; } /* Estado visual de botón activado */
+        #save-btn { display: none; background: #16a34a; color: white; } /* Botón de guardado oculto por defecto */
+        #save-btn.enabled { display: inline-block; } /* Se muestra solo cuando hay cambios que guardar */
+
+        /* Contenedor de la letra: permite scroll horizontal y mantiene el formato PRE */
+        .content-area { 
+            margin-top: 75px; 
+            padding: 20px; 
+            padding-bottom: 90vh; /* Espacio al final para permitir scroll total */
+            overflow-x: auto; /* Permite ver líneas largas sin cortarlas */
+            white-space: nowrap; 
+        }
+        
+        pre { 
+            white-space: pre !important; /* Respeta saltos de línea y espacios múltiples */
+            font-size: 18px; line-height: 1.4; margin: 0; outline: none;
+            display: inline-block; 
+            min-width: 100%;
+        }
+        
+        /* Clases auxiliares para acordes y formatos */
+        pre.bold-mode { font-weight: bold !important; } /* Aplica negrita a todo el texto */
+        .chord { color: var(--chord); font-weight: bold; } /* Color distintivo para los acordes */
+        .quote { opacity: 0.0; } /* Oculta la comilla simple usada como marcador */
+        #speed-val { font-weight: bold; width: 35px; text-align: center; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="app-bar">
+    <div class="group">
+        <button onclick="document.getElementById('file-input').click()">📁</button> <!-- Dispara el selector de archivos oculto -->
+        <input type="file" id="file-input" accept=".txt" onchange="handleFileSelect(event)" style="display:none"> <!-- Input de archivos invisible -->
+        <button id="edit-btn" onclick="toggleEdit()">✎</button> <!-- Cambia entre modo edición y lectura -->
+        <button id="save-btn" onclick="saveFile()">💾</button> <!-- Guarda el texto modificado en el dispositivo -->
+    </div>
+
+    <div class="group">
+        <button onclick="trasponer(-1)">Tono -</button> <!-- Baja un semitono a todos los acordes -->
+        <button onclick="trasponer(1)">Tono +</button> <!-- Sube un semitono a todos los acordes -->
+        <button id="not-btn" onclick="toggleNotacion()">Latino</button> <!-- Alterna entre Do/Re/Mi y C/D/E -->
+    </div>
+    
+    <div class="group">
+        <button onclick="stopScroll()">⏹</button> <!-- Detiene el desplazamiento automático -->
+        <button onclick="updateScroll(-0.5)">-</button> <!-- Reduce la velocidad del scroll -->
+        <span id="speed-val">0</span> <!-- Muestra la velocidad de scroll actual -->
+        <button onclick="updateScroll(0.5)">+</button> <!-- Aumenta la velocidad del scroll -->
+    </div>
+
+    <div class="group">
+        <button onclick="changeFS(-1)">A-</button> <!-- Achica el tamaño de la letra -->
+        <button onclick="changeFS(1)">A+</button> <!-- Agranda el tamaño de la letra -->
+    </div>
+
+    <div class="group" style="border:none">
+        <button id="wake-btn" onclick="toggleWakeLock()">🔓</button> <!-- Control manual para mantener pantalla encendida -->
+        <button id="bold-btn" onclick="toggleBold()">B</button> <!-- Activa/Desactiva negrita global -->
+        <button onclick="toggleTheme()">☀️</button> <!-- Cambia entre modo claro y oscuro -->
+        <button onclick="toggleFS()">⛶</button> <!-- Alterna el modo pantalla completa -->
+    </div>
+</div>
+
+<div class="content-area"> <!-- Contenedor principal del área de lectura -->
+    <pre id="song-content" spellcheck="false">Gracias por usar Cancionero Pro.
+        G'         D' <!-- Espacio de texto preformateado para la letra y acordes -->
+Tus acordes tienen que ir terminando en comilla simple. (')  <!--El scroll automático activa el candado 🔒 automáticamente.  Texto de ejemplo interactivo -->
+          Em'        C' <!-- Los acordes usan comilla simple para ser detectados -->
+Escribe tu primera canción......</pre><!-- Recordatorio de configuración para 2026 -->
+<!--Escribe tu canción aquí......</pre>  Área editable por el usuario -->
+</div>
+
+
+
+
+
+<!-- Hack de Video: Video de 1px en base64 para evitar el apagado de pantalla en 2026 -->
+<video id="wakeLockVideo" loop playsinline muted style="display:none;"> <!-- Video invisible para forzar actividad del sistema -->
+    <source src="data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAABCmbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAABDcAAQAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAB0dHJhawAAAFx0a2hkAAAAAwAAAAAAAAAAAAAAAQAAAAAAAAQ3AAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAABV21kaWEAAAAgbWRoZAAAAAAAAAAAAAAAAAAAB9AAAAfQAVcQAAAAAAAALWhkbHIAAAAAAAAAAHZpZGVvAAAAAAAAAAAAAAAAVmlkZW9IYW5kbGVyAAAAAQVtaW5mAAAAEGRtbmYAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAOFzdGJsAAAAp3N0c2QAAAAAAAAAAQAAAJdhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAEAAQABIAAAASAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGP//AAAALWF2Y0MBQsAN/+EAFWdCwA3ZAsTsBEAAAPpAADqYAAXpYhALZAgAABpAAAALc3R0cwAAAAAAAAABAAAAAQAAAfQAAABMc3RzYwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN0c3oAAAAAAAAAAAAAAAEAAABMc3RjbwAAAAAAAAABAAAALAAAAGJ1ZHRhAAAAWm1ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXIAAAAAAAAAAAAAAAAAAAAAAAAALWlsc3QAAAAlqXRvbwAAAB1kYXRhAAAAAQAAAABIYW5kQnJha2UgMS4zLjMAAAAkbWRhdGFuY2hvcm5hYmxlX2NvbnRlbnQAAAAnZYiEAtkCAAAH0AAAGkAAAAt" type="video/mp4"> <!-- Datos binarios del video de 1px -->
+</video>
+
+<script>
+    /* VARIABLES DE ESTADO */
+    let fontSize = 18, scrollInterval = null, currentSpeed = 0, isWakeActive = false; // Control de tamaño, scroll y bloqueo
+    let modoLatino = false, currentFileName = "cancion.txt"; // Control de formato de nota y nombre de archivo
+    const songContent = document.getElementById('song-content'); // Referencia al contenedor de la canción
+    const v = document.getElementById('wakeLockVideo'); // Referencia al elemento de video para el hack
+
+    /* ESCALAS Y REGLAS MUSICALES */
+    const escalaAm = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]; // Escala sistema americano
+    const escalaLat = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"]; // Escala sistema latino
+    const latToAmMap = {"Do":"C", "Re":"D", "Mi":"E", "Fa":"F", "Sol":"G", "La":"A", "Si":"B"}; // Mapeo para conversión interna
+    const regexAcorde = /(\b[A-Ga-gDoReMiFaSolLaSi][^\s']*)'/g; // Expresión regular para capturar acordes con comilla (')
+
+    /* --- LÓGICA DE PERSISTENCIA (PARA HTTP/DROPBOX EN 2026) --- */
+    async function mantenerEncendidoAgresivo(activar) { // Función para forzar pantalla encendida
+        const btn = document.getElementById('wake-btn'); // Referencia al botón del candado
+        if (activar) { // Si se solicita activar el bloqueo
+            isWakeActive = true; // Cambia estado a activo
+            btn.innerText = "🔒"; // Cambia icono a candado cerrado
+            btn.classList.add('active'); // Aplica estilo visual activo
+            v.play().catch(() => console.log("Esperando clic...")); // Inicia video (requiere permiso de usuario en 2026)
+            v.onpause = () => { if(isWakeActive) v.play(); }; // Si el sistema lo pausa, intenta reanudarlo
+        } else { // Si se solicita desactivar el bloqueo
+            isWakeActive = false; // Cambia estado a inactivo
+            v.pause(); // Detiene el video oculto
+            btn.innerText = "🔓"; // Cambia icono a candado abierto
+            btn.classList.remove('active'); // Quita estilo visual activo
+        }
+    }
+
+    function toggleWakeLock() { mantenerEncendidoAgresivo(!isWakeActive); } // Alterna el estado del bloqueo manualmente
+
+    /* FORMATEO DE TEXTO */
+    function resaltar() { // Función para aplicar colores a los acordes
+        if (songContent.contentEditable === "true") return; // No procesar si el usuario está escribiendo
+        const text = songContent.innerText; // Obtiene el texto limpio
+        songContent.innerHTML = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") // Escapa caracteres HTML
+            .replace(regexAcorde, '<span class="chord">$1</span><span class="quote">\'</span>'); // Envuelve acordes en <span>
+    }
+
+    /* TRANSPOSICIÓN MUSICAL */
+    function trasponer(semitonos) { // Función para subir o bajar el tono
+        setEdit(false); // Asegura salir del modo edición
+        const texto = songContent.innerText; // Obtiene el texto actual
+        songContent.innerText = texto.replace(regexAcorde, (match, contenido) => { // Busca acordes para modificar
+            let n = contenido.replace(/^(Do|Re|Mi|Fa|Sol|La|Si)/, m => latToAmMap[m]); // Normaliza a sistema americano
+            return n.replace(/^[A-G][#b]?/, base => { // Identifica la nota base
+                let b = base.replace('Db','C#').replace('Eb','D#').replace('Gb','F#').replace('Ab','G#').replace('Bb','A#'); // Homologa sostenidos
+                let i = escalaAm.indexOf(b); // Busca posición en la escala
+                if (i === -1) return base; // Si no es nota válida, la ignora
+                let ni = (i + semitonos + 12) % 12; // Calcula la nueva posición (aritmética modular)
+                return modoLatino ? escalaLat[ni] : escalaAm[ni]; // Devuelve nota en el sistema elegido
+            }) + "'"; // Añade la comilla simple al final
+        });
+        resaltar(); // Reaplica el color a los nuevos acordes
+    }
+
+    function toggleNotacion() { // Cambia entre cifrado Latino y Americano
+        modoLatino = !modoLatino; // Invierte el estado de la notación
+        document.getElementById('not-btn').innerText = modoLatino ? "Americano" : "Latino"; // Actualiza texto del botón
+        trasponer(0); // Ejecuta transposición neutra para actualizar el texto
+    }
+
+    /* GESTIÓN DE EDICIÓN Y ARCHIVOS */
+function setEdit(state) {
+    songContent.contentEditable = state;    // Activa/desactiva la escritura en el contenedor
+    document.getElementById('edit-btn').classList.toggle('active', state);  // Resalta el botón de edición si está activo
+    document.getElementById('save-btn').classList.toggle('enabled', state); // Muestra el botón de guardado solo al editar
+    if (!state) resaltar(); // Si termina de editar, aplica color a los acordes
+    else songContent.innerHTML = songContent.innerText; // Si empieza a editar, limpia etiquetas HTML para ver solo texto
+}
+
+function toggleEdit() { 
+    setEdit(songContent.contentEditable !== "true");    // Cambia al estado opuesto del modo de edición actual
+}
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];                                        // Captura el primer archivo seleccionado por el usuario
+    if (!file) return;                                                         // Canciona la ejecución si no se seleccionó ningún archivo
+    currentFileName = file.name;                                               // Almacena el nombre original del archivo para el guardado
+    const reader = new FileReader();                                           // Crea el lector para procesar el archivo localmente
+    reader.onload = (e) => {                                                   // Define qué hacer cuando la lectura termine:
+        songContent.innerText = e.target.result;                               // Vuelca el texto del archivo en el cancionero
+        setEdit(false);                                                        // Desactiva la edición para procesar visualmente el texto
+    };
+    reader.readAsText(file);                                                   // Inicia la lectura del archivo como texto plano
+}
+
+    /* --- VÍNCULO SCROLL -> PANTALLA --- */
+    function updateScroll(delta) { // Gestiona el desplazamiento automático y el bloqueo de pantalla
+        setEdit(false); // Desactiva el modo edición al iniciar el movimiento
+        mantenerEncendidoAgresivo(true); // Activa el hack de video para evitar que la pantalla se apague [2]
+        
+        currentSpeed = Math.max(0, Math.min(20, currentSpeed + delta)); // Ajusta velocidad entre 0 y 20
+        document.getElementById('speed-val').innerText = currentSpeed % 1 === 0 ? currentSpeed : currentSpeed.toFixed(1); // Muestra velocidad con 1 decimal
+        clearInterval(scrollInterval); // Limpia cualquier intervalo de scroll previo
+        
+        if (currentSpeed > 0) { // Si hay velocidad, inicia el desplazamiento
+            scrollInterval = setInterval(() => { window.scrollBy(0, 1); }, 100 / currentSpeed); // Desplaza 1px según el cálculo de velocidad
+        } else { // Si la velocidad baja a cero
+            mantenerEncendidoAgresivo(false); // Libera el bloqueo de pantalla para ahorrar batería
+        }
+    }
+
+    function stopScroll() { // Detiene por completo el movimiento de la página
+        currentSpeed = 0; // Reinicia el valor de velocidad a cero
+        updateScroll(0); // Ejecuta la actualización para limpiar intervalos y estados
+        mantenerEncendidoAgresivo(false); // Asegura que la pantalla pueda volver a su estado normal
+    }
+
+    /* OTRAS UTILIDADES */
+    function changeFS(delta) { fontSize += delta; songContent.style.fontSize = fontSize + "px"; resaltar(); } // Ajusta tamaño de letra y reaplica formato
+    function toggleBold() { songContent.classList.toggle('bold-mode'); document.getElementById('bold-btn').classList.toggle('active'); } // Alterna negrita en todo el texto
+    function toggleTheme() { document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); } // Cambia entre tema oscuro y claro
+    function toggleFS() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); } // Entra o sale del modo pantalla completa
+
+    // Guardado de archivo: Usa el menú de compartir del móvil si está disponible
+    async function saveFile() { // Exporta el contenido editado a un archivo .txt
+        setEdit(false); // Finaliza la edición antes de guardar
+        const blob = new Blob([songContent.innerText], { type: 'text/plain' }); // Crea el objeto de datos del archivo
+        const file = new File([blob], currentFileName, { type: 'text/plain' }); // Prepara el archivo con su nombre original
+        try {
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) { // Verifica si el móvil permite compartir archivos [4]
+                await navigator.share({ files: [file] }); // Abre el menú nativo (WhatsApp, Drive, etc.) [6]
+            } else { // Si no es móvil o no permite compartir
+                const url = URL.createObjectURL(blob); // Crea una URL temporal para el archivo
+                const a = document.createElement('a'); // Crea un enlace de descarga oculto
+                a.href = url; a.download = currentFileName; a.click(); // Fuerza la descarga al dispositivo
+            }
+        } catch (e) {} // Captura errores silenciosamente si el usuario cancela
+    }
+
+    // Reanuda el "hack" de video si el usuario sale y vuelve a la pestaña del navegador
+    document.addEventListener('visibilitychange', () => { // Detecta cuando el usuario vuelve a ver la página [1]
+        if (document.visibilityState === 'visible' && isWakeActive) v.play(); // Reactiva el video para mantener la pantalla encendida
+    });
+
+    // Inicio de la aplicación
+    resaltar(); // Ejecuta el resaltado inicial al cargar la página
+</script>
+</body>
+</html>
