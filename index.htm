@@ -224,7 +224,7 @@ function handleFileSelect(event) {
     reader.readAsText(file);                                                   // Inicia la lectura del archivo como texto plano
 }
 
-    /* --- VÍNCULO SCROLL -> PANTALLA --- */
+        /* --- VÍNCULO SCROLL -> PANTALLA --- */
     function updateScroll(delta) { // Gestiona el desplazamiento automático y el bloqueo de pantalla
         setEdit(false); // Desactiva el modo edición al iniciar el movimiento
         mantenerEncendidoAgresivo(true); // Activa el hack de video para evitar que la pantalla se apague [2]
@@ -246,50 +246,52 @@ function handleFileSelect(event) {
         mantenerEncendidoAgresivo(false); // Asegura que la pantalla pueda volver a su estado normal
     }
 
-      /* GUARDADO DE ARCHIVO: Optimizado para PC (Descarga) y Móvil (Compartir) */
-    async function saveFile() {
-        setEdit(false); // Desactiva el modo edición para limpiar el texto
-        const contenido = songContent.innerText; // Captura el texto puro de la canción
-        const blob = new Blob([contenido], { type: 'text/plain' }); // Crea el archivo en memoria
-        const file = new File([blob], currentFileName, { type: 'text/plain' }); // Prepara el archivo con su nombre
+    /* GUARDADO DE ARCHIVO: Optimizado para PC (Descarga) y Móvil (Compartir) */
+    async function saveFile() { // Exporta el contenido editado a un archivo .txt
+        setEdit(false); // Desactiva el modo edición para limpiar el texto antes de exportar
+        const contenido = songContent.innerText; // Captura el texto puro (sin HTML) de la canción
+        const blob = new Blob([contenido], { type: 'text/plain' }); // Crea el archivo en la memoria del navegador
+        const file = new File([blob], currentFileName, { type: 'text/plain' }); // Prepara el archivo con su nombre original
 
         try {
-            // Verifica si es un móvil con capacidad de compartir Y si no es una PC
-            // En 2026, navigator.share en PC suele fallar o no ser lo que el usuario busca
+            // Verifica si es un móvil con capacidad de compartir y si no es una PC (vía UserAgent)
             if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
-                await navigator.share({
-                    files: [file],
-                    title: currentFileName,
-                    text: 'Canción exportada desde Cancionero Pro'
+                await navigator.share({ // Abre el menú nativo del móvil (WhatsApp, Email, Drive, etc.)
+                    files: [file], // Adjunta el archivo .txt generado
+                    title: currentFileName, // Define el título que aparecerá al compartir
+                    text: 'Canción exportada desde Cancionero Pro' // Texto descriptivo para el mensaje
                 });
-            } else {
-                // LÓGICA DE DESCARGA PARA PC
-                const url = URL.createObjectURL(blob); // Crea una URL temporal para el archivo
-                const a = document.createElement('a'); // Crea un elemento de enlace invisible
-                a.href = url; // Asigna la ruta del archivo
-                a.download = currentFileName; // Define el nombre de la descarga
-                document.body.appendChild(a); // Lo añade momentáneamente al documento
-                a.click(); // Simula el clic de descarga
-                document.body.removeChild(a); // Lo elimina tras la descarga
-                URL.revokeObjectURL(url); // Libera la memoria de la URL temporal
+            } else { // Lógica específica para computadoras de escritorio
+                const url = URL.createObjectURL(blob); // Genera una dirección temporal para los datos del archivo
+                const a = document.createElement('a'); // Crea un elemento de enlace dinámicamente
+                a.href = url; // Vincula el enlace a los datos del archivo en memoria
+                a.download = currentFileName; // Establece el nombre con el que se guardará el archivo
+                document.body.appendChild(a); // Inserta el enlace en el documento para que sea funcional
+                a.click(); // Dispara automáticamente la ventana de "Guardar como" del sistema
+                document.body.removeChild(a); // Elimina el enlace temporal del documento
+                URL.revokeObjectURL(url); // Libera la memoria utilizada por la URL temporal
             }
-        } catch (e) {
-            console.log("Error al guardar o compartir:", e);
-            // Fallback: Si el compartir falla, intentar descarga clásica de todos modos
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = currentFileName; a.click();
+        } catch (e) { // En caso de error o cancelación por parte del usuario
+            console.log("Error al guardar o compartir:", e); // Registra el error en la consola para depuración
+            const url = URL.createObjectURL(blob); // Genera un fallback de descarga clásica
+            const a = document.createElement('a'); // Crea el enlace de emergencia
+            a.href = url; a.download = currentFileName; a.click(); // Intenta forzar la descarga de todos modos
         }
     }
 
+    /* UTILIDADES EXTRAS */
+    function changeFS(delta) { fontSize += delta; songContent.style.fontSize = fontSize + "px"; resaltar(); } // Ajusta tamaño de fuente y refresca
+    function toggleBold() { songContent.classList.toggle('bold-mode'); document.getElementById('bold-btn').classList.toggle('active'); } // Alterna negrita global
+    function toggleTheme() { document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); } // Alterna temas
+    function toggleFS() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); } // Controla pantalla completa
 
     // Reanuda el "hack" de video si el usuario sale y vuelve a la pestaña del navegador
-    document.addEventListener('visibilitychange', () => { // Detecta cuando el usuario vuelve a ver la página [1]
-        if (document.visibilityState === 'visible' && isWakeActive) v.play(); // Reactiva el video para mantener la pantalla encendida
+    document.addEventListener('visibilitychange', () => { // Detecta cuando la página recupera el foco [1]
+        if (document.visibilityState === 'visible' && isWakeActive) v.play(); // Reactiva el video si el bloqueo estaba encendido
     });
 
     // Inicio de la aplicación
-    resaltar(); // Ejecuta el resaltado inicial al cargar la página
+    resaltar(); // Procesa el texto inicial para colorear los acordes al cargar la página
 </script>
 </body>
 </html>
