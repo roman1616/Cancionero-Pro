@@ -271,7 +271,16 @@ function handleFileSelect(event) {
                 console.log("Compartir cancelado o fallido, pasando a descarga..."); // Si falla, sigue al bloque de abajo
             }
         }
-
+        // 2. LÓGICA DE DESCARGA (Para PC o si falló el compartir en Móvil)
+        const url = URL.createObjectURL(blob); // Genera una dirección temporal para los datos del archivo
+        const a = document.createElement('a'); // Crea un elemento de enlace invisible
+        a.href = url; // Vincula el enlace a los datos del archivo en memoria
+        a.download = currentFileName; // Establece el nombre con el que se guardará el archivo
+        document.body.appendChild(a); // Inserta el enlace en el documento para que sea funcional
+        a.click(); // Dispara automáticamente la descarga en la PC o móvil
+        document.body.removeChild(a); // Elimina el enlace temporal del documento
+        URL.revokeObjectURL(url); // Libera la memoria utilizada por la URL temporal
+    }
 
     // Reanuda el "hack" de video si el usuario sale y vuelve a la pestaña del navegador
  
