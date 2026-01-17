@@ -286,9 +286,7 @@ function handleFileSelect(event) {
 
 
     // Reanuda el "hack" de video si el usuario sale y vuelve a la pestaña del navegador
-    document.addEventListener('visibilitychange', () => { // Detecta cuando el usuario vuelve a ver la página [1]
-        if (document.visibilityState === 'visible' && isWakeActive) v.play(); // Reactiva el video para mantener la pantalla encendida
-    });
+ 
 
     // Inicio de la aplicación
     resaltar(); // Ejecuta el resaltado inicial al cargar la página
