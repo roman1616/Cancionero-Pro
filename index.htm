@@ -137,162 +137,146 @@ Escribe tu primera canción......</pre><!-- Recordatorio de configuración para 
     
 <script>
     /* VARIABLES DE ESTADO */
-    let fontSize = 18, scrollInterval = null, currentSpeed = 0, isWakeActive = false; // Control de tamaño, scroll y bloqueo
-    let modoLatino = false, currentFileName = "cancion.txt"; // Control de formato de nota y nombre de archivo
-    const songContent = document.getElementById('song-content'); // Referencia al contenedor de la canción
-    const v = document.getElementById('wakeLockVideo'); // Referencia al elemento de video para el hack
+    let fontSize = 18, scrollInterval = null, currentSpeed = 0, isWakeActive = false; // Control de fuente, scroll y bloqueo
+    let modoLatino = false, currentFileName = "cancion.txt"; // Formato de notas y nombre de archivo predeterminado
+    const songContent = document.getElementById('song-content'); // Referencia al área de texto de la canción
+    const v = document.getElementById('wakeLockVideo'); // Referencia al video invisible para el hack de pantalla
 
     /* ESCALAS Y REGLAS MUSICALES */
-    const escalaAm = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]; // Escala sistema americano
-    const escalaLat = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"]; // Escala sistema latino
-    const latToAmMap = {"Do":"C", "Re":"D", "Mi":"E", "Fa":"F", "Sol":"G", "La":"A", "Si":"B"}; // Mapeo para conversión interna
-    const regexAcorde = /(\b[A-Ga-gDoReMiFaSolLaSi][^\s']*)'/g; // Expresión regular para capturar acordes con comilla (')
+    const escalaAm = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]; // Notas en sistema americano
+    const escalaLat = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"]; // Notas en sistema latino
+    const latToAmMap = {"Do":"C", "Re":"D", "Mi":"E", "Fa":"F", "Sol":"G", "La":"A", "Si":"B"}; // Mapa de conversión interna
+    const regexAcorde = /(\b[A-Ga-gDoReMiFaSolLaSi][^\s']*)'/g; // Buscador de acordes terminados en comilla (')
 
-    /* --- LÓGICA DE PERSISTENCIA (PARA HTTP/DROPBOX EN 2026) --- */
-    async function mantenerEncendidoAgresivo(activar) { // Función para forzar pantalla encendida
+    /* --- LÓGICA DE PERSISTENCIA (SISTEMA DE PANTALLA SIEMPRE ENCENDIDA) --- */
+    async function mantenerEncendidoAgresivo(activar) { // Controla si la pantalla debe quedarse encendida o no
         const btn = document.getElementById('wake-btn'); // Referencia al botón del candado
-        if (activar) { // Si se solicita activar el bloqueo
-            isWakeActive = true; // Cambia estado a activo
+        if (activar) { // Si se ordena mantener encendida
+            isWakeActive = true; // Registra estado activo
             btn.innerText = "🔒"; // Cambia icono a candado cerrado
-            btn.classList.add('active'); // Aplica estilo visual activo
-            v.play().catch(() => console.log("Esperando clic...")); // Inicia video (requiere permiso de usuario en 2026)
-            v.onpause = () => { if(isWakeActive) v.play(); }; // Si el sistema lo pausa, intenta reanudarlo
-        } else { // Si se solicita desactivar el bloqueo
-            isWakeActive = false; // Cambia estado a inactivo
-            v.pause(); // Detiene el video oculto
+            btn.classList.add('active'); // Resalta el botón en la interfaz
+            v.play().catch(() => {}); // Inicia el video oculto (impide que el sistema apague la pantalla)
+            v.onpause = () => { if(isWakeActive) v.play(); }; // Si el sistema lo pausa, lo reanuda automáticamente
+        } else { // Si se ordena permitir el apagado normal
+            isWakeActive = false; // Registra estado inactivo
+            v.pause(); // Detiene el video (permite que el móvil entre en reposo)
+            v.currentTime = 0; // Reinicia el video para liberar recursos de la CPU
             btn.innerText = "🔓"; // Cambia icono a candado abierto
-            btn.classList.remove('active'); // Quita estilo visual activo
+            btn.classList.remove('active'); // Quita el resaltado del botón
         }
     }
 
-    function toggleWakeLock() { mantenerEncendidoAgresivo(!isWakeActive); } // Alterna el estado del bloqueo manualmente
+    function toggleWakeLock() { mantenerEncendidoAgresivo(!isWakeActive); } // Alterna manualmente el bloqueo con el botón
 
-    /* FORMATEO DE TEXTO */
-    function resaltar() { // Función para aplicar colores a los acordes
-        if (songContent.contentEditable === "true") return; // No procesar si el usuario está escribiendo
-        const text = songContent.innerText; // Obtiene el texto limpio
-        songContent.innerHTML = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") // Escapa caracteres HTML
-            .replace(regexAcorde, '<span class="chord">$1</span><span class="quote">\'</span>'); // Envuelve acordes en <span>
+    /* FORMATEO Y EDICIÓN */
+    function resaltar() { // Aplica colores a los acordes detectados
+        if (songContent.contentEditable === "true") return; // No procesar mientras el usuario está escribiendo
+        const text = songContent.innerText; // Obtiene el texto puro
+        songContent.innerHTML = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") // Escapa HTML
+            .replace(regexAcorde, '<span class="chord">$1</span><span class="quote">\'</span>'); // Colorea los acordes
     }
 
-    /* TRANSPOSICIÓN MUSICAL */
-    function trasponer(semitonos) { // Función para subir o bajar el tono
-        setEdit(false); // Asegura salir del modo edición
+    function setEdit(state) { // Cambia entre modo lectura y escritura
+        songContent.contentEditable = state; // Habilita/deshabilita edición
+        document.getElementById('edit-btn').classList.toggle('active', state); // Resalta botón edición
+        document.getElementById('save-btn').classList.toggle('enabled', state); // Muestra botón guardar
+        if (!state) resaltar(); // Si termina de editar, colorea acordes
+        else songContent.innerHTML = songContent.innerText; // Si empieza a editar, limpia HTML para ver texto puro
+    }
+
+    function toggleEdit() { setEdit(songContent.contentEditable !== "true"); } // Interruptor de edición
+
+    /* TRANSPOSICIÓN */
+    function trasponer(semitonos) { // Sube o baja el tono de la canción
+        setEdit(false); // Asegura salir de edición
         const texto = songContent.innerText; // Obtiene el texto actual
         songContent.innerText = texto.replace(regexAcorde, (match, contenido) => { // Busca acordes para modificar
-            let n = contenido.replace(/^(Do|Re|Mi|Fa|Sol|La|Si)/, m => latToAmMap[m]); // Normaliza a sistema americano
-            return n.replace(/^[A-G][#b]?/, base => { // Identifica la nota base
-                let b = base.replace('Db','C#').replace('Eb','D#').replace('Gb','F#').replace('Ab','G#').replace('Bb','A#'); // Homologa sostenidos
-                let i = escalaAm.indexOf(b); // Busca posición en la escala
-                if (i === -1) return base; // Si no es nota válida, la ignora
-                let ni = (i + semitonos + 12) % 12; // Calcula la nueva posición (aritmética modular)
-                return modoLatino ? escalaLat[ni] : escalaAm[ni]; // Devuelve nota en el sistema elegido
-            }) + "'"; // Añade la comilla simple al final
+            let n = contenido.replace(/^(Do|Re|Mi|Fa|Sol|La|Si)/, m => latToAmMap[m]); // Convierte a americano
+            return n.replace(/^[A-G][#b]?/, base => { // Identifica nota base
+                let b = base.replace('Db','C#').replace('Eb','D#').replace('Gb','F#').replace('Ab','G#').replace('Bb','A#'); // Estandariza sostenidos
+                let i = escalaAm.indexOf(b); // Busca posición en escala
+                if (i === -1) return base; // Si no es nota, ignora
+                let ni = (i + semitonos + 12) % 12; // Calcula nuevo tono
+                return modoLatino ? escalaLat[ni] : escalaAm[ni]; // Devuelve nota en sistema elegido
+            }) + "'"; // Mantiene la comilla identificadora
         });
-        resaltar(); // Reaplica el color a los nuevos acordes
+        resaltar(); // Refresca colores
     }
 
-    function toggleNotacion() { // Cambia entre cifrado Latino y Americano
-        modoLatino = !modoLatino; // Invierte el estado de la notación
-        document.getElementById('not-btn').innerText = modoLatino ? "Americano" : "Latino"; // Actualiza texto del botón
-        trasponer(0); // Ejecuta transposición neutra para actualizar el texto
+    function toggleNotacion() { // Cambia entre C/D/E y Do/Re/Mi
+        modoLatino = !modoLatino; // Invierte bandera
+        document.getElementById('not-btn').innerText = modoLatino ? "Americano" : "Latino"; // Cambia texto botón
+        trasponer(0); // Actualiza el texto visible
     }
 
-    /* GESTIÓN DE EDICIÓN Y ARCHIVOS */
-function setEdit(state) {
-    songContent.contentEditable = state;    // Activa/desactiva la escritura en el contenedor
-    document.getElementById('edit-btn').classList.toggle('active', state);  // Resalta el botón de edición si está activo
-    document.getElementById('save-btn').classList.toggle('enabled', state); // Muestra el botón de guardado solo al editar
-    if (!state) resaltar(); // Si termina de editar, aplica color a los acordes
-    else songContent.innerHTML = songContent.innerText; // Si empieza a editar, limpia etiquetas HTML para ver solo texto
-}
-
-function toggleEdit() { 
-    setEdit(songContent.contentEditable !== "true");    // Cambia al estado opuesto del modo de edición actual
-}
-
-function handleFileSelect(event) {
-    const file = event.target.files[0];                                        // Captura el primer archivo seleccionado por el usuario
-    if (!file) return;                                                         // Canciona la ejecución si no se seleccionó ningún archivo
-    currentFileName = file.name;                                               // Almacena el nombre original del archivo para el guardado
-    const reader = new FileReader();                                           // Crea el lector para procesar el archivo localmente
-    reader.onload = (e) => {                                                   // Define qué hacer cuando la lectura termine:
-        songContent.innerText = e.target.result;                               // Vuelca el texto del archivo en el cancionero
-        setEdit(false);                                                        // Desactiva la edición para procesar visualmente el texto
-    };
-    reader.readAsText(file);                                                   // Inicia la lectura del archivo como texto plano
-}
-
-    /* --- VÍNCULO SCROLL -> PANTALLA --- */
-    function updateScroll(delta) { // Gestiona el desplazamiento automático y el bloqueo de pantalla
-        setEdit(false); // Desactiva el modo edición al iniciar el movimiento
-        mantenerEncendidoAgresivo(true); // Activa el hack de video para evitar que la pantalla se apague [2]
-
-        currentSpeed = Math.max(0, Math.min(20, currentSpeed + delta)); // Ajusta velocidad entre 0 y 20
-        document.getElementById('speed-val').innerText = currentSpeed % 1 === 0 ? currentSpeed : currentSpeed.toFixed(1); // Muestra velocidad con 1 decimal
-        clearInterval(scrollInterval); // Limpia cualquier intervalo de scroll previo
-
-        if (currentSpeed > 0) { // Si hay velocidad, inicia el desplazamiento
-            scrollInterval = setInterval(() => { window.scrollBy(0, 1); }, 100 / currentSpeed); // Desplaza 1px según el cálculo de velocidad
-        } else { // Si la velocidad baja a cero
-            mantenerEncendidoAgresivo(false); // Libera el bloqueo de pantalla para ahorrar batería
-        }
+    /* GESTIÓN DE ARCHIVOS */
+    function handleFileSelect(event) { // Lee archivos TXT locales
+        const file = event.target.files[0]; // Captura el archivo seleccionado
+        if (!file) return; // Si no hay archivo, aborta
+        currentFileName = file.name; // Guarda el nombre original
+        const reader = new FileReader(); // Crea lector de archivos
+        reader.onload = (e) => { // Al terminar de leer:
+            songContent.innerText = e.target.result; // Carga texto en pantalla
+            setEdit(false); // Inicia en modo lectura
+        };
+        reader.readAsText(file); // Inicia lectura como texto plano
     }
 
-    function stopScroll() { // Detiene por completo el movimiento de la página
-        currentSpeed = 0; // Reinicia el valor de velocidad a cero
-        updateScroll(0); // Ejecuta la actualización para limpiar intervalos y estados
-        mantenerEncendidoAgresivo(false); // Asegura que la pantalla pueda volver a su estado normal
-    }
-
-    /* OTRAS UTILIDADES */
-    function changeFS(delta) { fontSize += delta; songContent.style.fontSize = fontSize + "px"; resaltar(); } // Ajusta tamaño de letra y reaplica formato
-    function toggleBold() { songContent.classList.toggle('bold-mode'); document.getElementById('bold-btn').classList.toggle('active'); } // Alterna negrita en todo el texto
-    function toggleTheme() { document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); } // Cambia entre tema oscuro y claro
-    function toggleFS() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); } // Entra o sale del modo pantalla completa
-
-        /* GUARDADO DE ARCHIVO: PC descarga siempre / Móvil comparte siempre */
-    async function saveFile() { // Exporta el contenido editado a un archivo .txt
-        setEdit(false); // Finaliza la edición antes de guardar para limpiar el texto
-        const contenido = songContent.innerText; // Captura el texto puro de la canción
-        const blob = new Blob([contenido], { type: 'text/plain' }); // Crea el archivo en la memoria del navegador
-        const file = new File([blob], currentFileName, { type: 'text/plain' }); // Prepara el archivo con su nombre original
-
-        // 1. DETECCIÓN DE PC: Si es Windows, Mac (no iPad) o Linux, forzamos descarga directa
+    /* GUARDADO INTELIGENTE (PC DESCARGA / MÓVIL COMPARTE) */
+    async function saveFile() { // Exporta el contenido
+        setEdit(false); // Finaliza edición
+        const contenido = songContent.innerText; // Captura texto puro
+        const blob = new Blob([contenido], { type: 'text/plain' }); // Crea archivo en memoria
+        const file = new File([blob], currentFileName, { type: 'text/plain' }); // Prepara archivo
+        
+        // Detecta si es una PC (Windows, Mac o Linux de escritorio)
         const esPC = /Windows|Macintosh|Linux/i.test(navigator.userAgent) && !/iPhone|iPad|Android/i.test(navigator.userAgent);
 
-        if (!esPC && navigator.canShare && navigator.canShare({ files: [file] })) { 
+        if (!esPC && navigator.canShare && navigator.canShare({ files: [file] })) { // Si es móvil y puede compartir:
             try {
-                await navigator.share({ // Intenta compartir solo si NO es una computadora
-                    files: [file],
-                    title: currentFileName,
-                    text: 'Canción exportada'
-                });
-                return; // Finaliza tras el intento en móviles
-            } catch (e) {
-                return; // Si el usuario cancela en el móvil, no hace nada más
-            }
+                await navigator.share({ files: [file], title: currentFileName }); // Abre menú compartir (WhatsApp, etc.)
+                return; // Finaliza sin descargar
+            } catch (e) { return; } // Si cancela, no hace nada más
         }
 
-        // 2. LÓGICA DE DESCARGA: Se ejecuta en PC o si el móvil no tiene capacidad de compartir
-        const url = URL.createObjectURL(blob); // Genera una dirección temporal para los datos del archivo
-        const a = document.createElement('a'); // Crea un elemento de enlace invisible
-        a.href = url; // Vincula el enlace a los datos del archivo en memoria
-        a.download = currentFileName; // Establece el nombre con el que se guardará el archivo en la PC
-        document.body.appendChild(a); // Inserta el enlace en el documento para habilitar el clic
-        a.click(); // Dispara automáticamente la descarga en la carpeta de la PC
-        document.body.removeChild(a); // Elimina el enlace temporal inmediatamente
-        URL.revokeObjectURL(url); // Libera la memoria del navegador borrando la URL temporal
+        // LÓGICA DE DESCARGA (Para PC)
+        const url = URL.createObjectURL(blob); // Genera link temporal
+        const a = document.createElement('a'); // Crea enlace invisible
+        a.href = url; a.download = currentFileName; // Configura descarga
+        document.body.appendChild(a); a.click(); // Simula clic
+        document.body.removeChild(a); // Limpia interfaz
+        URL.revokeObjectURL(url); // Libera memoria RAM
     }
 
+    /* VÍNCULO SCROLL -> PANTALLA ENCENDIDA */
+    function updateScroll(delta) { // Controla velocidad y persistencia
+        setEdit(false); // Cierra edición al mover
+        currentSpeed = Math.max(0, Math.min(20, currentSpeed + delta)); // Ajusta velocidad 0-20
+        document.getElementById('speed-val').innerText = currentSpeed % 1 === 0 ? currentSpeed : currentSpeed.toFixed(1); // Muestra velocidad
+        clearInterval(scrollInterval); // Limpia scroll previo
+        
+        if (currentSpeed > 0) { // Si el scroll está moviéndose:
+            mantenerEncendidoAgresivo(true); // BLOQUEA APAGADO DE PANTALLA (Cierra candado)
+            scrollInterval = setInterval(() => { window.scrollBy(0, 1); }, 100 / currentSpeed); // Inicia movimiento
+        } else { // Si la velocidad es cero:
+            mantenerEncendidoAgresivo(false); // PERMITE APAGADO NORMAL (Abre candado)
+        }
+    }
 
+    function stopScroll() { // Detención total
+        currentSpeed = 0; // Velocidad a cero
+        updateScroll(0); // Detiene motor y libera bloqueo de pantalla
+    }
 
-    // Reanuda el "hack" de video si el usuario sale y vuelve a la pestaña del navegador
-    document.addEventListener('visibilitychange', () => { // Detecta cuando el usuario vuelve a ver la página [1]
-        if (document.visibilityState === 'visible' && isWakeActive) v.play(); // Reactiva el video para mantener la pantalla encendida
-    });
+    /* UTILIDADES */
+    function changeFS(delta) { fontSize += delta; songContent.style.fontSize = fontSize + "px"; resaltar(); } // Tamaño fuente
+    function toggleBold() { songContent.classList.toggle('bold-mode'); document.getElementById('bold-btn').classList.toggle('active'); } // Negrita
+    function toggleTheme() { document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); } // Tema
+    function toggleFS() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); } // Fullscreen
 
-    // Inicio de la aplicación
-    resaltar(); // Ejecuta el resaltado inicial al cargar la página
+    // Si el usuario sale y vuelve a la app, reanuda el bloqueo si estaba activo
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && isWakeActive) v.play(); });
+
+    resaltar(); // Proceso inicial al cargar
 </script>
 </body>
