@@ -251,35 +251,36 @@ function handleFileSelect(event) {
     function toggleTheme() { document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'); } // Cambia entre tema oscuro y claro
     function toggleFS() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); } // Entra o sale del modo pantalla completa
 
-    /* GUARDADO DE ARCHIVO: Compartir en Móvil (sin descarga) o Descarga en PC */
+        /* GUARDADO DE ARCHIVO: PC descarga siempre / Móvil comparte siempre */
     async function saveFile() { // Exporta el contenido editado a un archivo .txt
         setEdit(false); // Finaliza la edición antes de guardar para limpiar el texto
         const contenido = songContent.innerText; // Captura el texto puro de la canción
         const blob = new Blob([contenido], { type: 'text/plain' }); // Crea el archivo en la memoria del navegador
         const file = new File([blob], currentFileName, { type: 'text/plain' }); // Prepara el archivo con su nombre original
 
-        // 1. LÓGICA PARA MÓVIL: Solo intenta compartir
-        if (navigator.canShare && navigator.canShare({ files: [file] })) { // Verifica si el sistema permite compartir archivos
+        // 1. DETECCIÓN DE PC: Si es Windows, Mac (no iPad) o Linux, forzamos descarga directa
+        const esPC = /Windows|Macintosh|Linux/i.test(navigator.userAgent) && !/iPhone|iPad|Android/i.test(navigator.userAgent);
+
+        if (!esPC && navigator.canShare && navigator.canShare({ files: [file] })) { 
             try {
-                await navigator.share({ // Abre el menú nativo (WhatsApp, Drive, etc.)
+                await navigator.share({ // Intenta compartir solo si NO es una computadora
                     files: [file],
                     title: currentFileName,
                     text: 'Canción exportada'
                 });
-                return; // Finaliza la ejecución aquí: no habrá descarga si se intentó compartir
+                return; // Finaliza tras el intento en móviles
             } catch (e) {
-                console.log("Compartir cancelado o no disponible"); // Registra si el usuario cerró el menú
-                return; // Finaliza la ejecución: evita que el proceso pase a la descarga
+                return; // Si el usuario cancela en el móvil, no hace nada más
             }
         }
 
-        // 2. LÓGICA PARA PC: Solo descarga directa
+        // 2. LÓGICA DE DESCARGA: Se ejecuta en PC o si el móvil no tiene capacidad de compartir
         const url = URL.createObjectURL(blob); // Genera una dirección temporal para los datos del archivo
         const a = document.createElement('a'); // Crea un elemento de enlace invisible
         a.href = url; // Vincula el enlace a los datos del archivo en memoria
         a.download = currentFileName; // Establece el nombre con el que se guardará el archivo en la PC
         document.body.appendChild(a); // Inserta el enlace en el documento para habilitar el clic
-        a.click(); // Dispara automáticamente la ventana de descarga del sistema
+        a.click(); // Dispara automáticamente la descarga en la carpeta de la PC
         document.body.removeChild(a); // Elimina el enlace temporal inmediatamente
         URL.revokeObjectURL(url); // Libera la memoria del navegador borrando la URL temporal
     }
