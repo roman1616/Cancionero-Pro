@@ -1,7 +1,8 @@
 {
-  "name": "Cancionero Pro",
+  "name": "Cancionero Pro 2026",
   "short_name": "Cancionero",
-  "start_url": "index.html",
+  "description": "App de acordes con persistencia de pantalla",
+  "start_url": "https://roman1616.github.io",
   "display": "standalone",
   "background_color": "#0b0b0b",
   "theme_color": "#1a1a1a",
@@ -9,7 +10,9 @@
     {
       "src": "https://cdn-icons-png.flaticon.com",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
+
