@@ -8,7 +8,7 @@
   "theme_color": "#1a1a1a",
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/android-launchericon-192-192.png",
+      "src": "https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/Square44x44Logo.altform-unplated_targetsize-96.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
@@ -21,6 +21,7 @@
     }
   ]
 }
+
 
 
 
