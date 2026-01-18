@@ -1,16 +1,24 @@
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
-    <!-- Enlace al manifiesto -->
-<link rel="manifest" href="https://roman1616.github.io"> <!-- Vincula el archivo que define nombre, iconos y colores de la app en el móvil -->
-<script>
-// 2. Registro del Service Worker: Es el motor que permite el modo offline y la instalación
-if ('serviceWorker' in navigator) { // Verifica si el navegador actual soporta la tecnología PWA
-    navigator.serviceWorker.register('https://roman1616.github.io') // Intenta instalar el archivo sw.js en el sistema
-    .then(() => console.log("PWA lista")) // Si tiene éxito, muestra el mensaje en la consola de desarrollador
-    .catch(err => console.log("Error:", err)); // Si falla (por falta de HTTPS o MIME type), muestra el error
-}
-</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cancionero Pro 2026</title>
+    
+    <!-- Enlace al manifiesto para PWA -->
+    <link rel="manifest" href="https://roman1616.github.io">
+    <meta name="theme-color" content="#1a1a1a">
+
+    <script>
+    // Registro del motor Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('https://roman1616.github.io')
+            .then(reg => console.log("Servidor de App: Activo", reg.scope))
+            .catch(err => console.log("Servidor de App: Error", err));
+        });
+    }
+    </script>
 
 
     <!-- Color de la barra de estado en Android -->
