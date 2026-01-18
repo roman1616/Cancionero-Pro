@@ -1,18 +1,20 @@
-
 const CACHE_NAME = 'cancionero-v1';
-
-// Pega aquí los enlaces raw=1 de tus archivos
 const ASSETS = [
-  'https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/index.htm',
-  'https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/manifest.json'
+  'https://roman1616.github.io',
+  'https://roman1616.github.io'
 ];
-// Instalar y cachear archivos
+
+// Al instalar, guarda los archivos en la memoria del teléfono
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+  );
 });
 
-// Responder desde cache si no hay red
+// Permite que la app funcione aunque no tengas internet
 self.addEventListener('fetch', (e) => {
-  e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)));
+  e.respondWith(
+    fetch(e.request).catch(() => caches.match(e.request))
+  );
 });
 
