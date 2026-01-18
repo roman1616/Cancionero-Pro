@@ -248,20 +248,66 @@ Escribe tu primera canción......</pre><!-- Recordatorio de configuración para 
         URL.revokeObjectURL(url); // Libera memoria RAM
     }
 
-    /* VÍNCULO SCROLL -> PANTALLA ENCENDIDA */
-    function updateScroll(delta) { // Controla velocidad y persistencia
-        setEdit(false); // Cierra edición al mover
-        currentSpeed = Math.max(0, Math.min(20, currentSpeed + delta)); // Ajusta velocidad 0-20
-        document.getElementById('speed-val').innerText = currentSpeed % 1 === 0 ? currentSpeed : currentSpeed.toFixed(1); // Muestra velocidad
-        clearInterval(scrollInterval); // Limpia scroll previo
-        
-        if (currentSpeed > 0) { // Si el scroll está moviéndose:
-            mantenerEncendidoAgresivo(true); // BLOQUEA APAGADO DE PANTALLA (Cierra candado)
-            scrollInterval = setInterval(() => { window.scrollBy(0, 1); }, 100 / currentSpeed); // Inicia movimiento
-        } else { // Si la velocidad es cero:
-            mantenerEncendidoAgresivo(false); // PERMITE APAGADO NORMAL (Abre candado)
+    /* --- LÓGICA DE PERSISTENCIA REFORZADA 2026 --- */
+let wakeLockHack = null;
+
+async function mantenerEncendidoAgresivo(activar) {
+    const btn = document.getElementById('wake-btn');
+    const v = document.getElementById('wakeLockVideo');
+
+    if (activar) {
+        isWakeActive = true;
+        btn.innerText = "🔒";
+        btn.classList.add('active');
+
+        // INTENTO 1: API Wake Lock (Solo funcionará si estás en localhost/HTTPS)
+        if ('wakeLock' in navigator) {
+            try {
+                if (!wakeLockHack) wakeLockHack = await navigator.wakeLock.request('screen');
+            } catch (err) { console.log("WakeLock API bloqueada por seguridad local."); }
         }
+
+        // INTENTO 2: Hack de Video (Esencial para archivos locales/HTTP)
+        v.play().catch(() => {
+            console.log("El navegador requiere que toques la pantalla antes de activar el video.");
+        });
+
+        // RE-ACTIVACIÓN CONSTANTE: Evita que el sistema pause el video
+        v.onpause = () => { if(isWakeActive) v.play(); };
+    } else {
+        isWakeActive = false;
+        v.pause();
+        if (wakeLockHack) {
+            wakeLockHack.release();
+            wakeLockHack = null;
+        }
+        btn.innerText = "🔓";
+        btn.classList.remove('active');
     }
+}
+
+/* --- VÍNCULO SCROLL -> PERSISTENCIA --- */
+function updateScroll(delta) {
+    setEdit(false);
+    
+    currentSpeed = Math.max(0, Math.min(20, currentSpeed + delta));
+    document.getElementById('speed-val').innerText = currentSpeed % 1 === 0 ? currentSpeed : currentSpeed.toFixed(1);
+    
+    clearInterval(scrollInterval);
+    
+    if (currentSpeed > 0) {
+        // ACTIVACIÓN AGRESIVA: Se dispara con cada cambio de velocidad
+        mantenerEncendidoAgresivo(true); 
+        scrollInterval = setInterval(() => {
+            window.scrollBy(0, 1);
+            // Cada 5 segundos reforzamos el 'play' del video por si el sistema lo pausó
+            if (Date.now() % 5000 < 50) v.play().catch(() => {});
+        }, 100 / currentSpeed);
+    } else {
+        mantenerEncendidoAgresivo(false);
+    }
+}
+
 
     function stopScroll() { // Detención total
         currentSpeed = 0; // Velocidad a cero
