@@ -2,11 +2,11 @@
 <html lang="es" data-theme="dark">
 <head>
     <!-- Enlace al manifiesto -->
-    <link rel="manifest" href="https://www.dropbox.com/scl/fi/el9tkusu6sszh0epml6fh/manifest.json?rlkey=cm7gwf0x3g8b3ryserxcw0deu&st=peya6pog&raw=1"> 
+    <link rel="manifest" href="https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/manifest.json"> 
     <script>
     // 2. Registro del Service Worker (Pega aquí tu enlace raw=1 de Dropbox)
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('https://www.dropbox.com/scl/fi/vxr8hdv4etw5xtrqu5u9a/sw.js?rlkey=gnbcsf1fx8b97zngtv7ix2i4f&st=oar4896k&raw=1')
+        navigator.serviceWorker.register('https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/sw.js')
         .then(() => console.log("PWA lista"))
         .catch(err => console.log("Error:", err));
          }
