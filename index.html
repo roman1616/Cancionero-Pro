@@ -13,16 +13,14 @@
     <link rel="manifest" href="https://roman1616.github.io">
     <meta name="theme-color" content="#1a1a1a">
 
-    <script>
-    // Registro del motor Service Worker
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('https://roman1616.github.io')
-            .then(reg => console.log("Servidor de App: Activo", reg.scope))
-            .catch(err => console.log("Servidor de App: Error", err));
-        });
-    }
-    </script>
+    <!-- Registro del Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log("Instalado correctamente"))
+      .catch(err => console.log("Fallo al instalar", err));
+  }
+</script>
 
 
     <!-- Color de la barra de estado en Android -->
