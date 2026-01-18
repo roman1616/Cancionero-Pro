@@ -1,5 +1,5 @@
 {
-  "name": "Cancionero Pro 2026",
+  "name": "Cancionero Pro",
   "short_name": "Cancionero Pro",
   "description": "App de acordes con persistencia de pantalla",
   "start_url": "https://roman1616.github.io/Cancionero-Pro/",
@@ -21,6 +21,7 @@
     }
   ]
 }
+
 
 
 
