@@ -1,25 +1,28 @@
 const CACHE_NAME = 'cancionero-v2'; // Cambiamos a v2 para forzar actualización
 const ASSETS = [
-  'https://roman1616.github.io',
-  'https://roman1616.github.io'
+  '/',
+  '/index.html',
+  '/styles.css',
+  '/script.js',
+  '/logo.png' // Añade aquí todos tus archivos estáticos
 ];
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+// Paso 1: Instalación - Guardar archivos en caché
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
-  self.skipWaiting(); // Fuerza al Service Worker a activarse de inmediato
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim()); // Toma el control de la página de inmediato
-});
-
-// Este bloque es OBLIGATORIO para que aparezca el botón de instalar
-self.addEventListener('fetch', (event) => {
+// Paso 2: Interceptar peticiones
+self.addEventListener('fetch', event => {
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    caches.match(event.request).then(response => {
+      // Si el archivo está en caché, lo devuelve. Si no, va a internet.
+      return response || fetch(event.request);
+    })
   );
 });
+
 
 
