@@ -370,13 +370,10 @@ function updateScroll(delta) {
 
 
     function limpiarYCrearNuevo() {
-    // Confirmación para evitar borrar por error
-    //if (confirm("¿Seguro que quieres borrar todo y empezar una nueva canción?")) {
-        
-        // 1. Seleccionamos el elemento por su ID
+    // 1. Seleccionamos el elemento por su ID
     const editor = document.getElementById('song-content');
-        
-        // 2. Definimos la nueva plantilla limpia para 2026
+    
+    // 2. Definimos la nueva plantilla limpia
     const nuevaPlantilla = `========= Cancionero Pro =========
  ARTISTA: 
  CANCION: 
@@ -390,13 +387,12 @@ Intro:
 
 ========= Cancionero Pro =========`;
 
-        // 3. Reemplazamos el contenido
-        editor.textContent = nuevaPlantilla;
-        
-        // 4. Opcional: Llevar el foco al editor para empezar a escribir
-        editor.focus();
-    }
-//}
+    // 3. Reemplazamos el contenido directamente sin preguntar
+    editor.textContent = nuevaPlantilla;
+    
+    // 4. Llevamos el foco al editor para empezar a escribir de inmediato
+    editor.focus();
+}
 
 
     
