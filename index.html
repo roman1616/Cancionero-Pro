@@ -100,12 +100,12 @@
 <body>
 
 <div class="app-bar">
-    
+     <div class="group">
     <button onclick="limpiarYCrearNuevo()" style="background: none; border: none; cursor: pointer;">
     <img src="https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/40.png" 
     alt="Icono de música" style="width: 40px; height: 40px; vertical-align: middle;">
-    
     </button>
+    </div>
 
     <div class="group">
         <button onclick="document.getElementById('file-input').click()">📁</button> <!-- Dispara el selector de archivos oculto -->
@@ -120,9 +120,9 @@
         <button id="not-btn" onclick="toggleNotacion()">Latino</button> <!-- Alterna entre Do/Re/Mi y C/D/E -->
     </div>
 
-    <div class="group">
+    <div class="group" >
         <button onclick="stopScroll()">⏹</button> <!-- Detiene el desplazamiento automático -->
-        <button onclick="updateScroll(-0.5)">-</button> <!-- Reduce la velocidad del scroll -->
+        <button onclick="updateScroll(-0.5)"> - </button> <!-- Reduce la velocidad del scroll -->
         <span id="speed-val">0</span> <!-- Muestra la velocidad de scroll actual -->
         <button onclick="updateScroll(0.5)">+</button> <!-- Aumenta la velocidad del scroll -->
     </div>
@@ -137,6 +137,7 @@
         <button id="bold-btn" onclick="toggleBold()">B</button> <!-- Activa/Desactiva negrita global -->
         <button onclick="toggleTheme()">☀️</button> <!-- Cambia entre modo claro y oscuro -->
         <button onclick="toggleFS()">⛶</button> <!-- Alterna el modo pantalla completa -->
+        <button id="btn-info" onclick="limpiarYCrearInfo()" class="boton-info">ℹ️Info</button>
     </div>
 </div>
 
@@ -368,7 +369,6 @@ function updateScroll(delta) {
         document.querySelector(selector).scrollIntoView({ behavior: 'smooth' });
 }
 
-
     function limpiarYCrearNuevo() {
     // 1. Seleccionamos el elemento por su ID
     const editor = document.getElementById('song-content');
@@ -378,7 +378,7 @@ function updateScroll(delta) {
  ARTISTA: 
  CANCION: 
  AUTOR: 
- TRASTE: 
+ TRASTE:  
 ==================================
 Intro:
 
@@ -394,7 +394,48 @@ Intro:
     editor.focus();
 }
 
-
+    function limpiarYCrearInfo() {
+    // 1. Seleccionamos el elemento por su ID
+    const editor = document.getElementById('song-content');
     
+    // 2. Definimos la nueva plantilla limpia
+    const nuevaPlantilla = `========= Cancionero Pro ========= 
+<img src="https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/40.png" style="width:25px; vertical-align:middle;"> = Accéde
+----------------------------------
+📁 -
+
+✎ =
+----------------------------------
+Tono - =
+
+Tono + =
+
+Latino =
+----------------------------------
+⏹ =
+
+- =
+
+0 =
+
++ =
+----------------------------------
+A- =
+
+A+ =
+----------------------------------
+🔓 =
+
+B =
+
+☀️ =
+
+⛶ =
+
+ℹ️Info =
+`;  
+    // 3. Reemplazamos el contenido directamente usando innerHTML para que se vea el icono
+    editor.innerHTML = nuevaPlantilla;
+}
 </script>
 </body>
