@@ -125,7 +125,7 @@
     </div>
 
     <div class="group">
-        <button title="Abrir archivo" onclick="document.getElementById('file-input').click()">📁</button> <!-- Dispara el selector de archivos oculto -->
+        <button onclick="document.getElementById('file-input').click()">📁</button> <!-- Dispara el selector de archivos oculto -->
         <input type="file" id="file-input" accept=".txt" onchange="handleFileSelect(event)" style="display:none"> <!-- Input de archivos invisible -->
         <button id="edit-btn" onclick="toggleEdit()">✎</button> <!-- Cambia entre modo edición y lectura -->
         <button id="save-btn" onclick="saveFile()">💾</button> <!-- Guarda el texto modificado en el dispositivo -->
@@ -154,8 +154,9 @@
         <button id="bold-btn" onclick="toggleBold()">B</button> <!-- Activa/Desactiva negrita global -->
         <button onclick="toggleTheme()">☀️</button> <!-- Cambia entre modo claro y oscuro -->
         <button onclick="toggleFS()">⛶</button> <!-- Alterna el modo pantalla completa -->
-        <button id="share-btn" onclick="shareContent()">📤</button>
-
+        <button onclick="document.getElementById('file-input-share').click()">📤</button>
+        <input type="file" id="file-input-share" accept=".txt" onchange="handleFileShare(event)" style="display:none"> <!-- Input de archivos invisible -->
+    
         <button id="btn-info" onclick="limpiarYCrearInfo()" class="boton-info">ℹ️Info</button>
     </div>
 </div>
@@ -456,5 +457,60 @@ B =
     // 3. Reemplazamos el contenido directamente usando innerHTML para que se vea el icono
     editor.innerHTML = nuevaPlantilla;
 }
+
+
+
+
+    
+/* GESTIÓN DE ARCHIVOS CON DEPURACIÓN */
+async function handleFileShare(event) {                                         // Inicia función asíncrona para gestionar archivos
+    const fileOriginal = event.target.files[0];                                 // Captura el archivo seleccionado desde el input
+    if (!fileOriginal) return;                                                  // Si el usuario cierra el selector sin elegir, sale
+
+    // 1. Verificación básica de soporte
+    if (!navigator.share) {                                                     // Comprueba si la API de compartir existe en el navegador
+        alert("Tu navegador no soporta la función de compartir. Asegúrate de usar HTTPS."); // Error si no hay soporte o falta SSL/HTTPS
+        return;                                                                 // Finaliza la ejecución por falta de compatibilidad
+    }
+
+    const currentFileName = fileOriginal.name;                                  // Guarda el nombre del archivo original seleccionado
+    const reader = new FileReader();                                            // Crea una instancia para leer el contenido del archivo
+
+    reader.onload = async (e) => {                                              // Se dispara automáticamente al terminar la lectura
+        try {                                                                   // Intenta ejecutar el bloque para capturar errores
+            const contenido = e.target.result;                                  // Extrae el texto plano del archivo leído
+
+            // Actualizar interfaz
+            if (typeof songContent !== 'undefined') songContent.innerText = contenido; // Carga el texto en el elemento de pantalla
+            if (typeof setEdit === 'function') setEdit(false);                  // Cambia el estado a modo lectura si existe la función
+
+            // 2. Crear el archivo para compartir
+            const blob = new Blob([contenido], { type: 'text/plain' });          // Convierte el texto en un objeto binario (Blob)
+            const fileToShare = new File([blob], currentFileName, { type: 'text/plain' }); // Empaqueta el Blob como un archivo de sistema
+
+            // 3. Validar si el sistema permite compartir ESTE archivo específico
+            if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) { // Verifica si el SO permite enviar este archivo
+                await navigator.share({                                         // Lanza el menú nativo (WhatsApp, Mail, AirDrop, etc.)
+                    files: [fileToShare],                                       // Adjunta el archivo de texto recién creado
+                    title: currentFileName,                                     // Define el título que verá el receptor
+                    text: 'Te comparto este archivo'                            // Añade un mensaje descriptivo al envío
+                });
+                console.log("Compartido con éxito");                            // Registra el éxito en la consola si se completa
+            } else {
+                alert("El sistema no permite compartir este tipo de archivo."); // Error si el SO restringe compartir archivos .txt
+            }
+        } catch (error) {                                                       // Captura fallos (ej. si el usuario cancela el menú)
+            // El error 'NotAllowedError' confirma que el navegador bloqueó el popup por falta de HTTPS o demora
+            console.error("Error al compartir:", error.name, error.message);    // Muestra detalles técnicos del error en la consola
+            if (error.name === "NotAllowedError") {                             // Si el navegador bloqueó la acción por seguridad:
+                alert("Bloqueado por el navegador. Asegúrate de estar en una conexión segura (HTTPS)."); // Aviso de requisito SSL
+            }
+        }
+    };                                                                          // Fin del callback onload
+
+    reader.readAsText(fileOriginal);                                            // Inicia la lectura del archivo en formato texto
+}                                                                               // Cierre de la función principal
+
 </script>
 </body>
+
