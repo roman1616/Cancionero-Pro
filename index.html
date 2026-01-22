@@ -493,7 +493,7 @@ async function handleFileShare(event) {                                         
                 await navigator.share({                                         // Lanza el menú nativo (WhatsApp, Mail, AirDrop, etc.)
                     files: [fileToShare],                                       // Adjunta el archivo de texto recién creado
                     title: currentFileName,                                     // Define el título que verá el receptor
-                    text: 'Te comparto este archivo'                            // Añade un mensaje descriptivo al envío
+                    text: 'Te comparto este archivo desde Cancionero Pro'       // Añade un mensaje descriptivo al envío
                 });
                 console.log("Compartido con éxito");                            // Registra el éxito en la consola si se completa
             } else {
