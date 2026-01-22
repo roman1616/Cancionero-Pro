@@ -481,7 +481,7 @@ async function handleFileShare(event) {                                         
             const contenido = e.target.result;                                  // Extrae el texto plano del archivo leído
 
             // Actualizar interfaz
-            if (typeof songContent !== 'undefined') songContent.innerText = contenido; // Carga el texto en el elemento de pantalla
+            //if (typeof songContent !== 'undefined') songContent.innerText = contenido; // Carga el texto en el elemento de pantalla
             if (typeof setEdit === 'function') setEdit(false);                  // Cambia el estado a modo lectura si existe la función
 
             // 2. Crear el archivo para compartir
