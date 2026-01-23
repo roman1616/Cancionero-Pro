@@ -307,53 +307,64 @@ que lo disfrutes!
         URL.revokeObjectURL(url); // Libera memoria RAM
     }*/
 
-    /* GUARDADO INTELIGENTE CON DOBLE CONFIRMACIÓN */
-async function saveFile() {
-    setEdit(false); // Finaliza edición
-    const contenido = songContent.innerText; 
-    const blob = new Blob([contenido], { type: 'text/plain' });
-    const file = new File([blob], currentFileName, { type: 'text/plain' });
-    
-    const esPC = /Windows|Macintosh|Linux/i.test(navigator.userAgent) && !/iPhone|iPad|Android/i.test(navigator.userAgent);
+        /* GESTIÓN DE ARCHIVOS */
+    function handleFileSelect(event) { 
+        const file = event.target.files[0]; 
+        if (!file) return; 
+        currentFileName = file.name; 
+        const reader = new FileReader(); 
+        reader.onload = (e) => { 
+            songContent.innerText = e.target.result; 
+            setEdit(false);
+            if (typeof resaltar === 'function') resaltar(); // Refresca colores si la función existe
+        };
+        reader.readAsText(file); 
+    }
 
-    // --- PRIMERA PREGUNTA: COMPARTIR ---
-    // Solo intentamos compartir si NO es PC y el navegador lo soporta
-    if (!esPC && navigator.canShare && navigator.canShare({ files: [file] })) {
-        const deseaCompartir = confirm("¿Deseas COMPARTIR este archivo por WhatsApp o redes sociales?");
+    /* GUARDADO CON DOBLE CONFIRMACIÓN (PARA 2026) */
+    async function saveFile() { 
+        setEdit(false); 
+        const contenido = songContent.innerText; 
+        const blob = new Blob([contenido], { type: 'text/plain' }); 
+        const file = new File([blob], currentFileName, { type: 'text/plain' }); 
         
-        if (deseaCompartir) {
-            try {
-                // IMPORTANTE: Enviamos SOLO 'files' para evitar que iPhone/Android 
-                // generen ese segundo archivo con la fecha y hora.
-                await navigator.share({ files: [file] });
-                return; // Si compartió con éxito, salimos de la función
-            } catch (e) {
-                console.log("Compartir cancelado o fallido");
+        // Detecta si es una PC
+        const esPC = /Windows|Macintosh|Linux/i.test(navigator.userAgent) && !/iPhone|iPad|Android/i.test(navigator.userAgent);
+
+        // --- 1. PREGUNTA: ¿DESEAS COMPARTIR? ---
+        // Solo se ofrece en móviles con soporte para compartir archivos
+        if (!esPC && navigator.canShare && navigator.canShare({ files: [file] })) {
+            const deseaCompartir = confirm("¿Deseas COMPARTIR este archivo (WhatsApp, Email, etc.)?");
+            
+            if (deseaCompartir) {
+                try {
+                    // IMPORTANTE: Enviamos SOLO 'files'. 
+                    // No incluir 'title' ni 'text' evita que iPhone genere el segundo archivo con la fecha.
+                    await navigator.share({ files: [file] });
+                    return; // Si compartió con éxito, termina aquí
+                } catch (e) { 
+                    console.log("Compartir cancelado"); 
+                }
             }
         }
-    }
 
-    // --- SEGUNDA PREGUNTA: DESCARGAR ---
-    // Si el usuario dijo que NO a compartir, o si es una PC, preguntamos por la descarga
-    const deseaDescargar = confirm("¿Deseas DESCARGAR el archivo en la memoria del dispositivo?");
-
-    if (deseaDescargar) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; 
-        a.download = currentFileName;
-        document.body.appendChild(a); 
-        a.click();
-        document.body.removeChild(a);
+        // --- 2. PREGUNTA: ¿DESEAS DESCARGAR? ---
+        // Se ejecuta si es PC, o si el usuario dijo "No" a compartir en móvil
+        const deseaDescargar = confirm("¿Deseas DESCARGAR el archivo en la memoria del dispositivo?");
         
-        // Liberar memoria RAM
-        setTimeout(() => URL.revokeObjectURL(url), 150);
-        console.log("Archivo descargado");
+        if (deseaDescargar) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; 
+            a.download = currentFileName;
+            document.body.appendChild(a); 
+            a.click();
+            document.body.removeChild(a);
+            
+            // Liberar memoria RAM
+            setTimeout(() => URL.revokeObjectURL(url), 150);
+        }
     }
-}
-
-
-
 
 
     
