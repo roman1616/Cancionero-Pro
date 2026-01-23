@@ -334,7 +334,7 @@ que lo disfrutes!
         // --- 1. PREGUNTA: ¿DESEAS COMPARTIR? ---
         // Solo se ofrece en móviles con soporte para compartir archivos
         if (!esPC && navigator.canShare && navigator.canShare({ files: [file] })) {
-            const deseaCompartir = confirm("🎵 COMPARTIR 🎵<br>¿Deseas compartir este archivo por (WhatsApp, Email, Dropbox, Icloud, etc.)?");
+            const deseaCompartir = confirm("  🎵 COMPARTIR 🎵\n\n¿Deseas compartir este archivo por (WhatsApp, Email, Dropbox, Icloud, etc.)?");
             
             if (deseaCompartir) {
                 try {
@@ -350,7 +350,7 @@ que lo disfrutes!
 
         // --- 2. PREGUNTA: ¿DESEAS DESCARGAR? ---
         // Se ejecuta si es PC, o si el usuario dijo "No" a compartir en móvil
-        const deseaDescargar = confirm("⬇️ DESCARGAR ⬇️<br> ¿Deseas descargar el archivo en la memoria del dispositivo?");
+        const deseaDescargar = confirm("  ⬇️ DESCARGAR ⬇️\n\n¿Deseas descargar el archivo en la memoria del dispositivo?");
         
         if (deseaDescargar) {
             const url = URL.createObjectURL(blob);
