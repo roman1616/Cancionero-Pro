@@ -269,7 +269,7 @@ que lo disfrutes!
     }
 
     /* GESTIÓN DE ARCHIVOS */
-    function handleFileSelect(event) { // Lee archivos TXT locales
+    /*function handleFileSelect(event) { // Lee archivos TXT locales
         const file = event.target.files[0]; // Captura el archivo seleccionado
         if (!file) return; // Si no hay archivo, aborta
         currentFileName = file.name; // Guarda el nombre original
@@ -281,7 +281,7 @@ que lo disfrutes!
         reader.readAsText(file); // Inicia lectura como texto plano
     }
 
-    /* GUARDADO INTELIGENTE (PC DESCARGA / MÓVIL COMPARTE) */
+    /* GUARDADO INTELIGENTE (PC DESCARGA / MÓVIL COMPARTE) *
     async function saveFile() { // Exporta el contenido
         setEdit(false); // Finaliza edición
         const contenido = songContent.innerText; // Captura texto puro
@@ -305,7 +305,69 @@ que lo disfrutes!
         document.body.appendChild(a); a.click(); // Simula clic
         document.body.removeChild(a); // Limpia interfaz
         URL.revokeObjectURL(url); // Libera memoria RAM
+    }*/
+
+    /* GESTIÓN DE ARCHIVOS */
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    currentFileName = file.name;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        songContent.innerText = e.target.result;
+        setEdit(false);
+    };
+    reader.readAsText(file);
+}
+
+/* GUARDADO INTEGRAL (COMPARTIR O DESCARGAR) */
+async function saveFile() {
+    setEdit(false);
+    const contenido = songContent.innerText;
+    const blob = new Blob([contenido], { type: 'text/plain' });
+    const file = new File([blob], currentFileName, { type: 'text/plain' });
+    
+    const esPC = /Windows|Macintosh|Linux/i.test(navigator.userAgent) && !/iPhone|iPad|Android/i.test(navigator.userAgent);
+
+    // 1. Preguntar al usuario para que no sea automático
+    const mensaje = esPC 
+        ? "¿Deseas descargar el archivo?" 
+        : "¿Qué deseas hacer?\n\nACEPTAR: Compartir (WhatsApp, etc.)\nCANCELAR: Descargar en el dispositivo";
+    
+    const deseaCompartir = confirm(mensaje);
+
+    // 2. Lógica para Compartir (Solo si es móvil y el usuario acepta)
+    if (!esPC && deseaCompartir && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            // IMPORTANTE: Enviamos SOLO 'files'. 
+            // Si incluyes 'title' o 'text', iPhone genera el archivo extra con la fecha.
+            await navigator.share({ files: [file] }); 
+            return;
+        } catch (e) { 
+            console.log("Compartir cancelado");
+            return; 
+        }
     }
+
+    // 3. Lógica de Descarga (Si es PC, o si el usuario pulsó 'Cancelar' en móvil)
+    if (!deseaCompartir && esPC === false || esPC === true) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; 
+        a.download = currentFileName;
+        document.body.appendChild(a); 
+        a.click();
+        document.body.removeChild(a);
+        
+        // Liberar memoria RAM
+        setTimeout(() => URL.revokeObjectURL(url), 150);
+    }
+}
+
+
+
+
+    
 
     /* --- LÓGICA DE PERSISTENCIA REFORZADA 2026 --- */
 let wakeLockHack = null;
