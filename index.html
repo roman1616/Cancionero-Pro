@@ -285,7 +285,7 @@ que lo disfrutes!
     async function saveFile() { // Exporta el contenido
         setEdit(false); // Finaliza edición
         const contenido = songContent.innerText; // Captura texto puro
-        const blob = new Blob([contenido], { type: 'text/plain' }); // Crea archivo en memoria
+        //const blob = new Blob([contenido], { type: 'text/plain' }); // Crea archivo en memoria
         const file = new File([blob], currentFileName, { type: 'text/plain' }); // Prepara archivo
         
         // Detecta si es una PC (Windows, Mac o Linux de escritorio)
