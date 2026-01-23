@@ -307,50 +307,37 @@ que lo disfrutes!
         URL.revokeObjectURL(url); // Libera memoria RAM
     }*/
 
-    /* GESTIÓN DE ARCHIVOS */
-function handleFileSelect(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    currentFileName = file.name;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        songContent.innerText = e.target.result;
-        setEdit(false);
-    };
-    reader.readAsText(file);
-}
-
-/* GUARDADO INTEGRAL (COMPARTIR O DESCARGAR) */
+    /* GUARDADO INTELIGENTE CON DOBLE CONFIRMACIÓN */
 async function saveFile() {
-    setEdit(false);
-    const contenido = songContent.innerText;
+    setEdit(false); // Finaliza edición
+    const contenido = songContent.innerText; 
     const blob = new Blob([contenido], { type: 'text/plain' });
     const file = new File([blob], currentFileName, { type: 'text/plain' });
     
     const esPC = /Windows|Macintosh|Linux/i.test(navigator.userAgent) && !/iPhone|iPad|Android/i.test(navigator.userAgent);
 
-    // 1. Preguntar al usuario para que no sea automático
-    const mensaje = esPC 
-        ? "¿Deseas descargar el archivo?" 
-        : "¿Qué deseas hacer?\n\nACEPTAR: Compartir (WhatsApp, etc.)\nCANCELAR: Descargar en el dispositivo";
-    
-    const deseaCompartir = confirm(mensaje);
-
-    // 2. Lógica para Compartir (Solo si es móvil y el usuario acepta)
-    if (!esPC && deseaCompartir && navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-            // IMPORTANTE: Enviamos SOLO 'files'. 
-            // Si incluyes 'title' o 'text', iPhone genera el archivo extra con la fecha.
-            await navigator.share({ files: [file] }); 
-            return;
-        } catch (e) { 
-            console.log("Compartir cancelado");
-            return; 
+    // --- PRIMERA PREGUNTA: COMPARTIR ---
+    // Solo intentamos compartir si NO es PC y el navegador lo soporta
+    if (!esPC && navigator.canShare && navigator.canShare({ files: [file] })) {
+        const deseaCompartir = confirm("¿Deseas COMPARTIR este archivo por WhatsApp o redes sociales?");
+        
+        if (deseaCompartir) {
+            try {
+                // IMPORTANTE: Enviamos SOLO 'files' para evitar que iPhone/Android 
+                // generen ese segundo archivo con la fecha y hora.
+                await navigator.share({ files: [file] });
+                return; // Si compartió con éxito, salimos de la función
+            } catch (e) {
+                console.log("Compartir cancelado o fallido");
+            }
         }
     }
 
-    // 3. Lógica de Descarga (Si es PC, o si el usuario pulsó 'Cancelar' en móvil)
-    if (!deseaCompartir && esPC === false || esPC === true) {
+    // --- SEGUNDA PREGUNTA: DESCARGAR ---
+    // Si el usuario dijo que NO a compartir, o si es una PC, preguntamos por la descarga
+    const deseaDescargar = confirm("¿Deseas DESCARGAR el archivo en la memoria del dispositivo?");
+
+    if (deseaDescargar) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; 
@@ -361,8 +348,10 @@ async function saveFile() {
         
         // Liberar memoria RAM
         setTimeout(() => URL.revokeObjectURL(url), 150);
+        console.log("Archivo descargado");
     }
 }
+
 
 
 
