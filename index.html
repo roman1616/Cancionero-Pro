@@ -293,7 +293,8 @@ que lo disfrutes!
 
         if (!esPC && navigator.canShare && navigator.canShare({ files: [file] })) { // Si es móvil y puede compartir:
             try {
-                await navigator.share({ files: [file], title: currentFileName }); // Abre menú compartir (WhatsApp, etc.)
+                //await navigator.share({ files: [file], title: currentFileName }); // Abre menú compartir (WhatsApp, etc.)
+                await navigator.share({ files: [file] });
                 return; // Finaliza sin descargar
             } catch (e) { return; } // Si cancela, no hace nada más
         }
