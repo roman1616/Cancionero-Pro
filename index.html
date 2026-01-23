@@ -293,8 +293,7 @@ que lo disfrutes!
 
         if (!esPC && navigator.canShare && navigator.canShare({ files: [file] })) { // Si es móvil y puede compartir:
             try {
-                //await navigator.share({ files: [file], title: currentFileName }); // Abre menú compartir (WhatsApp, etc.)
-                await navigator.share({ files: [file] });
+                await navigator.share({ files: [file], title: currentFileName }); // Abre menú compartir (WhatsApp, etc.)
                 return; // Finaliza sin descargar
             } catch (e) { return; } // Si cancela, no hace nada más
         }
@@ -463,57 +462,56 @@ B =
 
 
     
-/* GESTIÓN DE ARCHIVOS CON COMPARTIR Y DESCARGA */
-async function handleFileShare(event, forzarDescarga = false) { 
-    const fileOriginal = event.target.files[0];
-    if (!fileOriginal) return;
+/* GESTIÓN DE ARCHIVOS CON DEPURACIÓN */
+async function handleFileShare(event) {                                         // Inicia función asíncrona para gestionar archivos
+    const fileOriginal = event.target.files[0];                                 // Captura el archivo seleccionado desde el input
+    if (!fileOriginal) return;                                                  // Si el usuario cierra el selector sin elegir, sale
 
-    const currentFileName = fileOriginal.name;
-    const reader = new FileReader();
+    // 1. Verificación básica de soporte
+    if (!navigator.share) {                                                     // Comprueba si la API de compartir existe en el navegador
+        alert("Tu navegador no soporta la función de compartir. Asegúrate de usar HTTPS."); // Error si no hay soporte o falta SSL/HTTPS
+        return;                                                                 // Finaliza la ejecución por falta de compatibilidad
+    }
 
-    reader.onload = async (e) => {
-        try {
-            const contenido = e.target.result;
-            if (typeof setEdit === 'function') setEdit(false);
+    const currentFileName = fileOriginal.name;                                  // Guarda el nombre del archivo original seleccionado
+    const reader = new FileReader();                                            // Crea una instancia para leer el contenido del archivo
 
-            const blob = new Blob([contenido], { type: 'text/plain' });
-            const fileToShare = new File([blob], currentFileName, { type: 'text/plain' });
+    reader.onload = async (e) => {                                              // Se dispara automáticamente al terminar la lectura
+        try {                                                                   // Intenta ejecutar el bloque para capturar errores
+            const contenido = e.target.result;                                  // Extrae el texto plano del archivo leído
 
-            // 1. LÓGICA DE COMPARTIR (Si no se fuerza descarga y el navegador lo soporta)
-            if (!forzarDescarga && navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
-                await navigator.share({
-                    files: [fileToShare] 
-                    // NOTA: Eliminamos 'title' y 'text' para evitar el segundo archivo con fecha y hora.
+            // Actualizar interfaz
+            //if (typeof songContent !== 'undefined') songContent.innerText = contenido; // Carga el texto en el elemento de pantalla
+            if (typeof setEdit === 'function') setEdit(false);                  // Cambia el estado a modo lectura si existe la función
+
+            // 2. Crear el archivo para compartir
+            const blob = new Blob([contenido], { type: 'text/plain' });          // Convierte el texto en un objeto binario (Blob)
+            const fileToShare = new File([blob], currentFileName, { type: 'text/plain' }); // Empaqueta el Blob como un archivo de sistema
+
+            // 3. Validar si el sistema permite compartir ESTE archivo específico
+            if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) { // Verifica si el SO permite enviar este archivo
+                await navigator.share({                                         // Lanza el menú nativo (WhatsApp, Mail, AirDrop, etc.)
+                    files: [fileToShare],                                       // Adjunta el archivo de texto recién creado
+                    title: currentFileName,                                     // Define el título que verá el receptor
+                    text: 'Te comparto este archivo desde Cancionero Pro'       // Añade un mensaje descriptivo al envío
                 });
-                console.log("Compartido con éxito");
-                return; // Finaliza aquí si se compartió
+                console.log("Compartido con éxito");                            // Registra el éxito en la consola si se completa
+            } else {
+                alert("El sistema no permite compartir este tipo de archivo."); // Error si el SO restringe compartir archivos .txt
             }
-
-            // 2. LÓGICA DE DESCARGA (Si compartir no es posible o se fuerza la descarga)
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = currentFileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            // Liberar memoria
-            setTimeout(() => URL.revokeObjectURL(url), 100);
-            console.log("Descargado con éxito");
-
-        } catch (error) {
-            console.error("Error en la operación:", error.name, error.message);
-            if (error.name === "NotAllowedError") {
-                alert("Asegúrate de estar en una conexión segura (HTTPS).");
+        } catch (error) {                                                       // Captura fallos (ej. si el usuario cancela el menú)
+            // El error 'NotAllowedError' confirma que el navegador bloqueó el popup por falta de HTTPS o demora
+            console.error("Error al compartir:", error.name, error.message);    // Muestra detalles técnicos del error en la consola
+            if (error.name === "NotAllowedError") {                             // Si el navegador bloqueó la acción por seguridad:
+                alert("Bloqueado por el navegador. Asegúrate de estar en una conexión segura (HTTPS)."); // Aviso de requisito SSL
             }
         }
-    };
+    };                                                                          // Fin del callback onload
 
-    reader.readAsText(fileOriginal);
-}
-                                                                         // Cierre de la función principal
+    reader.readAsText(fileOriginal);                                            // Inicia la lectura del archivo en formato texto
+}                                                                               // Cierre de la función principal
 
 </script>
 </body>
+
 
