@@ -3,7 +3,7 @@ import re
 import streamlit.components.v1 as components
 
 # 1. Configuración de página centrada
-st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
+st.set_page_config(page_title="Cancionero Pro", layout="centered")
 
 # Diccionario de conversión
 LATINO_A_AMERICANO = {
@@ -43,7 +43,7 @@ def procesar_texto(texto):
 
 # --- INTERFAZ CENTRADA ---
 st.markdown("<h1 style='text-align: center;'>🎸 Procesador de Acordes</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Sube tu archivo para procesar y compartir.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Sube tu archivo para procesar y compartir.</p>Cambia de cifrado latino a cifrado americano y añade  el apóstrofe (') para reconocer las notas", unsafe_allow_html=True)
 
 archivo = st.file_uploader("Sube tu archivo .txt", type="txt", label_visibility="collapsed")
 
