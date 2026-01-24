@@ -171,3 +171,4 @@ if archivo:
 else:
     st.info("Esperando archivo... Por favor, sube un .txt para comenzar.")
 
+
