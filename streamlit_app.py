@@ -170,4 +170,4 @@ if archivo:
     """, height=120)
 else:
     st.info("Esperando archivo... Por favor, sube un .txt para comenzar.")
-nnn
+
