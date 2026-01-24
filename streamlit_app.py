@@ -61,7 +61,7 @@ if archivo:
     # BARRA DE ACCIONES FLOTANTE (CORREGIDA PARA EVITAR DOBLE ARCHIVO EN IOS)
     components.html(f"""
         <style>
-            #.action-bar {{
+            .action-bar {{
                 position: fixed;
                 bottom: 25px;
                 left: 50%;
@@ -69,10 +69,10 @@ if archivo:
                 display: flex;
                 gap: 20px;
                 z-index: 9999;
-                background: rgba(255, 255, 255, 0.95);
-                padding: 10px 25px;
-                border-radius: 50px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                #background: rgba(255, 255, 255, 0.95);
+                #padding: 10px 25px;
+                #border-radius: 50px;
+                #box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             }}
             .btn {{
                 padding: 12px 24px;
