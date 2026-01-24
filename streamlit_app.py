@@ -24,30 +24,34 @@ def procesar_texto(texto):
             fin = match.end()
             lo_que_sigue = linea[fin:]
             
-            # FILTRO ANTI-FRASES
+            # FILTRO ANTI-FRASES: Evita procesar palabras como "La Repandilla"
             if re.match(r'^ [a-zA-ZñÑáéíóúÁÉÍÓÚ]', lo_que_sigue):
                 continue
             
-            # CONVERSIÓN
+            # CONVERSIÓN DE RAÍZ
             raiz_orig = match.group(1).upper()
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
+            
+            # OBTENER EL RESTO (m, #, 7, etc.) manteniendo los símbolos originales
             resto = acorde_original[len(match.group(1)):]
             
-            # --- CORRECCIÓN AQUÍ: Primero unimos raíz y resto, luego añadimos ' ---
+            # CONSTRUCCIÓN DEL NUEVO ACORDE
+            # Unimos raíz + resto y añadimos el apóstrofe al final
             nuevo_acorde = f"{raiz_nueva}{resto}"
             
-            # Si el acorde ya tiene ' o *, no lo duplicamos
-            if not (lo_que_sigue.startswith("'") or lo_que_sigue.startswith('*')): 
+            # Solo añadir ' si no tiene ya un marcador (* o ')
+            if not (lo_que_sigue.startswith("'") or lo_que_sigue.startswith('*')):
                 nuevo_acorde += "'"
 
             # MANTENER POSICIÓN (Alineación)
             ancho_original = len(acorde_original)
-            # Si ya existía un marcador de acorde en la línea original, sumamos ese espacio
+            # Si el original ya tenía un marcador, compensamos el ancho
             if lo_que_sigue.startswith("'") or lo_que_sigue.startswith('*'): 
                 ancho_original += 1
             
             sustitucion = nuevo_acorde.ljust(ancho_original)
 
+            # Escribimos en la posición exacta de la línea
             for i, char in enumerate(sustitucion):
                 if match.start() + i < len(linea_lista):
                     linea_lista[match.start() + i] = char
@@ -55,9 +59,9 @@ def procesar_texto(texto):
         resultado_final.append("".join(linea_lista))
     return '\n'.join(resultado_final)
 
-# --- INTERFAZ CENTRADA ---
+# --- INTERFAZ STREAMLIT ---
 st.markdown("<h1 style='text-align: center;'>🎸 Procesador de Acordes</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Convierte de cifrado Latino a Americano y coloca el apóstrofe (') al final del acorde.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Traduce a cifrado Americano y añade el apóstrofe (') al final de cada acorde.</p>", unsafe_allow_html=True)
 
 archivo = st.file_uploader("Sube tu archivo .txt", type="txt", label_visibility="collapsed")
 
@@ -71,6 +75,7 @@ if archivo:
 
     texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
+    # BARRA DE ACCIONES FLOTANTE SIN FONDO
     components.html(f"""
         <style>
             .action-bar {{
@@ -128,8 +133,9 @@ if archivo:
                         await navigator.share({{ files: [file] }});
                     }} catch (err) {{ if (err.name !== 'AbortError') console.log(err); }}
                 }} else {{
-                    alert("Usa 'Guardar'.");
+                    alert("Usa el botón 'Guardar'.");
                 }}
             }};
         </script>
     """, height=100)
+
