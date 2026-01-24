@@ -3,7 +3,7 @@ import re
 import streamlit.components.v1 as components
 
 # 1. Configuración de página centrada
-st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
+st.set_page_config(page_title="Cancionero Pro", layout="centered")
 
 # Diccionario de conversión
 LATINO_A_AMERICANO = {
@@ -66,6 +66,92 @@ def procesar_texto(texto):
 
 # --- INTERFAZ ---
 st.markdown("<h1 style='text-align: center;'>🎸 Procesador de Acordes</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Convierte de cifrado Latino a Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)
+archivo = st.file_uploader("Sube tu archivo .txt", type="txt", label_visibility="collapsed")
+
+if archivo:
+    nombre_archivo = archivo.name
+    contenido = archivo.read().decode("utf-8")
+    texto_final = procesar_texto(contenido)
+    
+    st.subheader("Vista Previa:")
+    st.code(texto_final, language="text")
+
+    texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
+
+    components.html(f"""
+        <style>
+            .action-bar {{
+                position: fixed;
+                bottom: 25px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                gap: 20px;
+                z-index: 9999;
+            }}
+            .btn {{
+                padding: 12px 24px;
+                border: none;
+                border-radius: 25px;
+                font-family: -apple-system, system-ui, sans-serif;
+                font-size: 16px;
+                font-weight: 700;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: white;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                transition: transform 0.1s;
+            }}
+            .btn:active {{ transform: scale(0.95); }}
+            .download-btn {{ background-color: #007AFF; }}
+            .share-btn {{ background-color: #34C759; }}
+        </style>
+        
+        <div class="action-bar">
+            <button id="btnDL" class="btn download-btn">💾 Guardar</button>
+            <button id="btnSH" class="btn share-btn">📤 Compartir</button>
+        </div>
+
+        <script>
+            const content = `{texto_js}`;
+            const fileName = "{nombre_archivo}";
+
+            document.getElementById('btnDL').onclick = () => {{
+                const blob = new Blob([content], {{ type: 'text/plain' }});
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "PRO_" + fileName;
+                a.click();
+            }};
+
+            document.getElementById('btnSH').onclick = async () => {{
+                const blob = new Blob([content], {{ type: 'text/plain' }});
+                const file = new File([blob], fileName, {{ type: 'text/plain' }});
+                if (navigator.share) {{
+                    try {{
+                        await navigator.share({{ files: [file] }});
+                    }} catch (err) {{ if (err.name !== 'AbortError') console.log(err); }}
+                }} else {{
+                    alert("Usa 'Guardar'.");
+                }}
+            }};
+        </script>
+    """, height=100)
+Usa el código con precaución.
+
+Cambios realizados:
+Detección de Sostenidos: El programa ahora busca si el acorde contiene un #.
+Sustitución de Numeral: Si encuentra un #, lo elimina de la cadena y añade el apóstrofe ' al final del acorde. Ejemplo: DO# se convierte en C'; A#m se convierte en Am'.
+Alineación: Se mantiene el ancho original para que los acordes no se desplacen respecto a la letra.
+Las respuestas de la IA pueden contener errores. Más información
+
+
+
+
 archivo = st.file_uploader("Sube tu archivo .txt", type="txt", label_visibility="collapsed")
 
 if archivo:
