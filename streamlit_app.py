@@ -2,10 +2,8 @@ import streamlit as st
 import re
 import streamlit.components.v1 as components
 
-# 1. Configuración de página
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
-# Diccionario de conversión
 MAPA = {'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 'SOL': 'G', 'LA': 'A', 'SI': 'B'}
 
 def procesar_texto(texto):
@@ -19,36 +17,61 @@ def procesar_texto(texto):
             ini, fin = m.start(), m.end()
             if ini > 0 and linea[ini-1].isalpha(): continue
             if re.match(r'^ +[a-zñáéíóú]', linea[fin:]): continue
-            if re.match(r'^[a-zñáéíóú]', linea[fin:]): continue
-            
             raiz_nueva = MAPA.get(m.group(1).upper(), m.group(1).upper())
-            acorde = f"{raiz_nueva}{m.group(2)}"
-            if not (linea[fin:].startswith("'") or linea[fin:].startswith("*")): acorde += "'"
-            
-            ancho = len(m.group(0))
-            if linea[fin:].startswith("'") or linea[fin:].startswith("*"): ancho += 1
-            sustitucion = acorde.ljust(ancho)
+            acorde = f"{raiz_nueva}{m.group(2)}'"
+            sustitucion = acorde.ljust(len(m.group(0)) + 1)
             for i, char in enumerate(sustitucion):
                 if ini + i < len(lista): lista[ini + i] = char
         res.append("".join(lista))
     return '\n'.join(res)
 
-# --- INTERFAZ ---
 st.markdown("<h1 style='text-align: center;'>🎸 Procesador de Acordes</h1>", unsafe_allow_html=True)
 
-# SOLUCIÓN DEFINITIVA: Área de texto manual (La más estable en Android)
-st.write("Copia el texto de tu archivo (Dropbox/Drive) y pégalo aquí abajo:")
-texto_entrada = st.text_area("Pegar contenido aquí:", height=200, placeholder="Escribe o pega tu canción aquí...")
+# --- CARGADOR NATIVO (SOLUCIÓN PARA ANDROID) ---
+# Este componente lee el archivo directamente en el móvil y se lo pasa a Python
+st.write("### 📁 Paso 1: Carga tu archivo")
+html_uploader = """
+    <div style="border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 10px; font-family: sans-serif;">
+        <input type="file" id="fileInput" accept=".txt" style="display: none;">
+        <button onclick="document.getElementById('fileInput').click()" style="padding: 10px 20px; background: #007AFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+            Seleccionar archivo .txt
+        </button>
+        <p id="status" style="margin-top: 10px; color: #666;">Compatible con Dropbox y Drive</p>
+    </div>
+    <script>
+        const input = document.getElementById('fileInput');
+        input.onchange = e => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            document.getElementById('status').innerText = "Procesando: " + file.name;
+            reader.onload = event => {
+                window.parent.postMessage({
+                    type: 'streamlit:setComponentValue',
+                    value: event.target.result
+                }, '*');
+            };
+            reader.readAsText(file);
+        };
+    </script>
+"""
+# Capturamos el contenido del archivo desde el componente HTML
+contenido_archivo = components.html(html_uploader, height=150)
 
-if texto_entrada:
-    texto_pro = procesar_texto(texto_entrada)
+# Streamlit captura el valor enviado por postMessage automáticamente en session_state
+if "manual_content" not in st.session_state:
+    st.session_state.manual_content = ""
+
+# --- PROCESAMIENTO Y VISTA PREVIA ---
+# Si el componente HTML envió datos, los procesamos
+if st.session_state.get("component_value"):
+    contenido_final = st.session_state.get("component_value")
+    texto_pro = procesar_texto(contenido_final)
     
     st.subheader("Vista Previa:")
     st.code(texto_pro, language="text")
 
-    # Botones flotantes con JS nativo para compartir/guardar
-    js_txt = texto_pro.replace("`", "\\`").replace("$", "\\$")
-    
+    # Botones flotantes corregidos
+    texto_js = texto_pro.replace("`", "\\`").replace("$", "\\$")
     components.html(f"""
         <style>
             .bar {{ position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 9999; }}
@@ -60,26 +83,16 @@ if texto_entrada:
             <button onclick="sh()" class="btn sh">📤 Compartir</button>
         </div>
         <script>
-            const t = `{js_txt}`;
+            const t = `{texto_js}`;
             function dl() {{
                 const b = new Blob([t], {{type: 'text/plain'}});
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(b);
-                a.download = "cancion_procesada.txt";
+                a.download = "PRO_cancion.txt";
                 a.click();
             }}
             async function sh() {{
                 const f = new File([new Blob([t])], "cancion.txt", {{type: 'text/plain'}});
-                if (navigator.share) {{ 
-                    try {{ await navigator.share({{ files: [f] }}); }} catch (e) {{ console.log(e); }} 
-                }} else {{ alert("Usa 'Guardar'"); }}
-            }}
-        </script>
+                if (navigator.share) {{ try {{ await navigator.share({{ files: [f] }}); }} catch (e) {{}} }}
+            </script>
     """, height=100)
-
-st.info("💡 Consejo para Android: Si tienes el archivo en Dropbox, ábrelo, selecciona todo, cópialo y pégalo aquí arriba. Es la forma más rápida y sin errores de red.")
-
-
-
-
-
