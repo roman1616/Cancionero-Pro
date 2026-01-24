@@ -2,7 +2,7 @@ import streamlit as st
 import re
 import streamlit.components.v1 as components
 
-# 1. Configuración para máxima estabilidad en 2026
+# 1. Configuración de estabilidad y centrado
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
 # Diccionario de conversión
@@ -35,53 +35,58 @@ def procesar_texto(texto):
 # --- INTERFAZ ---
 st.markdown("<h1 style='text-align: center;'>🎸 Procesador de Acordes</h1>", unsafe_allow_html=True)
 
-# MEJORA 2026: El cargador ahora tiene un buffer de memoria forzado
+# SOLUCIÓN ANDROID: Cargador manual si falla el automático
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
-if archivo is not None:
+# Opción B (Salvavidas para Android): Pegado directo
+with st.expander("¿Error de red en Android? Pega tu texto aquí"):
+    texto_manual = st.text_area("Pega el contenido del archivo:", height=150)
+
+contenido_final = ""
+nombre_archivo = "cancion.txt"
+
+if archivo:
     try:
-        # Forzamos la lectura inmediata del buffer para "traerlo" al teléfono
-        # y evitar que Dropbox corte la conexión (AxiosError)
-        datos_archivo = archivo.read() 
-        contenido = datos_archivo.decode("utf-8")
-        nombre = archivo.name
-        
-        texto_pro = procesar_texto(contenido)
-        st.subheader("Vista Previa:")
-        st.code(texto_pro, language="text")
+        # Usamos getbuffer() para asegurar la lectura en Android
+        contenido_final = archivo.getbuffer().tobytes().decode("utf-8")
+        nombre_archivo = archivo.name
+    except Exception:
+        st.error("Error de red detectado. Por favor, usa la opción de pegar texto abajo.")
+elif texto_manual:
+    contenido_final = texto_manual
 
-        js_txt = texto_pro.replace("`", "\\`").replace("$", "\\$")
-        
-        components.html(f"""
-            <style>
-                .bar {{ position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 9999; }}
-                .btn {{ width: 140px; height: 50px; border: none; border-radius: 25px; font-family: sans-serif; font-size: 16px; font-weight: bold; cursor: pointer; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; gap: 8px; }}
-                .dl {{ background-color: #007AFF; }} .sh {{ background-color: #34C759; }}
-            </style>
-            <div class="bar">
-                <button onclick="dl()" class="btn dl">💾 Guardar</button>
-                <button onclick="sh()" class="btn sh">📤 Compartir</button>
-            </div>
-            <script>
-                const t = `{js_txt}`;
-                function dl() {{
-                    const b = new Blob([t], {{type: 'text/plain'}});
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(b);
-                    a.download = "PRO_{nombre}";
-                    a.click();
-                }}
-                async function sh() {{
-                    const f = new File([new Blob([t])], "{nombre}", {{type: 'text/plain'}});
-                    if (navigator.share) {{ try {{ await navigator.share({{ files: [f] }}); }} catch (e) {{}} }}
-                }}
+if contenido_final:
+    texto_pro = procesar_texto(contenido_final)
+    st.subheader("Vista Previa:")
+    st.code(texto_pro, language="text")
+
+    js_txt = texto_pro.replace("`", "\\`").replace("$", "\\$")
+    
+    # Barra de botones fuera de iframes restrictivos para Android
+    components.html(f"""
+        <style>
+            .bar {{ position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 9999; }}
+            .btn {{ width: 140px; height: 50px; border: none; border-radius: 25px; font-family: sans-serif; font-size: 16px; font-weight: bold; cursor: pointer; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; gap: 8px; }}
+            .dl {{ background-color: #007AFF; }} .sh {{ background-color: #34C759; }}
+        </style>
+        <div class="bar">
+            <button onclick="dl()" class="btn dl">💾 Guardar</button>
+            <button onclick="sh()" class="btn sh">📤 Compartir</button>
+        </div>
+        <script>
+            const t = `{js_txt}`;
+            function dl() {{
+                const b = new Blob([t], {{type: 'text/plain'}});
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(b);
+                a.download = "PRO_{nombre_archivo}";
+                a.click();
+            }}
+            async function sh() {{
+                const f = new File([new Blob([t])], "{nombre_archivo}", {{type: 'text/plain'}});
+                if (navigator.share) {{ try {{ await navigator.share({{ files: [f] }}); }} catch (e) {{}} }}
             </script>
-        """, height=100)
-    except Exception as e:
-        st.error("Error de conexión. Intenta descargar el archivo a tu dispositivo primero.")
-
-# Botón de limpieza
-if st.button("🔄 Nueva Carga"):
-    st.rerun()
+    """, height=100)
+m
 
 
