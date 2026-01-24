@@ -1,7 +1,7 @@
 import streamlit as st
 import re
 
-# Mapa de conversión
+# Diccionario para usar SOLO cuando confirmemos que es un acorde
 LATINO_A_AMERICANO = {
     'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
@@ -11,31 +11,34 @@ def procesar_texto(texto):
     lineas = texto.split('\n')
     resultado_final = []
 
-    # Patron que busca notas latinas o letras A-G
+    # Buscamos patrones que parecen acordes (latino o americano)
     patron_universal = r'\b(do|re|mi|fa|sol|la|si|[a-g])[#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?\b'
 
     for linea in lineas:
         def sustituir(match):
-            acorde_completo = match.group(0)
+            acorde_candidato = match.group(0)
             raiz_original = match.group(1).upper()
-            pos_final = match.end()
+            inicio_pos = match.start()
             
-            # --- VALIDACIÓN DE CONTEXTO ---
-            # Miramos qué hay después del supuesto acorde
-            lo_que_sigue = linea[pos_final:]
+            # --- VALIDACIÓN DE POSICIÓN (¿Es realmente un acorde?) ---
+            # Un acorde debe tener al menos un espacio a la izquierda 
+            # O ser la única palabra en la línea.
+            tiene_espacio_izq = inicio_pos > 0 and linea[inicio_pos-1].isspace()
+            es_unico_en_linea = linea.strip() == acorde_candidato
             
-            # Si después hay un espacio y una letra minúscula (ej: "A luz", "D esta")
-            # NO lo marcamos como acorde porque es parte de la letra.
-            if re.match(r'^[ ]+[a-zñáéíóú]', lo_que_sigue):
-                return acorde_completo
+            # Si NO tiene espacio a la izquierda y NO es lo único en la línea:
+            # Es una palabra (como "La casa" o "prende A luz"). NO TOCAR.
+            if not tiene_espacio_izq and not es_unico_en_linea:
+                return acorde_candidato
 
-            # --- PROCESO DE CONVERSIÓN ---
-            # Si pasó la validación, traducimos de latino a americano si hace falta
-            raiz_nueva = LATINO_A_AMERICANO.get(raiz_original, raiz_original)
+            # --- SI PASÓ LA VALIDACIÓN: CONVERTIR Y MARCAR ---
+            # Ahora que sabemos que es un acorde, lo pasamos a Americano
+            raiz_americana = LATINO_A_AMERICANO.get(raiz_original, raiz_original)
             
-            # Reconstruimos el acorde (ej: rem -> Dm)
-            resto = acorde_completo[len(match.group(1)):]
-            return f"{raiz_nueva.upper()}{resto}*"
+            # Mantener alteraciones (m, #, 7, etc.)
+            resto = acorde_candidato[len(match.group(1)):]
+            
+            return f"{raiz_americana.upper()}{resto}*"
 
         linea_procesada = re.sub(patron_universal, sustituir, linea, flags=re.IGNORECASE)
         resultado_final.append(linea_procesada)
@@ -43,14 +46,14 @@ def procesar_texto(texto):
     return '\n'.join(resultado_final)
 
 # --- Interfaz de Streamlit ---
-st.set_page_config(page_title="Editor de Acordes 2026", page_icon="🎸")
-st.title("🎸 Procesador de Acordes Inteligente")
+st.set_page_config(page_title="Conversor Inteligente 2026")
+st.title("🎸 Procesador de Acordes Latino a Americano")
+st.write("Solo traduce y marca si detecta que es un acorde por su posición.")
 
-archivo = st.file_uploader("Subir archivo .txt", type="txt")
+archivo = st.file_uploader("Subir .txt", type="txt")
 
 if archivo:
     contenido = archivo.read().decode("utf-8")
     texto_final = procesar_texto(contenido)
-    st.subheader("Resultado:")
-    st.text_area("Contenido:", texto_final, height=300)
-    st.download_button("Descargar TXT", texto_final, "cancionero_limpio.txt")
+    st.text_area("Resultado:", texto_final, height=400)
+    st.download_button("Descargar", texto_final, "cancionero_americano.txt")
