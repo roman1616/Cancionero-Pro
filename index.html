@@ -155,6 +155,7 @@
         <button onclick="toggleTheme()">☀️</button> <!-- Cambia entre modo claro y oscuro -->
         <button onclick="toggleFS()">⛶</button> <!-- Alterna el modo pantalla completa -->
         <!--<button onclick="document.getElementById('file-input-share').click()">📤</button>-->
+        <button onclick="abrirAppProcesador()" title="Procesar Acordes"> 🤖 </button>
         <input type="file" id="file-input-share" accept=".txt" onchange="handleFileShare(event)" style="display:none"> <!-- Input de archivos invisible -->
     
         <button id="btn-info" onclick="limpiarYCrearInfo()" class="boton-info">ℹ️Info</button>
@@ -524,7 +525,13 @@ B =
     editor.innerHTML = nuevaPlantilla;
 }
 
-
+function abrirAppProcesador() {
+    // URL de la aplicación que creamos (Streamlit, por ejemplo)
+    const urlApp = "https://cancionero-pro-jooabswkdkpm7j3azytoqc.streamlit.app/"; 
+    
+    // Abre la aplicación en una pestaña nueva para no cerrar el cancionero actual
+    window.open(urlApp, '_blank');
+}
 
 
     
