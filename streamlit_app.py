@@ -2,12 +2,61 @@ import streamlit as st
 import re
 import streamlit.components.v1 as components
 
-# 1. Configuración de estabilidad y centrado
+# 1. Configuración de página centrada
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
 # Diccionario de conversión
 MAPA = {'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 'SOL': 'G', 'LA': 'A', 'SI': 'B'}
 
+# Inyectamos CSS para centrar y dar estilo
+st.markdown("""
+    <style>
+    .stApp { text-align: center; }
+    .main { display: flex; justify-content: center; }
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("🎸 Procesador de Acordes")
+st.write("Sube tu archivo .txt (Compatible con Android y Dropbox)")
+
+# --- COMPONENTE HTML/JS PARA CARGA SIN ERRORES DE RED ---
+# Este bloque reemplaza al st.file_uploader que te daba error
+components.html("""
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 20px; font-family: sans-serif;">
+        <input type="file" id="fileInput" accept=".txt" style="display: none;">
+        <button onclick="document.getElementById('fileInput').click()" 
+            style="background-color: #FF4B4B; color: white; padding: 15px 25px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; font-size: 16px;">
+            📁 Seleccionar Archivo .txt
+        </button>
+        <p id="fileName" style="color: #666; font-size: 14px;">Ningún archivo seleccionado</p>
+    </div>
+
+    <script>
+    // Referencias
+    const fileInput = document.getElementById('fileInput');
+    const fileNameDisplay = document.getElementById('fileName');
+
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        fileNameDisplay.innerText = "Procesando: " + file.name;
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const contenido = e.target.result;
+            // Enviamos el contenido a Streamlit usando un mensaje
+            window.parent.postMessage({
+                type: 'streamlit:setComponentValue',
+                value: {text: contenido, name: file.name}
+            }, '*');
+        };
+        reader.readAsText(file);
+    });
+    </script>
+""", height=150)
+
+# 2. Lógica de procesamiento en Python
 def procesar_texto(texto):
     if not texto: return ""
     lineas = texto.split('\n')
@@ -32,37 +81,18 @@ def procesar_texto(texto):
         res.append("".join(lista))
     return '\n'.join(res)
 
-# --- INTERFAZ ---
-st.markdown("<h1 style='text-align: center;'>🎸 Procesador de Acordes</h1>", unsafe_allow_html=True)
+# Obtener los datos del componente HTML
+datos_input = st.session_state.get("component_value")
 
-# SOLUCIÓN ANDROID: Cargador manual si falla el automático
-archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
-
-# Opción B (Salvavidas para Android): Pegado directo
-with st.expander("¿Error de red en Android? Pega tu texto aquí"):
-    texto_manual = st.text_area("Pega el contenido del archivo:", height=150)
-
-contenido_final = ""
-nombre_archivo = "cancion.txt"
-
-if archivo:
-    try:
-        # Usamos getbuffer() para asegurar la lectura en Android
-        contenido_final = archivo.getbuffer().tobytes().decode("utf-8")
-        nombre_archivo = archivo.name
-    except Exception:
-        st.error("Error de red detectado. Por favor, usa la opción de pegar texto abajo.")
-elif texto_manual:
-    contenido_final = texto_manual
-
-if contenido_final:
-    texto_pro = procesar_texto(contenido_final)
-    st.subheader("Vista Previa:")
-    st.code(texto_pro, language="text")
-
-    js_txt = texto_pro.replace("`", "\\`").replace("$", "\\$")
+if datos_input:
+    texto_procesado = procesar_texto(datos_input['text'])
+    nombre_archivo = datos_input['name']
     
-    # Barra de botones fuera de iframes restrictivos para Android
+    st.subheader("Vista Previa:")
+    st.code(texto_procesado, language="text")
+
+    # Botones flotantes corregidos
+    texto_js = texto_procesado.replace("`", "\\`").replace("$", "\\$")
     components.html(f"""
         <style>
             .bar {{ position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 9999; }}
@@ -74,7 +104,7 @@ if contenido_final:
             <button onclick="sh()" class="btn sh">📤 Compartir</button>
         </div>
         <script>
-            const t = `{js_txt}`;
+            const t = `{texto_js}`;
             function dl() {{
                 const b = new Blob([t], {{type: 'text/plain'}});
                 const a = document.createElement('a');
@@ -87,6 +117,7 @@ if contenido_final:
                 if (navigator.share) {{ try {{ await navigator.share({{ files: [f] }}); }} catch (e) {{}} }}
             </script>
     """, height=100)
+
 
 
 
