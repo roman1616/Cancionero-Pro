@@ -143,4 +143,4 @@ if archivo:
                 }}
             }};
         </script>
-    """, height=100)   en android no funciona
+    """, height=100)   
