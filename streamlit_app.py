@@ -79,6 +79,7 @@ if archivo:
 
     texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
+        # BARRA DE ACCIONES FLOTANTE (BOTONES IGUALES)
     components.html(f"""
         <style>
             .action-bar {{
@@ -87,11 +88,12 @@ if archivo:
                 left: 50%;
                 transform: translateX(-50%);
                 display: flex;
-                gap: 20px;
+                gap: 15px; /* Espacio entre botones */
                 z-index: 9999;
             }}
             .btn {{
-                padding: 12px 24px;
+                width: 150px; /* Ancho fijo para que sean iguales */
+                height: 50px; /* Altura fija */
                 border: none;
                 border-radius: 25px;
                 font-family: -apple-system, system-ui, sans-serif;
@@ -100,6 +102,7 @@ if archivo:
                 cursor: pointer;
                 display: flex;
                 align-items: center;
+                justify-content: center; /* Centra el texto e icono dentro del botón */
                 gap: 8px;
                 color: white;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.3);
@@ -111,7 +114,7 @@ if archivo:
         </style>
         
         <div class="action-bar">
-            <button id="btnDL" class="btn download-btn">      💾 Guardar      </button>
+            <button id="btnDL" class="btn download-btn">💾 Guardar</button>
             <button id="btnSH" class="btn share-btn">📤 Compartir</button>
         </div>
 
