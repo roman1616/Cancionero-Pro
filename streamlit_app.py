@@ -2,10 +2,14 @@ import streamlit as st
 import re
 import streamlit.components.v1 as components
 
-# 1. Configuración de página centrada
-st.set_page_config(page_title="Cancionero Pro", layout="centered")
+# 1. Configuración de la aplicación
+st.set_page_config(
+    page_title="Cancionero Pro 2026", 
+    page_icon="🎸", 
+    layout="centered"
+)
 
-# Diccionario de conversión
+# Diccionario de conversión de Latino a Americano
 LATINO_A_AMERICANO = {
     'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
@@ -15,11 +19,14 @@ def procesar_texto(texto):
     lineas = texto.split('\n')
     resultado_final = []
     
-    # Patrón: Nota base + resto del acorde
+    # Patrón: Notas latinas o americanas + alteraciones y extensiones
     patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
 
     for linea in lineas:
         linea_lista = list(linea)
+        # Usamos offset para manejar cambios de longitud en la línea si fuera necesario
+        # pero aquí sobreescribimos posiciones fijas para mantener alineación
+        
         for match in re.finditer(patron_universal, linea, flags=re.IGNORECASE):
             acorde_original = match.group(0)
             raiz_orig = match.group(1).upper()
@@ -27,19 +34,13 @@ def procesar_texto(texto):
             inicio = match.start()
             fin = match.end()
             
-            # --- VALIDACIÓN PARA EVITAR PALABRAS (Ej: "A la gloria") ---
-            # 1. Si antes hay una letra, es parte de una palabra
+            # --- FILTROS DE FALSOS POSITIVOS ---
             if inicio > 0 and linea[inicio-1].isalpha():
                 continue
             
-            # 2. REGLA CRÍTICA: Si el acorde es una sola letra (como 'A') y lo 
-            # que sigue es un espacio y una letra MINÚSCULA, es texto, no música.
             lo_que_sigue = linea[fin:]
-            if re.match(r'^ +[a-zñáéíóú]', lo_que_sigue):
-                continue
-            
-            # 3. Si lo que sigue es una letra minúscula pegada (ej: "Lado")
-            if re.match(r'^[a-zñáéíóú]', lo_que_sigue):
+            # Evitar capturar palabras (ej: "A la...", "Lado")
+            if re.match(r'^ +[a-zñáéíóú]', lo_que_sigue) or re.match(r'^[a-zñáéíóú]', lo_que_sigue):
                 continue
 
             # --- CONVERSIÓN ---
@@ -50,105 +51,126 @@ def procesar_texto(texto):
             if not lo_que_sigue.startswith("'"):
                 nuevo_acorde += "'"
 
-            # --- MANTENER POSICIÓN ---
-            ancho_original = len(acorde_original)
+            # --- RECONSTRUCCIÓN DE LÍNEA ---
+            # Intentamos mantener el espacio original o expandir si es necesario
+            ancho_espacio = len(acorde_original)
             if lo_que_sigue.startswith("'"):
-                ancho_original += 1
+                ancho_espacio += 1
             
-            sustitucion = nuevo_acorde.ljust(ancho_original)
+            sustitucion = nuevo_acorde.ljust(ancho_espacio)
 
             for i, char in enumerate(sustitucion):
                 if inicio + i < len(linea_lista):
                     linea_lista[inicio + i] = char
+                else:
+                    linea_lista.append(char)
                     
         resultado_final.append("".join(linea_lista))
     return '\n'.join(resultado_final)
 
-# --- INTERFAZ ---
-#st.markdown("<h1 style='text-align: center;'>🎸 Procesador de Acordes</h1>", unsafe_allow_html=True)
+# --- INTERFAZ DE USUARIO ---
 st.markdown("""
-    <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/512-512.png' alt='Icono Guitarra' style='width: 45px; height: 45px;'>
-        <h1>Procesador de Acordes</h1>   
-    </div>""", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Convierte de cifrado Latino a Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)
-archivo = st.file_uploader("Sube tu archivo .txt", type="txt", label_visibility="collapsed")
+    <div style='display: flex; align-items: center; justify-content: center; gap: 15px; padding: 20px;'>
+        <img src='https://raw.githubusercontent.com' width='50'>
+        <h1 style='margin:0;'>Cancionero Pro</h1>
+    </div>
+    <p style='text-align: center; color: #666;'>Convierte cifrado Latino a Americano y añade formato de lectura (') automáticamente.</p>
+    """, unsafe_allow_html=True)
+
+archivo = st.file_uploader("Sube tu archivo de texto (.txt)", type="txt", label_visibility="collapsed")
 
 if archivo:
     nombre_archivo = archivo.name
     contenido = archivo.read().decode("utf-8")
-    texto_final = procesar_texto(contenido)
+    texto_procesado = procesar_texto(contenido)
     
-    st.subheader("Vista Previa:")
-    st.code(texto_final, language="text")
+    st.success("¡Archivo procesado con éxito!")
+    
+    with st.expander("Ver vista previa del texto", expanded=True):
+        st.code(texto_procesado, language="text")
 
-    texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
+    # Preparar el texto para JavaScript (escapar comillas y saltos)
+    texto_js = texto_procesado.replace("`", "\\`").replace("$", "\\$")
 
-        # BARRA DE ACCIONES FLOTANTE (BOTONES IGUALES)
+    # COMPONENTE DE ACCIONES (BOTONES FLOTANTES)
     components.html(f"""
         <style>
             .action-bar {{
                 position: fixed;
-                bottom: 25px;
+                bottom: 30px;
                 left: 50%;
                 transform: translateX(-50%);
                 display: flex;
-                gap: 15px; /* Espacio entre botones */
-                z-index: 9999;
+                gap: 20px;
+                z-index: 1000;
+                background: rgba(255,255,255,0.8);
+                padding: 10px 20px;
+                border-radius: 40px;
+                backdrop-filter: blur(10px);
+                box-shadow: 0 8px 32px rgba(0,0,0,0.15);
             }}
             .btn {{
-                width: 150px; /* Ancho fijo para que sean iguales */
-                height: 50px; /* Altura fija */
+                width: 140px;
+                height: 45px;
                 border: none;
-                border-radius: 25px;
-                font-family: -apple-system, system-ui, sans-serif;
-                font-size: 16px;
-                font-weight: 700;
+                border-radius: 22px;
+                font-family: sans-serif;
+                font-size: 15px;
+                font-weight: bold;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
-                justify-content: center; /* Centra el texto e icono dentro del botón */
+                justify-content: center;
                 gap: 8px;
                 color: white;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                transition: transform 0.1s;
+                transition: transform 0.2s, filter 0.2s;
             }}
-            .btn:active {{ transform: scale(0.95); }}
-            .download-btn {{ background-color: #007AFF; }}
-            .share-btn {{ background-color: #34C759; }}
+            .btn:active {{ transform: scale(0.92); }}
+            .btn-save {{ background-color: #007AFF; }}
+            .btn-share {{ background-color: #34C759; }}
         </style>
         
         <div class="action-bar">
-            <button id="btnDL" class="btn download-btn">💾 Guardar</button>
-            <button id="btnSH" class="btn share-btn">📤 Compartir</button>
+            <button id="dl" class="btn btn-save">💾 Guardar</button>
+            <button id="sh" class="btn btn-share">📤 Compartir</button>
         </div>
 
         <script>
             const content = `{texto_js}`;
-            const fileName = "{nombre_archivo}";
+            const fileName = "PRO_{nombre_archivo}";
 
-            document.getElementById('btnDL').onclick = () => {{
+            // Lógica de Descarga
+            document.getElementById('dl').onclick = () => {{
                 const blob = new Blob([content], {{ type: 'text/plain' }});
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = "PRO_" + fileName;
+                a.download = fileName;
                 a.click();
+                window.URL.revokeObjectURL(url);
             }};
 
-            document.getElementById('btnSH').onclick = async () => {{
-                const blob = new Blob([content], {{ type: 'text/plain' }});
-                const file = new File([blob], fileName, {{ type: 'text/plain' }});
+            // Lógica de Compartir (Web Share API)
+            document.getElementById('sh').onclick = async () => {{
+                const file = new File([content], fileName, {{ type: 'text/plain' }});
                 if (navigator.share) {{
                     try {{
-                        await navigator.share({{ files: [file] }});
-                    }} catch (err) {{ if (err.name !== 'AbortError') console.log(err); }}
-                }} else {{
-                    alert("Usa 'Guardar'.");
+                        await navigator.share({{
+                            title: 'Cancionero Pro',
+                            files: [file]
+                        }});
+                    }} catch (err) {{ 
+                        if (err.name !== 'AbortError') alert("Error al compartir."); 
+                    }}
+                } else {{
+                    alert("Tu navegador no soporta compartir archivos. Usa 'Guardar'.");
                 }}
             }};
         </script>
-    """, height=100)
+    """, height=120)
+else:
+    st.info("Esperando archivo... Por favor, sube un .txt para comenzar.")
+
 
 
 
