@@ -66,8 +66,11 @@ def procesar_texto(texto):
 
 # --- INTERFAZ ---
 st.markdown("<h1 style='text-align: center;'>🎸 Procesador de Acordes</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Convierte de cifrado Latino a Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)
-archivo = st.file_uploader("Sube tu archivo .txt", type="txt", label_visibility="collapsed")
+st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y coloca el apóstrofe (') al final del acorde.</p>", unsafe_allow_html=True)
+
+# MODIFICACIÓN: Se quita la restricción rígida de 'type' para que el selector de Android/iOS 
+# permita abrir Google Drive, Dropbox y otros gestores de archivos.
+archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
     nombre_archivo = archivo.name
