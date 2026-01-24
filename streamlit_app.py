@@ -1,6 +1,7 @@
 import streamlit as st
 import re
 
+# Diccionario de conversión
 LATINO_A_AMERICANO = {
     'do': 'C', 're': 'D', 'mi': 'E', 'fa': 'F', 
     'sol': 'G', 'la': 'A', 'si': 'B'
@@ -11,50 +12,50 @@ def procesar_texto(texto):
     resultado_final = []
 
     for linea in lineas:
-        # 1. Convertir Latino a Americano (ej: "re" -> "D")
+        # 1. Convertimos notas latinas (do -> C) 
+        # Usamos 'in' (corregido) y Regex para evitar cambiar palabras comunes
         for lat, am in LATINO_A_AMERICANO.items():
-            # Solo convierte si es la nota sola o seguida de símbolos musicales
-            patron_lat = re.compile(rf'\b{lat}(?=[#bm\s\-\(\/]|$) \b', re.IGNORECASE)
-            # Nota: Usamos una búsqueda simple para la conversión inicial
-            linea = re.sub(rf'\b{lat}\b', am, linea, flags=re.IGNORECASE)
+            # Esta regex busca la nota latina ignorando mayúsculas/minúsculas
+            patron_lat = re.compile(rf'\b{lat}(?=[#bm\s\-]|$)', re.IGNORECASE)
+            linea = patron_lat.sub(am, linea)
 
-        # 2. Lógica de Marcado con Filtro de Palabras
-        # Buscamos patrones de acordes (A-G)
-        patron_acorde = r'\b([a-gA-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)\b'
-        
-        def marcador(match):
+        # 2. Buscamos acordes americanos y añadimos el asterisco
+        def marcar_acorde(match):
             acorde = match.group(1)
-            inicio_pos = match.end()
-            
-            # REGLA DE ORO: Miramos qué hay justo después del acorde
-            # Si lo que sigue es un espacio y luego una letra minúscula, es una PALABRA.
-            resto_linea = linea[inicio_pos:]
-            # Si detecta espacio + letra minúscula (ej: "D esta cancion"), NO marca.
-            if re.match(r'^[ ]+[a-zñáéíóú]', resto_linea):
-                return acorde
-            
-            # Si no es una palabra, formateamos y ponemos asterisco
-            acorde_formateado = acorde.upper() + acorde[1:]
+            # Pasamos la primera letra a mayúscula y el resto queda igual (ej: am -> Am)
+            acorde_formateado = acorde[0].upper() + acorde[1:]
             return f"{acorde_formateado}*"
 
-        linea_procesada = re.sub(patron_acorde, marcador, linea)
+        # Expresión regular para detectar acordes americanos:
+        # Detecta A-G, a-g, seguidos de sostenidos, bemoles, menores, séptimas, etc.
+        patron_americano = r'\b([a-gA-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)\b'
+        
+        linea_procesada = re.sub(patron_americano, marcar_acorde, linea)
         resultado_final.append(linea_procesada)
 
     return '\n'.join(resultado_final)
 
-# --- Interfaz Web ---
-st.set_page_config(page_title="Procesador Acordes 2026", page_icon="📝")
-st.title("🤖 Bot de Cifrado Inteligente")
-st.write("Diferencia entre acordes y palabras de la letra automáticamente.")
+# --- Interfaz de Streamlit ---
+st.set_page_config(page_title="Editor de Acordes 2026", page_icon="🎸")
 
-archivo = st.file_uploader("Sube tu archivo .txt", type="txt")
+st.title("🎸 Procesador de Acordes")
+st.write("Sube tu archivo para convertir a cifrado americano y marcar con `*`.")
+
+archivo = st.file_uploader("Subir archivo .txt", type="txt")
 
 if archivo:
+    # Leer el archivo correctamente
     contenido = archivo.read().decode("utf-8")
+    
+    # Procesar
     texto_final = procesar_texto(contenido)
     
-    st.subheader("Resultado:")
-    st.text_area("Contenido procesado:", texto_final, height=400)
+    st.subheader("Vista Previa")
+    st.text_area("Resultado:", texto_final, height=300)
     
-    st.download_button("Descargar TXT", texto_final, "cancion_marcada.txt")
-
+    st.download_button(
+        label="Descargar TXT",
+        data=texto_final,
+        file_name="cancion_procesada.txt",
+        mime="text/plain"
+    )
