@@ -14,46 +14,52 @@ LATINO_A_AMERICANO = {
 def procesar_texto(texto):
     lineas = texto.split('\n')
     resultado_final = []
-    # Patrón universal: captura la nota base y opcionalmente # o b y el resto del acorde
-    patron_universal = r'\b(do|re|mi|fa|sol|la|si|[a-g])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)\b'
+    
+    # Expresión regular mejorada: No usamos \b para que no corte en el #
+    # Buscamos la nota y luego todo lo que sea un símbolo musical válido pegado
+    patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
 
     for linea in lineas:
         linea_lista = list(linea)
-        # Usamos finditer para procesar cada coincidencia de forma independiente
+        # Buscamos coincidencias
         for match in re.finditer(patron_universal, linea, flags=re.IGNORECASE):
-            acorde_original = match.group(0) # Ejemplo: "A#" o "Dm"
+            acorde_original = match.group(0)
             raiz_orig = match.group(1).upper()
-            resto_acorde = match.group(2) # Ejemplo: "#" o "m"
+            resto_acorde = match.group(2)
             
-            fin_pos = match.end()
-            lo_que_sigue = linea[fin_pos:]
+            inicio = match.start()
+            fin = match.end()
             
-            # FILTRO ANTI-FRASES: Evita procesar si es el inicio de una palabra
-            if re.match(r'^ [a-zA-ZñÑáéíóúÁÉÍÓÚ]', lo_que_sigue):
+            # --- VALIDACIÓN DE LÍMITE (Manual en lugar de \b) ---
+            # Si antes del acorde hay una letra o después hay una letra minúscula, es una palabra
+            if inicio > 0 and linea[inicio-1].isalpha():
                 continue
             
-            # CONVERSIÓN
+            lo_que_sigue = linea[fin:]
+            if re.match(r'^[a-zñáéíóú]', lo_que_sigue):
+                continue
+
+            # --- CONVERSIÓN ---
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
-            
-            # CONSTRUCCIÓN: Unimos la nueva raíz con TODO el resto original y el '
             nuevo_acorde = f"{raiz_nueva}{resto_acorde}"
             
-            # Solo añadir el apóstrofe si no existe ya un marcador
-            if not (lo_que_sigue.startswith("'") or lo_que_sigue.startswith('*')):
+            # Solo añadir el apóstrofe si no existe ya
+            if not lo_que_sigue.startswith("'"):
                 nuevo_acorde += "'"
 
-            # MANTENER POSICIÓN EXACTA
+            # --- MANTENER POSICIÓN ---
+            # Calculamos el ancho original incluyendo el ' si ya existía
             ancho_original = len(acorde_original)
-            # Si en el original ya había un ', compensamos el ancho
-            if lo_que_sigue.startswith("'") or lo_que_sigue.startswith('*'): 
+            if lo_que_sigue.startswith("'"):
                 ancho_original += 1
             
-            # Rellenamos con espacios a la derecha para que nada se mueva
+            # Rellenamos con espacios para no desplazar la línea
             sustitucion = nuevo_acorde.ljust(ancho_original)
 
+            # Escribir en la lista de caracteres
             for i, char in enumerate(sustitucion):
-                if match.start() + i < len(linea_lista):
-                    linea_lista[match.start() + i] = char
+                if inicio + i < len(linea_lista):
+                    linea_lista[inicio + i] = char
                     
         resultado_final.append("".join(linea_lista))
     return '\n'.join(resultado_final)
@@ -124,5 +130,6 @@ if archivo:
             }};
         </script>
     """, height=100)
+
 
 
