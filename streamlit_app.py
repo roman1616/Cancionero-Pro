@@ -29,7 +29,7 @@ def procesar_texto(texto):
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
             resto = acorde_original[len(match.group(1)):]
             nuevo_acorde = f"{raiz_nueva}{resto}"
-            if not lo_que_sigue.startswith('*'): nuevo_acorde += "*"
+            if not lo_que_sigue.startswith('*'): nuevo_acorde += "'"
 
             ancho_original = len(acorde_original)
             if lo_que_sigue.startswith('*'): ancho_original += 1
