@@ -111,7 +111,7 @@ if archivo:
         </style>
         
         <div class="action-bar">
-            <button id="btnDL" class="btn download-btn"> 💾 Guardar </button>
+            <button id="btnDL" class="btn download-btn">      💾 Guardar      </button>
             <button id="btnSH" class="btn share-btn">📤 Compartir</button>
         </div>
 
