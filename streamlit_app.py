@@ -19,7 +19,7 @@ def procesar_texto(texto):
     patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
 
     for linea in lineas:
-@@ -27,30 +26,22 @@
+@@ -26,22 +27,30 @@
             inicio = match.start()
             fin = match.end()
 
@@ -50,7 +50,7 @@ def procesar_texto(texto):
             ancho_original = len(acorde_original)
             if lo_que_sigue.startswith("'"):
                 ancho_original += 1
-@@ -66,7 +57,7 @@
+@@ -57,7 +66,7 @@
 
 # --- INTERFAZ ---
 st.markdown("<h1 style='text-align: center;'>🎸 Procesador de Acordes</h1>", unsafe_allow_html=True)
@@ -58,7 +58,7 @@ st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y aña
 archivo = st.file_uploader("Sube tu archivo .txt", type="txt", label_visibility="collapsed")
 
 if archivo:
-@@ -77,9 +68,10 @@
+@@ -68,10 +77,9 @@
     st.subheader("Vista Previa:")
     st.code(texto_final, language="text")
 
@@ -69,7 +69,7 @@ if archivo:
     components.html(f"""
         <style>
             .action-bar {{
-@@ -88,27 +80,26 @@
+@@ -80,26 +88,27 @@
                 left: 50%;
                 transform: translateX(-50%);
                 display: flex;
@@ -97,7 +97,7 @@ if archivo:
             .download-btn {{ background-color: #007AFF; }}
             .share-btn {{ background-color: #34C759; }}
         </style>
-@@ -128,19 +119,32 @@
+@@ -119,32 +128,19 @@
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = "PRO_" + fileName;
@@ -128,3 +128,5 @@ if archivo:
                 }}
             }};
         </script>
+    """, height=100)
+
