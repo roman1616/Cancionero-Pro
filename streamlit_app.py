@@ -11,7 +11,6 @@ LATINO_A_AMERICANO = {
 def procesar_texto(texto):
     lineas = texto.split('\n')
     resultado_final = []
-    # Patrón para detectar acordes (latino o americano)
     patron_universal = r'\b(do|re|mi|fa|sol|la|si|[a-g])[#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?\b'
 
     for linea in lineas:
@@ -20,7 +19,7 @@ def procesar_texto(texto):
             acorde_original = match.group(0)
             fin = match.end()
             
-            # FILTRO ANTI-FRASES (Ej: "La Repandilla")
+            # FILTRO ANTI-FRASES
             lo_que_sigue = linea[fin:]
             if re.match(r'^ [a-zA-ZñÑáéíóúÁÉÍÓÚ]', lo_que_sigue):
                 continue
@@ -34,7 +33,6 @@ def procesar_texto(texto):
             if not lo_que_sigue.startswith('*'):
                 nuevo_acorde += "*"
 
-            # Alineación: rellenar con espacios si el nuevo es más corto
             ancho_original = len(acorde_original)
             if lo_que_sigue.startswith('*'): ancho_original += 1
             sustitucion = nuevo_acorde.ljust(ancho_original)
@@ -48,8 +46,7 @@ def procesar_texto(texto):
 
 # --- INTERFAZ STREAMLIT ---
 st.set_page_config(page_title="Cancionero Pro 2026", layout="wide")
-st.title("🎸 Procesador de Acordes Inteligente")
-st.write("Sube tu canción para convertir a Americano y compartir directamente.")
+st.title("🎸 Procesador de Acordes Profesional")
 
 archivo = st.file_uploader("Sube tu archivo .txt", type="txt")
 
@@ -58,72 +55,89 @@ if archivo:
     contenido = archivo.read().decode("utf-8")
     texto_final = procesar_texto(contenido)
     
-    # Vista previa en fuente monoespaciada para verificar alineación
     st.subheader("Vista Previa:")
     st.code(texto_final, language="text")
 
-    # Escapamos el texto para que no rompa el JavaScript
+    # Escapamos el texto para JavaScript
     texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
-    # BOTÓN DE DESCARGA (PC)
-    st.download_button("💾 Descargar en PC", texto_final, file_name=f"PRO_{nombre_archivo}")
-
-    # BOTÓN DE COMPARTIR (ESPECÍFICO PARA IPHONE/MÓVIL)
-    # Inyectamos el botón fuera del flujo normal para evitar bloqueos de Safari
+    # BARRA DE ACCIONES FLOTANTE (HTML + JS)
+    # Colocamos ambos botones fuera del flujo de Streamlit para máxima compatibilidad
     components.html(f"""
         <style>
-            .btn-compartir {{
+            .action-bar {{
                 position: fixed;
-                bottom: 30px;
-                right: 30px;
-                background-color: #007AFF; /* Azul iOS */
-                color: white;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                gap: 15px;
+                z-index: 9999;
+                width: max-content;
+            }}
+            .btn {{
+                padding: 14px 22px;
                 border: none;
                 border-radius: 12px;
-                padding: 16px 24px;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica;
+                font-family: sans-serif;
                 font-size: 16px;
-                font-weight: 600;
-                box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+                font-weight: bold;
                 cursor: pointer;
-                z-index: 9999;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
                 display: flex;
                 align-items: center;
                 gap: 8px;
+                color: white;
+                transition: transform 0.2s;
             }}
-            .btn-compartir:active {{
-                transform: scale(0.95);
-                background-color: #0051a8;
-            }}
+            .btn:active {{ transform: scale(0.95); }}
+            .download-btn {{ background-color: #4A90E2; }}
+            .share-btn {{ background-color: #25D366; }}
         </style>
         
-        <button id="shareAction" class="btn-compartir">
-            <span>📤</span> Compartir en Móvil
-        </button>
+        <div class="action-bar">
+            <button id="btnDL" class="btn download-btn">💾 Guardar</button>
+            <button id="btnSH" class="btn share-btn">📤 Compartir</button>
+        </div>
 
         <script>
-        document.getElementById('shareAction').onclick = async () => {{
             const content = `{texto_js}`;
-            const blob = new Blob([content], {{ type: 'text/plain' }});
-            const file = new File([blob], "{nombre_archivo}", {{ type: 'text/plain' }});
-            
-            if (navigator.share) {{
-                try {{
-                    await navigator.share({{
-                        files: [file],
-                        title: '{nombre_archivo}',
-                        text: 'Canción procesada con Cancionero Pro'
-                    }});
-                }} catch (err) {{
-                    if (err.name !== 'AbortError') {{
-                        alert("Error al compartir: " + err.message);
+            const fileName = "{nombre_archivo}";
+
+            // Lógica Descargar
+            document.getElementById('btnDL').onclick = () => {{
+                const blob = new Blob([content], {{ type: 'text/plain' }});
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = "PRO_" + fileName;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            }};
+
+            // Lógica Compartir (Móvil)
+            document.getElementById('btnSH').onclick = async () => {{
+                const blob = new Blob([content], {{ type: 'text/plain' }});
+                const file = new File([blob], fileName, {{ type: 'text/plain' }});
+                
+                if (navigator.share) {{
+                    try {{
+                        await navigator.share({{
+                            files: [file],
+                            title: fileName,
+                            text: 'Canción procesada'
+                        }});
+                    }} catch (err) {{
+                        if (err.name !== 'AbortError') alert("Error: " + err.message);
                     }}
+                }} else {{
+                    alert("Tu navegador no soporta 'Compartir'. Usa el botón 'Guardar'.");
                 }}
-            }} else {{
-                alert("Tu navegador no soporta la función de compartir archivos. Usa el botón 'Descargar en PC'.");
-            }}
-        }};
+            }};
         </script>
     """, height=100)
 
-    st.info("💡 En iPhone: Usa el botón azul flotante para enviar por WhatsApp o guardar en archivos.")
+    st.info("💡 Usa los botones de abajo para Guardar o Compartir directamente por WhatsApp.")
+
