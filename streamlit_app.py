@@ -43,8 +43,8 @@ def procesar_texto(texto):
 
 # --- INTERFAZ CENTRADA ---
 st.markdown("<h1 style='text-align: center;'>🎸 Procesador de Acordes</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Sube tu archivo para procesar y compartir.</p>Cambia de cifrado latino a cifrado americano y añade  el apóstrofe (') para reconocer las notas.", unsafe_allow_html=True)
-
+st.markdown("<p style='text-align: center;'>Sube tu archivo para procesar y compartir.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Sube tu archivo para procesar y compartir.</p>", unsafe_allow_html=True)
 archivo = st.file_uploader("Sube tu archivo .txt", type="txt", label_visibility="collapsed")
 
 if archivo:
