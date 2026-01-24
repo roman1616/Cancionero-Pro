@@ -1,7 +1,7 @@
 import streamlit as st
 import re
+import streamlit.components.v1 as components
 
-# Diccionario de conversión
 LATINO_A_AMERICANO = {
     'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
@@ -10,73 +10,75 @@ LATINO_A_AMERICANO = {
 def procesar_texto(texto):
     lineas = texto.split('\n')
     resultado_final = []
-
     patron_universal = r'\b(do|re|mi|fa|sol|la|si|[a-g])[#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?\b'
 
     for linea in lineas:
         linea_lista = list(linea)
-        
         for match in re.finditer(patron_universal, linea, flags=re.IGNORECASE):
             acorde_original = match.group(0)
-            raiz_original = match.group(1).upper()
-            inicio = match.start()
             fin = match.end()
-            
-            lo_que_sigue = linea[fin:]
-            if re.match(r'^ [a-zA-ZñÑáéíóúÁÉÍÓÚ]', lo_que_sigue):
+            if re.match(r'^ [a-zA-ZñÑáéíóúÁÉÍÓÚ]', linea[fin:]):
                 continue
             
-            raiz_nueva = LATINO_A_AMERICANO.get(raiz_original, raiz_original)
-            resto_acorde = acorde_original[len(match.group(1)):]
+            raiz_nueva = LATINO_A_AMERICANO.get(match.group(1).upper(), match.group(1).upper())
+            nuevo_acorde = f"{raiz_nueva}{acorde_original[len(match.group(1)):]}"
+            if not linea[fin:].startswith('*'): nuevo_acorde += "*"
             
-            nuevo_acorde = f"{raiz_nueva}{resto_acorde}"
-            if not lo_que_sigue.startswith('*'):
-                nuevo_acorde += "*"
-
-            ancho_original = len(acorde_original)
-            if lo_que_sigue.startswith('*'):
-                ancho_original += 1
-            
-            sustitucion = nuevo_acorde.ljust(ancho_original)
-
+            sustitucion = nuevo_acorde.ljust(len(acorde_original))
             for i, char in enumerate(sustitucion):
-                if inicio + i < len(linea_lista):
-                    linea_lista[inicio + i] = char
-
+                if match.start() + i < len(linea_lista):
+                    linea_lista[match.start() + i] = char
         resultado_final.append("".join(linea_lista))
-
     return '\n'.join(resultado_final)
 
-# --- Interfaz de Streamlit ---
+# --- INTERFAZ ---
+st.set_page_config(page_title="Procesador 2026", layout="wide")
+st.title("🎸 Procesador de Acordes Inteligente")
 
-st.set_page_config(page_title="Editor de Acordes Pro 2026", layout="wide")
+archivo = st.file_uploader("Sube tu .txt", type="txt")
 
-st.title("🎸 Procesador de Acordes con Posicionamiento Fijo")
-st.write("Convierte a americano y añade `*` manteniendo los acordes justo encima de la letra.")
-
-# Usamos el widget de carga de archivos de Streamlit
-uploaded_file = st.file_uploader("Sube tu archivo .txt", type="txt")
-
-if uploaded_file is not None:
-    # Leer el archivo automáticamente por Streamlit
-    contenido = uploaded_file.read().decode("utf-8")
-    
-    # Procesar lógica
+if archivo:
+    nombre_archivo = archivo.name
+    contenido = archivo.read().decode("utf-8")
     texto_final = procesar_texto(contenido)
     
-    st.subheader("Vista Previa (Alineación fija):")
-    # Usamos st.code para asegurar que se vea con fuente monoespaciada
     st.code(texto_final, language="text")
-    
-    # Botón de descarga con el nombre del archivo original
-    st.download_button(
-        label="💾 Descargar TXT",
-        data=texto_final,
-        file_name=f"{uploaded_file.name.replace('.txt', '')}.txt",
-        mime="text/plain"
-    )
 
-    st.markdown("---")
-    # Texto adicional que imita el comportamiento de compartir que pediste:
-    if st.button("Simular Compartir (Compartir en móvil)"):
-        st.success("¡Listo para compartir! En un dispositivo móvil, el navegador te daría opciones (WhatsApp, Email, etc.) tras la descarga.")
+    # Columnas para los botones
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.download_button("💾 Descargar", texto_final, file_name=f"PRO_{nombre_archivo}")
+
+    with col2:
+        # Lógica para Compartir (Web Share API)
+        if st.button("📤 Compartir en Móvil"):
+            # Escapamos el texto para que no rompa el JS
+            texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
+            
+            # Inyectamos el JavaScript que dispara el menú del móvil
+            components.html(f"""
+                <script>
+                async function compartir() {{
+                    const texto = `{texto_js}`;
+                    const blob = new Blob([texto], {{ type: 'text/plain' }});
+                    const file = new File([blob], "{nombre_archivo}", {{ type: 'text/plain' }});
+                    
+                    if (navigator.canShare && navigator.canShare({{ files: [file] }})) {{
+                        try {{
+                            await navigator.share({{
+                                files: [file],
+                                title: 'Canción Procesada'
+                            }});
+                        }} catch (err) {{
+                            console.log("Error al compartir:", err);
+                        }}
+                    }} else {{
+                        alert("Tu navegador no soporta la función de compartir archivos directamente.");
+                    }}
+                }}
+                compartir();
+                </script>
+            """, height=0)
+
+st.info("Nota: El botón 'Compartir' funciona principalmente en navegadores móviles (Chrome Android, Safari iOS) y algunos navegadores de escritorio modernos.")
