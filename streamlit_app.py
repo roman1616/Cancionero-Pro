@@ -57,8 +57,8 @@ def procesar_texto(texto):
 # --- INTERFAZ ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com' alt='Icono' style='width: 45px; height: 45px;'>
-        <h1>Procesador de Acordes</h1>   
+        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
+        <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center;'>Convierte de Latino a Americano con marcado de posición.</p>", unsafe_allow_html=True)
 
