@@ -42,13 +42,10 @@ def procesar_texto(texto):
     return '\n'.join(resultado_final)
 
 # --- INTERFAZ CENTRADA ---
-# Título centrado usando Markdown (novedad 2026 para mejor control)
 st.markdown("<h1 style='text-align: center;'>🎸 Procesador de Acordes</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Convierte y comparte tus canciones fácilmente.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Sube tu archivo para procesar y compartir.</p>", unsafe_allow_html=True)
 
-# Contenedor para el cargador de archivos
-with st.container():
-    archivo = st.file_uploader("Sube tu archivo .txt", type="txt", label_visibility="collapsed")
+archivo = st.file_uploader("Sube tu archivo .txt", type="txt", label_visibility="collapsed")
 
 if archivo:
     nombre_archivo = archivo.name
@@ -58,9 +55,10 @@ if archivo:
     st.subheader("Vista Previa:")
     st.code(texto_final, language="text")
 
+    # Escapamos el texto para JavaScript
     texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
-    # BARRA DE ACCIONES FLOTANTE CENTRADA
+    # BARRA DE ACCIONES FLOTANTE (CORREGIDA PARA EVITAR DOBLE ARCHIVO EN IOS)
     components.html(f"""
         <style>
             .action-bar {{
@@ -71,26 +69,26 @@ if archivo:
                 display: flex;
                 gap: 20px;
                 z-index: 9999;
-                background: rgba(255, 255, 255, 0.9);
-                padding: 10px 20px;
+                background: rgba(255, 255, 255, 0.95);
+                padding: 10px 25px;
                 border-radius: 50px;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             }}
             .btn {{
                 padding: 12px 24px;
                 border: none;
                 border-radius: 25px;
                 font-family: -apple-system, system-ui, sans-serif;
-                font-size: 15px;
-                font-weight: 600;
+                font-size: 16px;
+                font-weight: 700;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
                 gap: 8px;
                 color: white;
-                transition: transform 0.2s, background 0.3s;
+                transition: transform 0.1s;
             }}
-            .btn:active {{ transform: scale(0.92); }}
+            .btn:active {{ transform: scale(0.95); }}
             .download-btn {{ background-color: #007AFF; }}
             .share-btn {{ background-color: #34C759; }}
         </style>
@@ -104,6 +102,7 @@ if archivo:
             const content = `{texto_js}`;
             const fileName = "{nombre_archivo}";
 
+            // FUNCIÓN GUARDAR
             document.getElementById('btnDL').onclick = () => {{
                 const blob = new Blob([content], {{ type: 'text/plain' }});
                 const url = window.URL.createObjectURL(blob);
@@ -113,18 +112,23 @@ if archivo:
                 a.click();
             }};
 
+            // FUNCIÓN COMPARTIR (SIN TITLE NI TEXT PARA EVITAR DOBLE ARCHIVO EN IPHONE)
             document.getElementById('btnSH').onclick = async () => {{
                 const blob = new Blob([content], {{ type: 'text/plain' }});
                 const file = new File([blob], fileName, {{ type: 'text/plain' }});
+                
                 if (navigator.share) {{
                     try {{
-                        await navigator.share({{ files: [file], title: fileName }});
-                    }} catch (err) {{ console.log(err); }}
+                        // IMPORTANTE: Solo enviamos 'files' para que iOS no cree el archivo de texto extra
+                        await navigator.share({{
+                            files: [file]
+                        }});
+                    }} catch (err) {{
+                        if (err.name !== 'AbortError') console.log("Error:", err);
+                    }}
                 }} else {{
-                    alert("Usa el botón Guardar.");
+                    alert("Usa el botón 'Guardar'.");
                 }}
             }};
         </script>
     """, height=100)
-
-
