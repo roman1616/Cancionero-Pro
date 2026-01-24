@@ -70,9 +70,9 @@ if uploaded_file is not None:
     
     # Botón de descarga con el nombre del archivo original
     st.download_button(
-        label="💾 Descargar TXT Procesado",
+        label="💾 Descargar TXT",
         data=texto_final,
-        file_name=f"{uploaded_file.name.replace('.txt', '')}_alineado.txt",
+        file_name=f"{uploaded_file.name.replace('.txt', '')}.txt",
         mime="text/plain"
     )
 
