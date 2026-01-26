@@ -121,5 +121,7 @@ if archivo:
                 }};
             </script>
         """, height=100)
+    
     except Exception as e:
-        st.error(f"Error al procesar el archivo: {{e}}")
+        # Agregamos la 'f' antes de las comillas para que reconozca la variable {e}
+        st.error(f"Error al procesar el archivo: {e}")
