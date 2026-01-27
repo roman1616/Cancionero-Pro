@@ -9,60 +9,73 @@ CONVERSION = {
 }
 
 def convertir_linea_notas(linea):
+    """Convierte palabras que coincidan con notas a cifrado americano."""
     palabras = linea.upper().split()
     convertidas = [CONVERSION.get(p, p) for p in palabras]
     return "   ".join(convertidas)
 
-st.set_page_config(page_title="Conversor de Cifrado Americano 2026", layout="wide")
+# Configuración de página
+st.set_page_config(page_title="Editor de Canciones 2026", layout="centered")
 
-st.title("🎵 Modificador de Notas a Cifrado Americano")
-st.markdown("""
-**Instrucciones:** Ingresa el contenido línea por línea. 
-- Los **renglones impares (1, 3, 5...)** se tratarán como **notas** (ej: Do Re Mi).
-- Los **renglones pares (2, 4, 6...)** se tratarán como **letra** de la canción.
-""")
+st.title("🎵 Conversor de Notas a Cifrado Americano")
 
-# Entrada de texto
-texto_input = st.text_area("Pega aquí tu canción (alternando notas y letra):", height=300, 
-                          placeholder="Ejemplo:\nDo Re Mi\nEsta es la letra\nFa Sol La\nSegunda línea de letra")
+# --- SECCIÓN 1: CARGA DE ARCHIVO O ENTRADA MANUAL ---
+st.subheader("1. Carga tu contenido")
+archivo_subido = st.file_uploader("Sube un archivo de texto (.txt)", type=["txt"])
+texto_manual = st.text_area("O pega el texto aquí (Impar: Notas / Par: Letra):", height=200)
 
-if texto_input:
-    lineas = texto_input.split('\n')
+# Prioridad: Si hay archivo, usarlo; si no, usar el texto manual
+contenido = ""
+if archivo_subido is not None:
+    contenido = archivo_subido.read().decode("utf-8")
+elif texto_manual:
+    contenido = texto_manual
+
+# --- SECCIÓN 2: PROCESAMIENTO Y VISUALIZACIÓN ---
+if contenido:
+    lineas = contenido.split('\n')
     resultado_final = []
     
-    st.subheader("Visualización del Resultado")
+    st.divider()
+    st.subheader("2. Visualización del Cifrado")
     
-    # Contenedor para la visualización con estilo de acordes
+    # Contenedor con estilo para la canción
     with st.container(border=True):
         for i, linea in enumerate(lineas):
             numero_renglon = i + 1
+            
             if numero_renglon % 2 != 0:
-                # Línea impar: Notas -> Convertir
+                # Renglón IMPAR: Notas
                 notas_convertidas = convertir_linea_notas(linea)
                 resultado_final.append(notas_convertidas)
-                st.markdown(f"**`{notas_convertidas}`**") # Estilo resaltado para notas
+                # Visualización con color azul para notas
+                st.markdown(f"**`:blue[{notas_convertidas}]`**") 
             else:
-                # Línea par: Letra -> Mantener
+                # Renglón PAR: Letra
                 resultado_final.append(linea)
-                st.write(linea)
-    
-    texto_para_guardar = "\n".join(resultado_final)
-    
-    # Opciones de Guardar y Compartir
+                st.markdown(f"&nbsp;&nbsp;&nbsp;{linea}") # Sangría para la letra
+
+    # --- SECCIÓN 3: GUARDAR Y COMPARTIR ---
     st.divider()
+    st.subheader("3. Exportar")
+    
+    texto_para_exportar = "\n".join(resultado_final)
+    
     col1, col2 = st.columns(2)
     
     with col1:
         st.download_button(
-            label="💾 Descargar como .txt",
-            data=texto_para_guardar,
+            label="💾 Descargar TXT",
+            data=texto_para_exportar,
             file_name="cancion_cifrada_2026.txt",
-            mime="text/plain"
+            mime="text/plain",
+            use_container_width=True
         )
         
     with col2:
-        if st.button("🔗 Generar enlace para compartir (Simulado)"):
-            st.info("En 2026, puedes desplegar esta app en [Streamlit Community Cloud](https://streamlit.io) para obtener un enlace permanente.")
+        # En 2026, la opción de compartir se facilita mediante el despliegue en la nube
+        if st.button("🔗 Obtener enlace para compartir", use_container_width=True):
+            st.success("Para compartir, publica esta app en [Streamlit Community Cloud](https://streamlit.io).")
 
 else:
-    st.info("Esperando entrada de texto...")
+    st.info("Sube un archivo .txt o escribe en el cuadro superior para comenzar.")
