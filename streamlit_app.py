@@ -9,34 +9,44 @@ LATINO_A_AMERICANO = {
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
 }
 
-def procesar_texto_final(texto_bruto, lineas_confirmadas):
+def procesar_texto_selectivo(texto_bruto, lineas_omitir):
     if not texto_bruto: return ""
+    
+    # --- BLOQUE 1: NORMALIZACIÓN UTF-8 ---
     texto = texto_bruto.replace('\r\n', '\n')
     lineas = texto.split('\n')
     
+    # --- BLOQUE 2: CONVERSIÓN DE CIFRADO ---
     patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)(m|maj|min|aug|dim|sus|add|M)?([#b])?([0-9]*)'
-    patron_final_apostr = r'\b([A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
     
-    resultado_final = []
-    
+    def traducir_acorde(match):
+        raiz_lat = match.group(1).upper()
+        cualidad = match.group(2) or ""
+        alteracion = match.group(3) or ""
+        numero = match.group(4) or ""
+        raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
+        return f"{raiz_amer}{alteracion}{cualidad}{numero}"
+
+    resultado_intermedio = []
     for i, linea in enumerate(lineas):
-        # Si la línea fue detectada como duda y NO fue aprobada, se queda igual
-        if i in lineas_confirmadas['pendientes'] and i not in lineas_confirmadas['aprobadas']:
+        # Si el usuario NO marcó la oración como música (la omitimos)
+        if i in lineas_omitir:
+            resultado_intermedio.append(linea)
+        else:
+            resultado_intermedio.append(re.sub(patron_latino, traducir_acorde, linea, flags=re.IGNORECASE))
+
+    # --- BLOQUE 3: COLOCACIÓN DE APÓSTROFES ---
+    resultado_final = []
+    patron_final = r'\b([A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
+
+    for i, linea in enumerate(resultado_intermedio):
+        if i in lineas_omitir:
             resultado_final.append(linea)
             continue
-
-        # --- BLOQUE 2: CONVERSIÓN ---
-        def traducir(match):
-            raiz_lat = match.group(1).upper()
-            raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
-            return f"{raiz_amer}{match.group(3) or ''}{match.group(2) or ''}{match.group(4) or ''}"
-
-        nueva_linea = re.sub(patron_latino, traducir, linea, flags=re.IGNORECASE)
-        
-        # --- BLOQUE 3: APÓSTROFES ---
-        linea_lista = list(nueva_linea)
+            
+        linea_lista = list(linea)
         ajuste = 0
-        for m in re.finditer(patron_final_apostr, nueva_linea):
+        for m in re.finditer(patron_final, linea):
             fin = m.end() + ajuste
             if fin < len(linea_lista):
                 if linea_lista[fin] not in ["'", "*"]:
@@ -50,42 +60,46 @@ def procesar_texto_final(texto_bruto, lineas_confirmadas):
     return '\n'.join(resultado_final)
 
 # --- INTERFAZ ---
-st.markdown("<h2 style='text-align: center;'>🎸 Cancionero Pro 2026</h2>", unsafe_allow_html=True)
+st.title("🎸 Cancionero Pro 2026")
+
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
     contenido = archivo.getvalue().decode("utf-8")
     lineas = contenido.split('\n')
     
-    lineas_dudosas = []
-    patron_duda = r'\b(RE|MI|SOL|LA|SI)\b'
-
+    # 1. Escaneo de oraciones que confunden (Notas dudosas seguidas de 1 espacio)
+    # Ejemplo: "la reunión", "mi casa", "re solar"
+    patron_duda = r'\b(RE|MI|SOL|LA|SI)\b\s\b(RE|MI|SOL|LA|SI|[a-zñáéíóú]+)\b'
+    
+    lineas_sospechosas = []
     for idx, linea in enumerate(lineas):
-        coincidencias = re.findall(patron_duda, linea, re.I)
+        if re.search(patron_duda, linea, re.I):
+            lineas_sospechosas.append((idx, linea))
+    
+    omitir_indices = []
+    
+    if lineas_sospechosas:
+        st.warning("⚠️ Se detectaron oraciones que podrían confundirse con notas:")
+        st.write("Selecciona solo las que **SÍ SON MÚSICA** (las que no marques se quedarán como texto original):")
         
-        if len(coincidencias) >= 2:
-            # Lógica 2026: Si hay 2+ espacios entre las palabras, es música (NO preguntar)
-            # Si están pegadas por un solo espacio (ej: "la reunión"), es duda (SÍ preguntar)
-            if not re.search(r'\b(RE|MI|SOL|LA|SI)\b\s{2,}\b(RE|MI|SOL|LA|SI)\b', linea, re.I):
-                lineas_dudosas.append((idx, linea))
-
-    dict_lineas = {'pendientes': [idx for idx, _ in lineas_dudosas], 'aprobadas': []}
-
-    if lineas_dudosas:
-        st.warning("⚠️ Se detectaron renglones que parecen frases. Marca solo los que sean MÚSICA:")
-        for idx, texto_linea in lineas_dudosas:
-            if st.checkbox(f"Línea {idx+1}: {texto_linea.strip()}", key=f"L{idx}"):
-                dict_lineas['aprobadas'].append(idx)
-
-    if st.button("✅ Procesar y Descargar"):
-        texto_final = procesar_texto_final(contenido, dict_lineas)
+        for idx, texto in lineas_sospechosas:
+            # Si el usuario NO marca el checkbox, el índice va a la lista de omitir
+            if not st.checkbox(f"Renglón {idx+1}: {texto.strip()}", value=False, key=idx):
+                omitir_indices.append(idx)
+    
+    if st.button("Procesar Cancionero"):
+        texto_final = procesar_texto_selectivo(contenido, omitir_indices)
+        
+        st.subheader("Vista Previa:")
         st.code(texto_final, language="text")
 
+        # --- JS ACCIONES ---
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
-            <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;">
-                <button id="dl" style="padding: 12px 25px; border-radius: 20px; border: none; background: #007AFF; color: white; font-weight: bold; cursor: pointer;">💾 Guardar</button>
-                <button id="sh" style="padding: 12px 25px; border-radius: 20px; border: none; background: #34C759; color: white; font-weight: bold; cursor: pointer;">📤 Compartir</button>
+            <div style="position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 999;">
+                <button id="dl" style="width: 140px; height: 45px; border: none; border-radius: 20px; font-weight: bold; cursor: pointer; color: white; background: #007AFF;">💾 Guardar</button>
+                <button id="sh" style="width: 140px; height: 45px; border: none; border-radius: 20px; font-weight: bold; cursor: pointer; color: white; background: #34C759;">📤 Compartir</button>
             </div>
             <script>
                 const txt = `{texto_js}`;
