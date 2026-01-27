@@ -2,10 +2,9 @@ import streamlit as st
 import re
 import streamlit.components.v1 as components
 
-# 1. Configuración de página centrada
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
-# Diccionario de conversión
+# Diccionario de raíces
 LATINO_A_AMERICANO = {
     'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
@@ -15,63 +14,57 @@ def procesar_texto(texto_bruto):
     if not texto_bruto: return ""
     
     # --- BLOQUE 1: NORMALIZACIÓN UTF-8 ---
-    # Aseguramos que el contenido sea tratado como string de Python (UTF-8 por defecto)
-    # y limpiamos caracteres de retorno de carro de Windows
     texto = texto_bruto.replace('\r\n', '\n')
     
-    # --- BLOQUE 2: CONVERSIÓN LATINO A AMERICANO ---
-    # Patrón para detectar notas latinas (ignora mayúsculas/minúsculas)
-    patron_notas = r'\b(DO|RE|MI|FA|SOL|LA|SI)\b'
+    # --- BLOQUE 2: CONVERSIÓN DE CIFRADO (Ej: Lam# -> Am# -> A#m) ---
+    # Este patrón busca la raíz latina y captura lo que sigue
+    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)(m|maj|min|aug|dim|sus|add|M)?([#b])?([0-9]*)'
     
-    def reemplazar_nota(match):
-        nota = match.group(1).upper()
-        return LATINO_A_AMERICANO.get(nota, nota)
+    def traducir_acorde(match):
+        raiz_lat = match.group(1).upper()
+        cualidad = match.group(2) if match.group(2) else ""
+        alteracion = match.group(3) if match.group(3) else ""
+        numero = match.group(4) if match.group(4) else ""
+        
+        raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
+        
+        # Reordenar: La raíz + alteración (#/b) + cualidad (m) + número
+        # Ejemplo: Lam# -> Raiz: A, Cualidad: m, Alteracion: # -> A#m
+        return f"{raiz_amer}{alteracion}{cualidad}{numero}"
 
-    # Aplicamos la conversión nota por nota preservando el resto (m, 7, maj7, etc)
-    # Usamos un patrón que detecte la nota al inicio de una palabra
     lineas = texto.split('\n')
-    texto_americano = []
-    
-    patron_acorde = r'([Dd][Oo]|[Rr][Ee]|[Mm][Ii]|[Ff][Aa]|[Ss][Oo][Ll]|[Ll][Aa]|[Ss][Ii])'
-    
+    texto_convertido = []
     for linea in lineas:
-        # Convertimos solo las raíces de los acordes
-        nueva_linea = re.sub(patron_acorde, reemplazar_nota, linea)
-        texto_americano.append(nueva_linea)
+        # Primero convertimos los latinos a americanos reordenando símbolos
+        nueva_linea = re.sub(patron_latino, traducir_acorde, linea, flags=re.IGNORECASE)
+        texto_convertido.append(nueva_linea)
 
     # --- BLOQUE 3: COLOCACIÓN DE APÓSTROFES ---
-    # Una vez que todo es Americano (C, D, E, F, G, A, B), ponemos el apóstrofe
     resultado_final = []
-    # Busca Notas A-G seguidas opcionalmente de sostenidos, bemoles y tipos de acorde
+    # Busca acordes ya en formato americano (A-G)
     patron_final = r'\b([A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
 
-    for linea in texto_americano:
-        linea_con_apostrofes = list(linea)
-        offset = 0
-        
-        for match in re.finditer(patron_final, linea):
-            acorde = match.group(0)
-            fin = match.end() + offset
-            
-            # Verificamos si ya tiene apóstrofe o asterisco para no duplicar
-            if fin < len(linea_con_apostrofes):
-                siguiente_char = linea_con_apostrofes[fin]
-                if siguiente_char not in ["'", "*"]:
-                    linea_con_apostrofes.insert(fin, "'")
-                    offset += 1
+    for linea in texto_convertido:
+        linea_lista = list(linea)
+        ajuste = 0
+        for m in re.finditer(patron_final, linea):
+            fin = m.end() + ajuste
+            # Evitar duplicar apóstrofe si ya existe
+            if fin < len(linea_lista):
+                if linea_lista[fin] not in ["'", "*"]:
+                    linea_lista.insert(fin, "'")
+                    ajuste += 1
             else:
-                # Si es el final de la línea, lo añadimos
-                linea_con_apostrofes.append("'")
-                offset += 1
-                
-        resultado_final.append("".join(linea_con_apostrofes))
+                linea_lista.append("'")
+                ajuste += 1
+        resultado_final.append("".join(linea_lista))
 
     return '\n'.join(resultado_final)
 
-# --- INTERFAZ ---
+# --- INTERFAZ STREAMLIT ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
+        <img src='https://raw.githubusercontent.com' style='width: 45px; height: 45px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
 
@@ -80,7 +73,6 @@ archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibilit
 if archivo:
     try:
         nombre_archivo = archivo.name
-        # El bloque de decodificación asegura la integridad del UTF-8
         contenido = archivo.getvalue().decode("utf-8")
         texto_final = procesar_texto(contenido)
         
@@ -88,44 +80,137 @@ if archivo:
         st.code(texto_final, language="text")
 
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
-
         components.html(f"""
             <style>
-                .action-bar {{
-                    position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
-                    display: flex; gap: 15px; z-index: 9999;
-                }}
-                .btn {{
-                    width: 150px; height: 50px; border: none; border-radius: 25px;
-                    font-family: -apple-system, system-ui, sans-serif;
-                    font-size: 16px; font-weight: 700; cursor: pointer;
-                    display: flex; align-items: center; justify-content: center;
-                    gap: 8px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                }}
-                .download-btn {{ background-color: #007AFF; }}
-                .share-btn {{ background-color: #34C759; }}
+                .action-bar {{ position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; }}
+                .btn {{ width: 140px; height: 45px; border: none; border-radius: 20px; font-weight: bold; cursor: pointer; color: white; }}
+                .dl {{ background: #007AFF; }} .sh {{ background: #34C759; }}
             </style>
             <div class="action-bar">
-                <button id="dl" class="btn download-btn">💾 Guardar</button>
-                <button id="sh" class="btn share-btn">📤 Compartir</button>
+                <button id="dl" class="btn dl">💾 Guardar</button>
+                <button id="sh" class="btn sh">📤 Compartir</button>
             </div>
             <script>
-                const content = `{texto_js}`;
+                const txt = `{texto_js}`;
                 document.getElementById('dl').onclick = () => {{
-                    const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
-                    const url = URL.createObjectURL(b);
+                    const b = new Blob([txt], {{type:'text/plain'}});
                     const a = document.createElement('a');
-                    a.href = url; a.download = "PRO_{nombre_archivo}"; a.click();
+                    a.href = URL.createObjectURL(b); a.download = "PRO_{nombre_archivo}"; a.click();
                 }};
                 document.getElementById('sh').onclick = async () => {{
-                    const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
-                    const file = new File([b], "{nombre_archivo}", {{ type: 'text/plain' }});
-                    if (navigator.share) {{
-                        try {{ await navigator.share({{ files: [file] }}); }} catch (e) {{}}
-                    }} else {{ alert("Usa 'Guardar'"); }}
+                    const b = new Blob([txt], {{type:'text/plain'}});
+                    const f = new File([b], "{nombre_archivo}", {{type:'text/plain'}});
+                    if(navigator.share) await navigator.share({{files:[f]}});
                 }};
             </script>
         """, height=100)
-    
     except Exception as e:
-        st.error(f"Error al procesar el archivo: {e}")
+        st.error(f"Error: {e}")
+import streamlit as st
+import re
+import streamlit.components.v1 as components
+
+st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
+
+# Diccionario de raíces
+LATINO_A_AMERICANO = {
+    'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 
+    'SOL': 'G', 'LA': 'A', 'SI': 'B'
+}
+
+def procesar_texto(texto_bruto):
+    if not texto_bruto: return ""
+    
+    # --- BLOQUE 1: NORMALIZACIÓN UTF-8 ---
+    texto = texto_bruto.replace('\r\n', '\n')
+    
+    # --- BLOQUE 2: CONVERSIÓN DE CIFRADO (Ej: Lam# -> Am# -> A#m) ---
+    # Este patrón busca la raíz latina y captura lo que sigue
+    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)(m|maj|min|aug|dim|sus|add|M)?([#b])?([0-9]*)'
+    
+    def traducir_acorde(match):
+        raiz_lat = match.group(1).upper()
+        cualidad = match.group(2) if match.group(2) else ""
+        alteracion = match.group(3) if match.group(3) else ""
+        numero = match.group(4) if match.group(4) else ""
+        
+        raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
+        
+        # Reordenar: La raíz + alteración (#/b) + cualidad (m) + número
+        # Ejemplo: Lam# -> Raiz: A, Cualidad: m, Alteracion: # -> A#m
+        return f"{raiz_amer}{alteracion}{cualidad}{numero}"
+
+    lineas = texto.split('\n')
+    texto_convertido = []
+    for linea in lineas:
+        # Primero convertimos los latinos a americanos reordenando símbolos
+        nueva_linea = re.sub(patron_latino, traducir_acorde, linea, flags=re.IGNORECASE)
+        texto_convertido.append(nueva_linea)
+
+    # --- BLOQUE 3: COLOCACIÓN DE APÓSTROFES ---
+    resultado_final = []
+    # Busca acordes ya en formato americano (A-G)
+    patron_final = r'\b([A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
+
+    for linea in texto_convertido:
+        linea_lista = list(linea)
+        ajuste = 0
+        for m in re.finditer(patron_final, linea):
+            fin = m.end() + ajuste
+            # Evitar duplicar apóstrofe si ya existe
+            if fin < len(linea_lista):
+                if linea_lista[fin] not in ["'", "*"]:
+                    linea_lista.insert(fin, "'")
+                    ajuste += 1
+            else:
+                linea_lista.append("'")
+                ajuste += 1
+        resultado_final.append("".join(linea_lista))
+
+    return '\n'.join(resultado_final)
+
+# --- INTERFAZ STREAMLIT ---
+st.markdown(f"""
+    <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
+        <img src='https://raw.githubusercontent.com' style='width: 45px; height: 45px;'>
+        <h1>Cancionero Pro</h1>   
+    </div>""", unsafe_allow_html=True)
+
+archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
+
+if archivo:
+    try:
+        nombre_archivo = archivo.name
+        contenido = archivo.getvalue().decode("utf-8")
+        texto_final = procesar_texto(contenido)
+        
+        st.subheader("Vista Previa:")
+        st.code(texto_final, language="text")
+
+        texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
+        components.html(f"""
+            <style>
+                .action-bar {{ position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; }}
+                .btn {{ width: 140px; height: 45px; border: none; border-radius: 20px; font-weight: bold; cursor: pointer; color: white; }}
+                .dl {{ background: #007AFF; }} .sh {{ background: #34C759; }}
+            </style>
+            <div class="action-bar">
+                <button id="dl" class="btn dl">💾 Guardar</button>
+                <button id="sh" class="btn sh">📤 Compartir</button>
+            </div>
+            <script>
+                const txt = `{texto_js}`;
+                document.getElementById('dl').onclick = () => {{
+                    const b = new Blob([txt], {{type:'text/plain'}});
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(b); a.download = "PRO_{nombre_archivo}"; a.click();
+                }};
+                document.getElementById('sh').onclick = async () => {{
+                    const b = new Blob([txt], {{type:'text/plain'}});
+                    const f = new File([b], "{nombre_archivo}", {{type:'text/plain'}});
+                    if(navigator.share) await navigator.share({{files:[f]}});
+                }};
+            </script>
+        """, height=100)
+    except Exception as e:
+        st.error(f"Error: {e}")
