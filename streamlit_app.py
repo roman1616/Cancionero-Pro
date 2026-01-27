@@ -1,7 +1,6 @@
 import streamlit as st
 import re
 import streamlit.components.v1 as components
-import unicodedata
 
 # 1. Configuración de página centrada
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
@@ -12,35 +11,14 @@ LATINO_A_AMERICANO = {
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
 }
 
-def quitar_acentos(texto):
-    """Reemplaza caracteres acentuados por sus versiones sin acento (á -> a)."""
-    return "".join(
-        c for c in unicodedata.normalize('NFD', texto)
-        if unicodedata.category(c) != 'Mn'
-    )
-
 def procesar_texto(texto):
     if not texto: return ""
-    
-    # 1. Normalización: UTF-8 y quitar acentos (Evita símbolos raros)
-    texto = quitar_acentos(texto)
-    
-    lineas_sucias = texto.split('\n')
-    lineas_limpias = []
-    for l in lineas_sucias:
-        l = l.strip()
-        if len(l) > 0:
-            # Formato: Primera letra mayúscula, resto minúscula
-            nueva_linea = l[0].upper() + l[1:].lower()
-            lineas_limpias.append(nueva_linea)
-        else:
-            lineas_limpias.append("")
-            
+    lineas = texto.split('\n')
     resultado_final = []
     # Patrón: Nota base + resto del acorde
     patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
 
-    for linea in lineas_limpias:
+    for linea in lineas:
         linea_lista = list(linea)
         for match in re.finditer(patron_universal, linea, flags=re.IGNORECASE):
             acorde_original = match.group(0)
@@ -48,26 +26,17 @@ def procesar_texto(texto):
             resto_acorde = match.group(2)
             inicio, fin = match.start(), match.end()
             
-            # --- FILTROS ANTI-FRASES MEJORADOS ---
+            # --- FILTROS ANTI-FRASES (Ej: "La Repandilla" o "A la gloria") ---
             lo_que_sigue = linea[fin:]
-            
-            # 1. Si la nota es una sola letra (A, E, D, etc) y lo que sigue es una letra minúscula, es una palabra, NO un acorde.
-            # Ejemplo: "A esa" -> 'A' es nota, pero le sigue ' ' y luego 'e'. Se descarta.
-            if len(acorde_original) == 1 and re.match(r'^[a-z]', lo_que_sigue.strip()):
-                continue
-
-            # 2. Evitar que detecte letras dentro de palabras (Ej: "pArtA")
-            if inicio > 0 and linea[inicio-1].isalpha(): 
-                continue
-            
-            # 3. Si lo que sigue es texto normal (letras minúsculas pegadas o con espacio)
-            if re.match(r'^[a-zñáéíóú]', lo_que_sigue): continue
+            if inicio > 0 and linea[inicio-1].isalpha(): continue
             if re.match(r'^ +[a-zñáéíóú]', lo_que_sigue): continue
+            if re.match(r'^[a-zñáéíóú]', lo_que_sigue): continue
 
             # --- CONVERSIÓN ---
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
             nuevo_acorde = f"{raiz_nueva}{resto_acorde}"
             
+            # Añadir apóstrofe si no existe ya un marcador
             if not (lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*")):
                 nuevo_acorde += "'"
 
@@ -88,18 +57,25 @@ def procesar_texto(texto):
 # --- INTERFAZ ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com' alt='Icono' style='width: 45px; height: 45px;'>
+        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)
 
+# CARGADOR DE ARCHIVOS (Optimizado para evitar AxiosError en Android)
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
     try:
+        nombre_archivo = archivo.name
+        
+        # --- AGREGADO: CONVERSIÓN A UTF-8 ANTES QUE NADA ---
         raw_bytes = archivo.getvalue()
         try:
+            # Intenta decodificar como UTF-8 estándar
             contenido = raw_bytes.decode("utf-8")
         except UnicodeDecodeError:
+            # Si falla (archivos de Windows), convierte desde Latin-1 a UTF-8
             contenido = raw_bytes.decode("latin-1")
             
         texto_final = procesar_texto(contenido)
@@ -107,8 +83,10 @@ if archivo:
         st.subheader("Vista Previa:")
         st.code(texto_final, language="text")
 
+        # Escapamos el texto para JavaScript
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
+        # BARRA DE ACCIONES FLOTANTE (BOTONES IGUALES SIN FONDO)
         components.html(f"""
             <style>
                 .action-bar {{
@@ -133,7 +111,7 @@ if archivo:
             </div>
             <script>
                 const content = `{texto_js}`;
-                const fileName = "{archivo.name}";
+                const fileName = "{nombre_archivo}";
 
                 document.getElementById('dl').onclick = () => {{
                     const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
@@ -154,4 +132,4 @@ if archivo:
         """, height=100)
     
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Error al procesar el archivo: {e}")
