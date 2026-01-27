@@ -13,52 +13,58 @@ def convertir_linea_notas(linea):
     convertidas = [CONVERSION.get(p, p) for p in palabras]
     return "   ".join(convertidas)
 
-# --- FUNCIÓN CRÍTICA PARA LA CARGA ---
 def cargar_a_editor():
     if st.session_state.uploader_key is not None:
-        # Leemos el archivo
         contenido = st.session_state.uploader_key.read().decode("utf-8")
-        # Actualizamos la KEY del text_area directamente
         st.session_state.mi_editor = contenido
 
-st.set_page_config(page_title="Music Transposer 2026", layout="centered")
+st.set_page_config(page_title="Editor Musical 2026", layout="wide")
 
-st.title("🎸 Transpositor de Notas")
+st.title("🎸 Transpositor con Numeración de Renglones")
 
-# 1. Cargador de archivos con el callback que actualiza el editor
+# 1. Cargador de archivos
 st.file_uploader(
-    "1. Sube tu archivo .txt", 
+    "Sube tu archivo .txt", 
     type=["txt"], 
     key="uploader_key", 
     on_change=cargar_a_editor
 )
 
-# 2. Editor de texto
-# IMPORTANTE: Usamos 'key' para que el callback 'cargar_a_editor' pueda escribir aquí
+# 2. Área de edición
 texto_input = st.text_area(
-    "2. Editor de contenido:",
+    "Editor de contenido (Renglón 1 = Notas, 2 = Letra...):",
     height=250,
-    key="mi_editor" 
+    key="mi_editor",
+    placeholder="Escribe aquí...\nLínea 1: Do Re Mi\nLínea 2: Letra de la canción"
 )
 
-# 3. Procesamiento y Previsualización
+# 3. Procesamiento y Previsualización Numerada
 if texto_input:
-    st.subheader("3. Previsualización Final")
+    st.subheader("👁️ Previsualización y Guía de Renglones")
     
     lineas = texto_input.split('\n')
     resultado_final = []
     
     with st.container(border=True):
+        # Usamos columnas para simular la numeración al margen
         for i, linea in enumerate(lineas):
-            if (i + 1) % 2 != 0:  # Línea Impar: NOTAS
-                notas_c = convertir_linea_notas(linea)
-                resultado_final.append(notas_c)
-                st.markdown(f"**`:blue[{notas_c}]`**")
-            else:  # Línea Par: LETRA
-                resultado_final.append(linea)
-                st.text(linea)
+            num_r = i + 1
+            col_num, col_cont = st.columns([0.1, 0.9])
+            
+            with col_num:
+                # Mostramos el número de renglón de forma discreta
+                st.caption(f"{num_r}:")
+            
+            with col_cont:
+                if num_r % 2 != 0:  # NOTAS
+                    notas_c = convertir_linea_notas(linea)
+                    resultado_final.append(notas_c)
+                    st.markdown(f"**`:blue[{notas_c}]`** (Notas)")
+                else:  # LETRA
+                    resultado_final.append(linea)
+                    st.markdown(f"{linea} *(Letra)*")
 
-    # 4. Botones de acción
+    # 4. Botones
     st.divider()
     col1, col2 = st.columns(2)
     with col1:
@@ -74,4 +80,4 @@ if texto_input:
             st.session_state.mi_editor = ""
             st.rerun()
 else:
-    st.info("Sube un archivo o escribe para ver la previsualización.")
+    st.info("💡 Tip: Los renglones IMPARES se convertirán a cifrado americano.")
