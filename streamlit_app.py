@@ -1,7 +1,7 @@
 import streamlit as st
 
 # Configuración de página
-st.set_page_config(page_title="Editor Musical Pro 2026", layout="wide")
+st.set_page_config(page_title="Editor Musical 2026", layout="wide")
 
 # Diccionario de cifrado americano
 CONVERSION = {
@@ -11,81 +11,81 @@ CONVERSION = {
     "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"
 }
 
-def convertir_linea_notas(linea):
+def convertir_notas(linea):
     palabras = linea.upper().split()
     return "   ".join([CONVERSION.get(p, p) for p in palabras])
 
-# --- GESTIÓN DE ESTADO ---
-if "texto_cancion" not in st.session_state:
-    st.session_state.texto_cancion = ""
+# --- INICIALIZACIÓN DE ESTADO (Evita el Error de Key/Value) ---
+if "contenido_editor" not in st.session_state:
+    st.session_state.contenido_editor = ""
 
-def al_cargar_archivo():
-    if st.session_state.uploader_key:
-        # Leemos e inyectamos directamente en el estado
-        contenido = st.session_state.uploader_key.read().decode("utf-8")
-        st.session_state.texto_cancion = contenido
-        # Limpiamos el widget de carga para permitir nuevas subidas
-        st.session_state.uploader_key = None
+# Función para cargar el archivo correctamente
+def callback_archivo():
+    if st.session_state.uploader_input:
+        texto = st.session_state.uploader_input.read().decode("utf-8")
+        st.session_state.contenido_editor = texto
 
 # --- INTERFAZ ---
 st.title("🎸 Transpositor de Notas 2026")
-st.caption("Los renglones impares se convierten a cifrado americano automáticamente.")
 
 # 1. Cargador de archivos
-st.file_uploader("📂 Sube tu archivo .txt", type=["txt"], key="uploader_key", on_change=al_cargar_archivo)
+st.file_uploader(
+    "📂 Sube tu archivo .txt", 
+    type=["txt"], 
+    key="uploader_input", 
+    on_change=callback_archivo
+)
 
-# 2. EDITOR Y NUMERACIÓN (Sin Scroll)
-lineas = st.session_state.texto_cancion.split("\n")
-n_lineas = max(len(lineas), 1)
-
-# Calculamos una altura dinámica (aprox 25px por línea) para evitar el scroll interno
-altura_dinamica = max(300, n_lineas * 31)
-
+# 2. EDITOR CON NUMERACIÓN ESTÁTICA Y ALTURA DINÁMICA
 st.subheader("📝 Editor de Contenido")
+
+# Calculamos las líneas para la numeración y la altura
+lineas_actuales = st.session_state.contenido_editor.split("\n")
+n_lineas = max(len(lineas_actuales), 1)
+# En 2026, 31px por línea es el estándar para evitar scroll interno en Streamlit
+altura_dinamica = max(250, n_lineas * 31) 
+
 col_num, col_edit = st.columns([0.04, 0.96], gap="small")
 
 with col_num:
-    # Números de línea estáticos alineados con el editor
+    # Generamos números estáticos
     numeros_html = "<br>".join([f"{i+1}" for i in range(n_lineas)])
     st.markdown(
         f"""<div style='line-height: 1.58; font-family: monospace; font-size: 1.2rem; 
-        text-align: right; color: #888; padding-top: 38px;'>{numeros_html}</div>""", 
+        text-align: right; color: #888; padding-top: 40px;'>{numeros_html}</div>""", 
         unsafe_allow_html=True
     )
 
 with col_edit:
-    # El editor usa el estado directamente. Al cambiar, actualiza la página.
-    texto_input = st.text_area(
-        "Editor",
-        value=st.session_state.texto_cancion,
+    # Usamos solo la KEY vinculada al estado para evitar el error de duplicidad
+    # El valor se sincroniza automáticamente a través de la key
+    st.text_area(
+        "Editor Principal",
+        key="contenido_editor", 
         height=altura_dinamica,
-        key="main_editor",
         label_visibility="collapsed"
     )
-    # Sincronización inmediata del estado
-    if texto_input != st.session_state.texto_cancion:
-        st.session_state.texto_cancion = texto_input
-        st.rerun()
 
-# 3. PREVISUALIZACIÓN Y RESULTADO
-if st.session_state.texto_cancion:
+# 3. PREVISUALIZACIÓN PROCESADA
+if st.session_state.contenido_editor:
     st.divider()
-    st.subheader("👁️ Previsualización Final")
+    st.subheader("👁️ Previsualización (Notas Convertidas)")
     
     resultado_final = []
-    lineas_proceso = st.session_state.texto_cancion.split('\n')
+    lineas_proceso = st.session_state.contenido_editor.split('\n')
     
     with st.container(border=True):
         for i, linea in enumerate(lineas_proceso):
-            if (i + 1) % 2 != 0: # NOTAS
-                notas_c = convertir_linea_notas(linea)
+            idx = i + 1
+            if idx % 2 != 0: # Renglón IMPAR: Notas
+                notas_c = convertir_notas(linea)
                 resultado_final.append(notas_c)
                 st.markdown(f"**`:blue[{notas_c}]`**")
-            else: # LETRA
+            else: # Renglón PAR: Letra
                 resultado_final.append(linea)
                 st.text(linea)
 
-    # 4. BOTONES
+    # 4. BOTONES DE ACCIÓN
     st.divider()
     c1, c2 = st.columns(2)
     with c1:
@@ -98,6 +98,5 @@ if st.session_state.texto_cancion:
         )
     with c2:
         if st.button("🗑️ Limpiar Todo", use_container_width=True):
-            st.session_state.texto_cancion = ""
+            st.session_state.contenido_editor = ""
             st.rerun()
-
