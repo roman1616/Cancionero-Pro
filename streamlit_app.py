@@ -70,10 +70,13 @@ if archivo:
     
     # 1. Escaneo de oraciones que confunden (Notas dudosas seguidas de 1 espacio)
     # Ejemplo: "la reunión", "mi casa", "re solar"
-    patron_duda = r'\b(RE|MI|SOL|LA|SI)\b\s\b(RE|MI|SOL|LA|SI|[a-zñáéíóú]+)\b'
+    notas_lista = r'(DO|RE|MI|FA|SOL|LA|SI)'
+    # Detecta: Nota + Espacio + Algo que NO sea una nota
+    patron_duda = rf'\b{notas_lista}\b\s(?!\b{notas_lista}\b)[a-zñáéíóú]+'
     
     lineas_sospechosas = []
     for idx, linea in enumerate(lineas):
+        # Si encontramos una nota seguida de una palabra normal (no otra nota)
         if re.search(patron_duda, linea, re.I):
             lineas_sospechosas.append((idx, linea))
     
