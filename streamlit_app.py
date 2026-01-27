@@ -20,7 +20,6 @@ def procesar_texto(texto):
 
     for linea in lineas:
         linea_lista = list(linea)
-        # Buscamos los matches en la línea
         matches = list(re.finditer(patron_universal, linea, flags=re.IGNORECASE))
         
         for match in matches:
@@ -29,7 +28,7 @@ def procesar_texto(texto):
             resto_acorde = match.group(2)
             inicio, fin = match.start(), match.end()
             
-            # --- FILTROS ANTI-FRASES (Ej: "La Repandilla") ---
+            # --- FILTROS ANTI-FRASES ---
             lo_que_sigue = linea[fin:]
             if inicio > 0 and linea[inicio-1].isalpha(): continue
             if re.match(r'^ +[a-zñáéíóú]', lo_que_sigue): continue
@@ -38,20 +37,17 @@ def procesar_texto(texto):
             # --- CONVERSIÓN ---
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
             
-            # Construimos el acorde completo antes de poner el apóstrofe
+            # UNIMOS TODO: Raíz + Resto + Apóstrofe al final
             nuevo_acorde = f"{raiz_nueva}{resto_acorde}"
             
-            # Añadir apóstrofe al FINAL si no existe ya un marcador
             if not (lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*")):
                 nuevo_acorde += "'"
 
             # --- MANTENER POSICIÓN ---
-            # El ancho original considera el acorde y si ya tenía un apóstrofe/marcador
             ancho_original = len(acorde_original)
             if lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*"):
                 ancho_original += 1
             
-            # Rellenamos con espacios si el nuevo acorde es más corto para no mover la línea
             sustitucion = nuevo_acorde.ljust(ancho_original)
 
             for i, char in enumerate(sustitucion):
@@ -81,10 +77,8 @@ if archivo:
         st.subheader("Vista Previa:")
         st.code(texto_final, language="text")
 
-        # Escapamos el texto para JavaScript
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
-        # BARRA DE ACCIONES FLOTANTE
         components.html(f"""
             <style>
                 .action-bar {{
@@ -131,4 +125,3 @@ if archivo:
     
     except Exception as e:
         st.error(f"Error al procesar el archivo: {e}")
-    return '\n'.join(resultado_final)
