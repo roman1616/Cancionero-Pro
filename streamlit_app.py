@@ -1,8 +1,8 @@
 import streamlit as st
 import re
 
-# Configuración
-st.set_page_config(page_title="Editor Musical Pro 2026", layout="wide")
+# Configuración de página
+st.set_page_config(page_title="Editor Musical 2026", layout="wide")
 
 # Diccionario de conversión
 CONVERSION = {
@@ -12,76 +12,85 @@ CONVERSION = {
     "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"
 }
 
-def limpiar_linea(linea):
-    """Elimina cualquier número de línea previo (ej: '1 | ')"""
+# --- FUNCIONES DE LÓGICA ---
+def limpiar_prefijo(linea):
+    """Elimina el número de línea '01 | ' para procesar el texto."""
     return re.sub(r'^\d+\s\|\s', '', linea)
 
 def numerar_texto(texto):
-    """Añade o actualiza la numeración '1 | ', '2 | ' en cada renglón."""
+    """Añade prefijos numéricos a cada renglón."""
     lineas = texto.split('\n')
-    return "\n".join([f"{i+1:02d} | {limpiar_linea(l)}" for i, l in enumerate(lineas)])
+    return "\n".join([f"{i+1:02d} | {limpiar_prefijo(l)}" for i, l in enumerate(lineas)])
 
 def convertir_notas(linea):
-    """Limpia el prefijo y convierte notas."""
-    contenido = limpiar_linea(linea)
+    """Limpia y convierte notas a cifrado americano."""
+    contenido = limpiar_prefijo(linea)
     palabras = contenido.upper().split()
     return "   ".join([CONVERSION.get(p, p) for p in palabras])
 
-# --- LÓGICA DE ESTADO ---
-if "texto_maestro" not in st.session_state:
-    st.session_state.texto_maestro = "01 | "
+# --- GESTIÓN DE ESTADO ---
+# Inicializamos el estado si no existe
+if "editor_content" not in st.session_state:
+    st.session_state.editor_content = "01 | "
 
-def al_subir():
-    if st.session_state.uploader:
-        contenido = st.session_state.uploader.read().decode("utf-8")
-        st.session_state.texto_maestro = numerar_texto(contenido)
+def procesar_archivo():
+    """Callback que inyecta el archivo en el editor al subirlo."""
+    if st.session_state.uploader_key is not None:
+        contenido_raw = st.session_state.uploader_key.read().decode("utf-8")
+        # Inyectamos el texto numerado directamente en el estado del editor
+        st.session_state.editor_content = numerar_texto(contenido_raw)
 
-# --- INTERFAZ ---
-st.title("🎸 Editor Musical Sincronizado")
-st.markdown("Escribe tus notas en los renglones **impares** y la letra en los **pares**.")
+# --- INTERFAZ DE USUARIO ---
+st.title("🎸 Editor Transpositor Sincronizado")
 
-st.file_uploader("Cargar archivo .txt", type=["txt"], key="uploader", on_change=al_subir)
-
-# Editor con números inyectados
-# Al usar el mismo prefijo '01 | ', los números se mueven con el texto
-texto_input = st.text_area(
-    "Cuadro de Edición (Los números se mantienen con el texto):",
-    value=st.session_state.texto_maestro,
-    height=400,
-    key="editor_key"
+# 1. Cargador de archivos con Callback crítico
+st.file_uploader(
+    "Sube tu archivo .txt", 
+    type=["txt"], 
+    key="uploader_key", 
+    on_change=procesar_archivo
 )
 
-# Botón para actualizar/reordenar la numeración si se descuadra al borrar
-if st.button("🔢 Re-numerar Renglones"):
-    st.session_state.texto_maestro = numerar_texto(texto_input)
+# 2. Área de Edición
+# IMPORTANTE: Usamos 'key' vinculada al session_state para sincronización total
+texto_input = st.text_area(
+    "Cuadro de Edición (Renglones automáticos):",
+    height=400,
+    key="editor_content"
+)
+
+# Botón para reordenar números si se descuadran al editar manualmente
+if st.button("🔢 Corregir Numeración"):
+    st.session_state.editor_content = numerar_texto(texto_input)
     st.rerun()
 
-# --- PREVISUALIZACIÓN ---
+# 3. Previsualización y Procesamiento
 if texto_input:
     st.divider()
-    st.subheader("👁️ Resultado Final (Cifrado Americano)")
+    st.subheader("👁️ Previsualización Final (Sin números)")
     
     lineas = texto_input.split('\n')
-    resultado_descarga = []
+    resultado_limpio = []
     
     with st.container(border=True):
         for i, linea in enumerate(lineas):
-            num_actual = i + 1
-            if num_actual % 2 != 0: # NOTAS (Impar)
+            idx = i + 1
+            if idx % 2 != 0: # IMPAR: Notas
                 notas_c = convertir_notas(linea)
-                resultado_descarga.append(notas_c)
+                resultado_limpio.append(notas_c)
                 st.markdown(f"**`:blue[{notas_c}]`**")
-            else: # LETRA (Par)
-                letra_c = limpiar_linea(linea)
-                resultado_descarga.append(letra_c)
-                st.text(letra_c)
+            else: # PAR: Letra
+                letra_l = limpiar_prefijo(linea)
+                resultado_limpio.append(letra_l)
+                st.text(letra_l)
 
-    # --- DESCARGA ---
+    # 4. Exportación
     st.divider()
-    if st.download_button(
-        label="💾 Descargar Canción (Sin números)",
-        data="\n".join(resultado_descarga),
-        file_name="cancion_2026.txt",
-        mime="text/plain"
-    ):
-        st.success("¡Archivo descargado con éxito!")
+    st.download_button(
+        label="💾 Descargar TXT (Limpio)",
+        data="\n".join(resultado_limpio),
+        file_name="cancion_cifrada.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
+
