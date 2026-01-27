@@ -13,7 +13,7 @@ LATINO_A_AMERICANO = {
 }
 
 def quitar_acentos(texto):
-    """Reemplaza letras con acento por su versión normal (á -> a)."""
+    """Reemplaza caracteres acentuados por sus versiones sin acento (á -> a)."""
     return "".join(
         c for c in unicodedata.normalize('NFD', texto)
         if unicodedata.category(c) != 'Mn'
@@ -22,21 +22,26 @@ def quitar_acentos(texto):
 def procesar_texto(texto):
     if not texto: return ""
     
-    # Primero quitamos los acentos para evitar errores de símbolos extraños
+    # --- PASO 1: Formato Minúsculas e Inicial Mayúscula (Sin acentos) ---
+    # Aplicamos primero la eliminación de acentos para evitar que se borren letras
     texto = quitar_acentos(texto)
     
-    lineas_formateadas = []
-    for line in texto.split('\n'):
-        # Formato: minúsculas con inicial mayúscula
-        line = line.strip().lower()
-        if line:
-            line = line[0].upper() + line[1:]
-        lineas_formateadas.append(line)
-    
+    lineas_sucias = texto.split('\n')
+    lineas_limpias = []
+    for l in lineas_sucias:
+        l = l.strip()
+        if len(l) > 0:
+            # Convertimos toda la línea a minúscula y capitalizamos la primera letra
+            nueva_linea = l[0].upper() + l[1:].lower()
+            lineas_limpias.append(nueva_linea)
+        else:
+            lineas_limpias.append("")
+            
     resultado_final = []
+    # Patrón: Nota base + resto del acorde
     patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
 
-    for linea in lineas_formateadas:
+    for linea in lineas_limpias:
         linea_lista = list(linea)
         for match in re.finditer(patron_universal, linea, flags=re.IGNORECASE):
             acorde_original = match.group(0)
@@ -44,17 +49,20 @@ def procesar_texto(texto):
             resto_acorde = match.group(2)
             inicio, fin = match.start(), match.end()
             
+            # --- FILTROS ANTI-FRASES ---
             lo_que_sigue = linea[fin:]
             if inicio > 0 and linea[inicio-1].isalpha(): continue
             if re.match(r'^ +[a-z]', lo_que_sigue): continue
             if re.match(r'^[a-z]', lo_que_sigue): continue
 
+            # --- CONVERSIÓN ---
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
             nuevo_acorde = f"{raiz_nueva}{resto_acorde}"
             
             if not (lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*")):
                 nuevo_acorde += "'"
 
+            # --- MANTENER POSICIÓN ---
             ancho_original = len(acorde_original)
             if lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*"):
                 ancho_original += 1
@@ -72,18 +80,23 @@ def procesar_texto(texto):
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
         <img src='https://raw.githubusercontent.com' alt='Icono' style='width: 45px; height: 45px;'>
-        <h1>Cancionero Pro 2026</h1>   
+        <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Cifrado Americano • Texto Normalizado (Sin acentos) • 2026</p>", unsafe_allow_html=True)
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
     try:
-        raw_data = archivo.getvalue()
+        nombre_archivo = archivo.name
+        # --- LECTURA ROBUSTA PARA EVITAR '' ---
+        raw_bytes = archivo.getvalue()
         try:
-            contenido = raw_data.decode("utf-8")
+            # Intenta UTF-8 (Estándar 2026)
+            contenido = raw_bytes.decode("utf-8")
         except UnicodeDecodeError:
-            contenido = raw_data.decode("latin-1")
+            # Si falla, intenta Latin-1 (Archivos viejos de Windows)
+            contenido = raw_bytes.decode("latin-1")
             
         texto_final = procesar_texto(contenido)
         
@@ -91,9 +104,8 @@ if archivo:
         st.code(texto_final, language="text")
 
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
-        nombre_salida = f"PRO_{archivo.name}"
 
-        # BARRA DE ACCIONES (Corregido con llaves dobles para evitar SyntaxError)
+        # BARRA DE ACCIONES (Sin cambios en funcionalidad)
         components.html(f"""
             <style>
                 .action-bar {{
@@ -118,27 +130,22 @@ if archivo:
             </div>
             <script>
                 const content = `{texto_js}`;
-                const fileName = "{nombre_salida}";
+                const fileName = "{nombre_archivo}";
 
                 document.getElementById('dl').onclick = () => {{
                     const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
                     const url = URL.createObjectURL(b);
                     const a = document.createElement('a');
-                    a.href = url; a.download = fileName; a.click();
+                    a.href = url; a.download = "PRO_" + fileName; a.click();
                 }};
 
                 document.getElementById('sh').onclick = async () => {{
                     const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
                     const file = new File([b], fileName, {{ type: 'text/plain' }});
                     if (navigator.share) {{
-                        try {{ 
-                            await navigator.share({{ files: [file] }}); 
-                        }} catch (e) {{ 
-                            if (e.name !== 'AbortError') console.log("Error:", e); 
-                        }}
-                    }} else {{ 
-                        alert("Usa 'Guardar'"); 
-                    }}
+                        try {{ await navigator.share({{ files: [file] }}); }} 
+                        catch (e) {{ if (e.name !== 'AbortError') console.log("Error:", e); }}
+                    }} else {{ alert("Usa 'Guardar'"); }}
                 }};
             </script>
         """, height=100)
