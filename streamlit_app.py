@@ -8,7 +8,7 @@ CONVERSION = {"DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A",
               "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#",
               "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"}
 
-# --- ESTILO CSS (Bicolor para guiar Notas/Letra) ---
+# --- ESTILO CSS (Guía visual Bicolor) ---
 st.markdown("""
     <style>
     .stTextArea textarea {
@@ -22,77 +22,79 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- GESTIÓN DE ESTADO ---
-if "texto_editor" not in st.session_state:
-    st.session_state.texto_editor = ""
+# --- GESTIÓN DE ESTADO (Session State) ---
+# Usamos una sola fuente de verdad para el texto
+if "texto_maestro" not in st.session_state:
+    st.session_state.texto_maestro = ""
 
-def al_subir_archivo():
-    if st.session_state.uploader_key:
-        # Leemos el archivo y actualizamos el estado
+def procesar_carga_archivo():
+    """Callback que lee el archivo y lo inyecta en el estado del editor."""
+    if st.session_state.uploader_key is not None:
         contenido = st.session_state.uploader_key.read().decode("utf-8")
-        st.session_state.texto_editor = contenido
+        # Inyectamos el texto directamente en la KEY del editor para que aparezca
+        st.session_state.editor_interactivo = contenido
+        st.session_state.texto_maestro = contenido
 
 # --- INTERFAZ ---
-st.title("🎸 Editor de Canciones")
-st.markdown("Renglón **Blanco = Notas** | Renglón **Azul = Letra**")
+st.title("🎸 Editor Transpositor")
+st.markdown("Instrucciones: Renglón **Blanco = Notas** | Renglón **Azul = Letra**")
 
-# Cargador de archivos (Callback para carga inmediata)
-st.file_uploader("📂 Sube tu archivo .txt", type=["txt"], key="uploader_key", on_change=al_subir_archivo)
+# Cargador de archivos con Callback crítico
+st.file_uploader("📂 Sube tu archivo .txt", type=["txt"], key="uploader_key", on_change=procesar_carga_archivo)
 
-# Cálculo de altura dinámica para evitar scroll dentro del cuadro
-n_lineas = max(len(st.session_state.texto_editor.split("\n")), 1)
+# Cálculo de altura para evitar scroll interno
+n_lineas = max(len(st.session_state.texto_maestro.split("\n")), 1)
 altura_dinamica = max(300, n_lineas * 26 + 40)
 
-# Editor de texto: vinculado a la sesión para que se llene al subir el archivo
-texto_input = st.text_area(
-    "Edita tu contenido aquí:",
-    value=st.session_state.texto_editor,
+# Editor: La 'key' debe estar sincronizada con el estado para mostrar el contenido subido
+texto_area = st.text_area(
+    "Contenido del editor:",
     height=altura_dinamica,
-    key="area_edicion"
+    key="editor_interactivo" # Esta key permite que procesar_carga_archivo() escriba aquí
 )
 
-# Actualizamos el estado con lo que se escriba
-st.session_state.texto_editor = texto_input
+# Sincronizamos el estado con cualquier edición manual
+st.session_state.texto_maestro = texto_area
 
-# --- ACCIONES ---
+# --- ACCIONES Y BOTONES ---
 st.divider()
 col1, col2, col3 = st.columns(3)
 
-# Botón para PROCESAR y ver la previsualización (Solo se ve si pulsas aquí)
-ver_previsualizacion = col1.button("👁️ Previsualizar Notas", use_container_width=True)
+# Botón 1: Solo procesa la previsualización si se pulsa
+btn_previsualizar = col1.button("👁️ Previsualizar Notas", use_container_width=True)
 
+# Botón 2: Limpiar todo
 if col2.button("🗑️ Limpiar Todo", use_container_width=True):
-    st.session_state.texto_editor = ""
+    st.session_state.texto_maestro = ""
+    st.session_state.editor_interactivo = ""
     st.rerun()
 
-# Lógica de Procesamiento para Descarga y Previsualización
-if st.session_state.texto_editor:
-    lineas = st.session_state.texto_editor.split('\n')
-    resultado_procesado = []
+# Lógica de conversión para Descarga y Previsualización
+if st.session_state.texto_maestro:
+    lineas = st.session_state.texto_maestro.split('\n')
+    resultado_final = []
     
     for i, linea in enumerate(lineas):
-        if (i + 1) % 2 != 0: # Renglón IMPAR: Notas
-            notas_conv = "   ".join([CONVERSION.get(p.upper(), p) for p in linea.split()])
-            resultado_procesado.append(notas_conv)
-        else: # Renglón PAR: Letra
-            resultado_procesado.append(linea)
+        if (i + 1) % 2 != 0: # Impar: Notas
+            notas_c = "   ".join([CONVERSION.get(p.upper(), p) for p in linea.split()])
+            resultado_final.append(notas_c)
+        else: # Par: Letra
+            resultado_final.append(linea)
     
-    texto_final = "\n".join(resultado_procesado)
-
-    # Botón de Descarga
+    # Botón 3: Descarga (Siempre disponible si hay texto)
     col3.download_button(
         label="💾 Descargar TXT",
-        data=texto_final,
+        data="\n".join(resultado_final),
         file_name="cancion_cifrada.txt",
         mime="text/plain",
         use_container_width=True
     )
 
-    # Mostrar previsualización solo si se pulsó el botón
-    if ver_previsualizacion:
-        st.subheader("Resultado del Cifrado:")
+    # Mostrar previsualización solo bajo demanda
+    if btn_previsualizar:
+        st.subheader("Resultado de la Transposición:")
         with st.container(border=True):
-            for i, linea in enumerate(resultado_procesado):
+            for i, linea in enumerate(resultado_final):
                 if (i + 1) % 2 != 0:
                     st.markdown(f"**`:blue[{linea}]`**")
                 else:
