@@ -14,7 +14,7 @@ LATINO_A_AMERICANO = {
 
 def quitar_acentos(texto):
     """Reemplaza letras con acento por su versión normal (á -> a)."""
-    # Normaliza a forma NFD para separar el acento de la letra y luego filtra
+    # Normaliza y elimina marcas de acentuación
     return "".join(
         c for c in unicodedata.normalize('NFD', texto)
         if unicodedata.category(c) != 'Mn'
@@ -23,23 +23,20 @@ def quitar_acentos(texto):
 def procesar_texto(texto):
     if not texto: return ""
     
-    # --- NORMALIZACIÓN Y FORMATO ---
-    # 1. Quitamos acentos para evitar errores de codificación/borrado
+    # Primero quitamos los acentos para evitar errores de visualización
     texto = quitar_acentos(texto)
     
     lineas_formateadas = []
     for line in texto.split('\n'):
-        # 2. Aplicamos formato: Minúsculas con Inicial Mayúscula
+        # Formato: minúsculas con inicial mayúscula
         line = line.strip().lower()
         if line:
             line = line[0].upper() + line[1:]
         lineas_formateadas.append(line)
     
-    texto_preprocesado = '\n'.join(lineas_formateadas)
-    lineas = texto_preprocesado.split('\n')
+    lineas = lineas_formateadas
     resultado_final = []
     
-    # Patrón: Nota base + resto del acorde
     patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
 
     for linea in lineas:
@@ -50,20 +47,17 @@ def procesar_texto(texto):
             resto_acorde = match.group(2)
             inicio, fin = match.start(), match.end()
             
-            # --- FILTROS ANTI-FRASES ---
             lo_que_sigue = linea[fin:]
             if inicio > 0 and linea[inicio-1].isalpha(): continue
             if re.match(r'^ +[a-z]', lo_que_sigue): continue
             if re.match(r'^[a-z]', lo_que_sigue): continue
 
-            # --- CONVERSIÓN ---
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
             nuevo_acorde = f"{raiz_nueva}{resto_acorde}"
             
             if not (lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*")):
                 nuevo_acorde += "'"
 
-            # --- MANTENER POSICIÓN ---
             ancho_original = len(acorde_original)
             if lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*"):
                 ancho_original += 1
@@ -80,18 +74,21 @@ def procesar_texto(texto):
 # --- INTERFAZ ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
+        <img src='https://raw.githubusercontent.com' alt='Icono' style='width: 45px; height: 45px;'>
         <h1>Cancionero Pro 2026</h1>   
     </div>""", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Cifrado Americano • Texto Normalizado • Sin Acentos</p>", unsafe_allow_html=True)
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
     try:
-        nombre_archivo = archivo.name
-        # Se usa utf-8 con reemplazo para mayor seguridad
-        contenido = archivo.getvalue().decode("utf-8", errors="replace")
+        # LECTURA ROBUSTA: Intentamos UTF-8, si falla usamos Latin-1 (Windows)
+        raw_data = archivo.getvalue()
+        try:
+            contenido = raw_data.decode("utf-8")
+        except UnicodeDecodeError:
+            contenido = raw_data.decode("latin-1")
+            
         texto_final = procesar_texto(contenido)
         
         st.subheader("Vista Previa:")
@@ -123,22 +120,20 @@ if archivo:
             </div>
             <script>
                 const content = `{texto_js}`;
-                const fileName = "{nombre_archivo}";
-
+                const fileName = "PRO_{archivo.name}";
                 document.getElementById('dl').onclick = () => {{
                     const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
                     const url = URL.createObjectURL(b);
                     const a = document.createElement('a');
-                    a.href = url; a.download = "PRO_" + fileName; a.click();
+                    a.href = url; a.download = fileName; a.click();
                 }};
-
                 document.getElementById('sh').onclick = async () => {{
                     const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
                     const file = new File([b], fileName, {{ type: 'text/plain' }});
                     if (navigator.share) {{
                         try {{ await navigator.share({{ files: [file] }}); }} 
                         catch (e) {{ if (e.name !== 'AbortError') console.log("Error:", e); }}
-                    }} else {{ alert("Usa 'Guardar'"); }}
+                    } else {{ alert("Usa 'Guardar'"); }}
                 }};
             </script>
         """, height=100)
