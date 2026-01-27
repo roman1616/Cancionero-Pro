@@ -1,5 +1,4 @@
 import streamlit as st
-import re
 
 # Configuración de página
 st.set_page_config(page_title="Editor Musical 2026", layout="wide")
@@ -12,85 +11,99 @@ CONVERSION = {
     "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"
 }
 
-# --- FUNCIONES DE LÓGICA ---
-def limpiar_prefijo(linea):
-    """Elimina el número de línea '01 | ' para procesar el texto."""
-    return re.sub(r'^\d+\s\|\s', '', linea)
+def convertir_linea_notas(linea):
+    palabras = linea.upper().split()
+    convertidas = [CONVERSION.get(p, p) for p in palabras]
+    return "   ".join(convertidas)
 
-def numerar_texto(texto):
-    """Añade prefijos numéricos a cada renglón."""
-    lineas = texto.split('\n')
-    return "\n".join([f"{i+1:02d} | {limpiar_prefijo(l)}" for i, l in enumerate(lineas)])
+# --- GESTIÓN DE CARGA ---
+if "contenido" not in st.session_state:
+    st.session_state.contenido = ""
 
-def convertir_notas(linea):
-    """Limpia y convierte notas a cifrado americano."""
-    contenido = limpiar_prefijo(linea)
-    palabras = contenido.upper().split()
-    return "   ".join([CONVERSION.get(p, p) for p in palabras])
-
-# --- GESTIÓN DE ESTADO ---
-# Inicializamos el estado si no existe
-if "editor_content" not in st.session_state:
-    st.session_state.editor_content = "01 | "
-
-def procesar_archivo():
-    """Callback que inyecta el archivo en el editor al subirlo."""
+def al_cargar_archivo():
     if st.session_state.uploader_key is not None:
-        contenido_raw = st.session_state.uploader_key.read().decode("utf-8")
-        # Inyectamos el texto numerado directamente en el estado del editor
-        st.session_state.editor_content = numerar_texto(contenido_raw)
+        # Leemos el archivo y actualizamos el estado del editor
+        st.session_state.contenido = st.session_state.uploader_key.read().decode("utf-8")
 
-# --- INTERFAZ DE USUARIO ---
-st.title("🎸 Editor Transpositor Sincronizado")
+# --- INTERFAZ ---
+st.title("🎸 Transpositor con Numeración Estática")
 
-# 1. Cargador de archivos con Callback crítico
-st.file_uploader(
-    "Sube tu archivo .txt", 
-    type=["txt"], 
-    key="uploader_key", 
-    on_change=procesar_archivo
-)
+# 1. Cargador de archivos
+st.file_uploader("Sube tu archivo .txt", type=["txt"], key="uploader_key", on_change=al_cargar_archivo)
 
-# 2. Área de Edición
-# IMPORTANTE: Usamos 'key' vinculada al session_state para sincronización total
-texto_input = st.text_area(
-    "Cuadro de Edición (Renglones automáticos):",
-    height=400,
-    key="editor_content"
-)
+st.subheader("Editor de Canción")
 
-# Botón para reordenar números si se descuadran al editar manualmente
-if st.button("🔢 Corregir Numeración"):
-    st.session_state.editor_content = numerar_texto(texto_input)
-    st.rerun()
+# 2. COLUMNAS: NUMERACIÓN Y EDITOR
+# Calculamos las líneas del contenido actual
+lineas_actuales = st.session_state.contenido.split("\n")
+n_lineas = max(len(lineas_actuales), 1)
 
-# 3. Previsualización y Procesamiento
-if texto_input:
-    st.divider()
-    st.subheader("👁️ Previsualización Final (Sin números)")
-    
-    lineas = texto_input.split('\n')
-    resultado_limpio = []
-    
-    with st.container(border=True):
-        for i, linea in enumerate(lineas):
-            idx = i + 1
-            if idx % 2 != 0: # IMPAR: Notas
-                notas_c = convertir_notas(linea)
-                resultado_limpio.append(notas_c)
-                st.markdown(f"**`:blue[{notas_c}]`**")
-            else: # PAR: Letra
-                letra_l = limpiar_prefijo(linea)
-                resultado_limpio.append(letra_l)
-                st.text(letra_l)
+col_num, col_edit = st.columns([0.04, 0.96], gap="small")
 
-    # 4. Exportación
-    st.divider()
-    st.download_button(
-        label="💾 Descargar TXT (Limpio)",
-        data="\n".join(resultado_limpio),
-        file_name="cancion_cifrada.txt",
-        mime="text/plain",
-        use_container_width=True
+with col_num:
+    # Creamos la numeración estática (HTML)
+    # El padding y line-height están calibrados para el diseño de Streamlit 2026
+    numeros_html = "<br>".join([f"{i+1}" for i in range(n_lineas)])
+    st.markdown(
+        f"""
+        <div style="
+            line-height: 1.6; 
+            font-family: monospace; 
+            font-size: 1.25rem; 
+            text-align: right; 
+            color: #888; 
+            padding-top: 38px;
+            user-select: none;
+        ">
+            {numeros_html}
+        </div>
+        """, 
+        unsafe_allow_html=True
     )
 
+with col_edit:
+    # El editor usa el session_state para mostrar el contenido cargado al instante
+    texto_input = st.text_area(
+        "Editor",
+        value=st.session_state.contenido,
+        height=400,
+        key="main_editor",
+        label_visibility="collapsed"
+    )
+    # Actualizamos el estado para que la numeración crezca si el usuario escribe
+    st.session_state.contenido = texto_input
+
+# 3. PREVISUALIZACIÓN Y PROCESAMIENTO
+if st.session_state.contenido:
+    st.divider()
+    st.subheader("👁️ Previsualización Final")
+    
+    lineas_proceso = st.session_state.contenido.split('\n')
+    resultado_final = []
+    
+    with st.container(border=True):
+        for i, linea in enumerate(lineas_proceso):
+            num_renglon = i + 1
+            if num_renglon % 2 != 0: # IMPAR: Notas
+                notas_c = convertir_linea_notas(linea)
+                resultado_final.append(notas_c)
+                st.markdown(f"**`:blue[{notas_c}]`**")
+            else: # PAR: Letra
+                resultado_final.append(linea)
+                st.text(linea)
+
+    # 4. BOTONES DE ACCIÓN
+    st.divider()
+    c1, c2 = st.columns(2)
+    with c1:
+        st.download_button(
+            label="💾 Descargar TXT (Limpio)",
+            data="\n".join(resultado_final),
+            file_name="cancion_convertida_2026.txt",
+            mime="text/plain",
+            use_container_width=True
+        )
+    with c2:
+        if st.button("🗑️ Limpiar Todo", use_container_width=True):
+            st.session_state.contenido = ""
+            st.rerun()
