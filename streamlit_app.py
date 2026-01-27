@@ -14,7 +14,6 @@ LATINO_A_AMERICANO = {
 
 def quitar_acentos(texto):
     """Reemplaza letras con acento por su versión normal (á -> a)."""
-    # Normaliza y elimina marcas de acentuación
     return "".join(
         c for c in unicodedata.normalize('NFD', texto)
         if unicodedata.category(c) != 'Mn'
@@ -23,7 +22,7 @@ def quitar_acentos(texto):
 def procesar_texto(texto):
     if not texto: return ""
     
-    # Primero quitamos los acentos para evitar errores de visualización
+    # Primero quitamos los acentos para evitar errores de símbolos extraños
     texto = quitar_acentos(texto)
     
     lineas_formateadas = []
@@ -34,12 +33,10 @@ def procesar_texto(texto):
             line = line[0].upper() + line[1:]
         lineas_formateadas.append(line)
     
-    lineas = lineas_formateadas
     resultado_final = []
-    
     patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
 
-    for linea in lineas:
+    for linea in lineas_formateadas:
         linea_lista = list(linea)
         for match in re.finditer(patron_universal, linea, flags=re.IGNORECASE):
             acorde_original = match.group(0)
@@ -82,7 +79,6 @@ archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibilit
 
 if archivo:
     try:
-        # LECTURA ROBUSTA: Intentamos UTF-8, si falla usamos Latin-1 (Windows)
         raw_data = archivo.getvalue()
         try:
             contenido = raw_data.decode("utf-8")
@@ -95,7 +91,9 @@ if archivo:
         st.code(texto_final, language="text")
 
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
+        nombre_salida = f"PRO_{archivo.name}"
 
+        # BARRA DE ACCIONES (Corregido con llaves dobles para evitar SyntaxError)
         components.html(f"""
             <style>
                 .action-bar {{
@@ -120,20 +118,27 @@ if archivo:
             </div>
             <script>
                 const content = `{texto_js}`;
-                const fileName = "PRO_{archivo.name}";
+                const fileName = "{nombre_salida}";
+
                 document.getElementById('dl').onclick = () => {{
                     const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
                     const url = URL.createObjectURL(b);
                     const a = document.createElement('a');
                     a.href = url; a.download = fileName; a.click();
                 }};
+
                 document.getElementById('sh').onclick = async () => {{
                     const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
                     const file = new File([b], fileName, {{ type: 'text/plain' }});
                     if (navigator.share) {{
-                        try {{ await navigator.share({{ files: [file] }}); }} 
-                        catch (e) {{ if (e.name !== 'AbortError') console.log("Error:", e); }}
-                    } else {{ alert("Usa 'Guardar'"); }}
+                        try {{ 
+                            await navigator.share({{ files: [file] }}); 
+                        }} catch (e) {{ 
+                            if (e.name !== 'AbortError') console.log("Error:", e); 
+                        }}
+                    }} else {{ 
+                        alert("Usa 'Guardar'"); 
+                    }}
                 }};
             </script>
         """, height=100)
