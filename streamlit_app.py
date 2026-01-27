@@ -13,61 +13,67 @@ def convertir_linea_notas(linea):
     convertidas = [CONVERSION.get(p, p) for p in palabras]
     return "   ".join(convertidas)
 
-def cargar_a_editor():
-    if st.session_state.uploader_key is not None:
-        contenido = st.session_state.uploader_key.read().decode("utf-8")
-        st.session_state.mi_editor = contenido
+def cargar_archivo():
+    if st.session_state.uploader is not None:
+        st.session_state.editor_content = st.session_state.uploader.read().decode("utf-8")
 
-st.set_page_config(page_title="Editor Musical 2026", layout="wide")
+st.set_page_config(page_title="Editor Profesional 2026", layout="wide")
 
-st.title("🎸 Transpositor con Numeración de Renglones")
+st.title("🎸 Transpositor con Líneas Laterales")
 
-# 1. Cargador de archivos
-st.file_uploader(
-    "Sube tu archivo .txt", 
-    type=["txt"], 
-    key="uploader_key", 
-    on_change=cargar_a_editor
-)
+if "editor_content" not in st.session_state:
+    st.session_state.editor_content = ""
 
-# 2. Área de edición
-texto_input = st.text_area(
-    "Editor de contenido (Renglón 1 = Notas, 2 = Letra...):",
-    height=250,
-    key="mi_editor",
-    placeholder="Escribe aquí...\nLínea 1: Do Re Mi\nLínea 2: Letra de la canción"
-)
+# 1. Carga de archivo
+st.file_uploader("Sube tu .txt", type=["txt"], key="uploader", on_change=cargar_archivo)
 
-# 3. Procesamiento y Previsualización Numerada
+# 2. ÁREA DE EDICIÓN CON NÚMEROS LATERALES
+st.subheader("Editor de Canción")
+
+col_indices, col_texto = st.columns([0.05, 0.95])
+
+with col_indices:
+    # Generamos la columna de números según el contenido actual
+    lineas_actuales = st.session_state.editor_content.split("\n")
+    n_lineas = max(len(lineas_actuales), 1)
+    # Creamos un bloque de texto con los números alineados
+    numeros_html = "<br>".join([f"<b>{i+1}</b>" for i in range(n_lineas)])
+    st.markdown(f"<div style='line-height: 2.3; text-align: right; color: gray; padding-top: 25px;'>{numeros_html}</div>", unsafe_allow_html=True)
+
+with col_texto:
+    texto_input = st.text_area(
+        "Ingresa Notas (Impares) y Letra (Pares):",
+        value=st.session_state.editor_content,
+        height=400,
+        key="main_editor",
+        label_visibility="collapsed"
+    )
+    # Actualizar estado para que la columna de números reaccione
+    st.session_state.editor_content = texto_input
+
+# 3. PREVISUALIZACIÓN Y RESULTADO
 if texto_input:
-    st.subheader("👁️ Previsualización y Guía de Renglones")
+    st.divider()
+    st.subheader("👁️ Previsualización (Cifrado Americano)")
     
-    lineas = texto_input.split('\n')
     resultado_final = []
+    lineas = texto_input.split('\n')
     
     with st.container(border=True):
-        # Usamos columnas para simular la numeración al margen
         for i, linea in enumerate(lineas):
-            num_r = i + 1
-            col_num, col_cont = st.columns([0.1, 0.9])
-            
-            with col_num:
-                # Mostramos el número de renglón de forma discreta
-                st.caption(f"{num_r}:")
-            
-            with col_cont:
-                if num_r % 2 != 0:  # NOTAS
-                    notas_c = convertir_linea_notas(linea)
-                    resultado_final.append(notas_c)
-                    st.markdown(f"**`:blue[{notas_c}]`** (Notas)")
-                else:  # LETRA
-                    resultado_final.append(linea)
-                    st.markdown(f"{linea} *(Letra)*")
+            num = i + 1
+            if num % 2 != 0: # NOTAS
+                notas_c = convertir_linea_notas(linea)
+                resultado_final.append(notas_c)
+                st.markdown(f"**`:blue[{notas_c}]`**")
+            else: # LETRA
+                resultado_final.append(linea)
+                st.markdown(f"&nbsp;{linea}")
 
-    # 4. Botones
+    # 4. BOTONES DE ACCIÓN
     st.divider()
-    col1, col2 = st.columns(2)
-    with col1:
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
         st.download_button(
             label="💾 Descargar TXT",
             data="\n".join(resultado_final),
@@ -75,9 +81,7 @@ if texto_input:
             mime="text/plain",
             use_container_width=True
         )
-    with col2:
-        if st.button("🗑️ Limpiar todo", use_container_width=True):
-            st.session_state.mi_editor = ""
+    with col_btn2:
+        if st.button("🗑️ Limpiar Todo", use_container_width=True):
+            st.session_state.editor_content = ""
             st.rerun()
-else:
-    st.info("💡 Tip: Los renglones IMPARES se convertirán a cifrado americano.")
