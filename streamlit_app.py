@@ -1,8 +1,8 @@
 import streamlit as st
 import re
 import streamlit.components.v1 as components
+import chardet  # Librería para detectar la codificación automáticamente
 
-# Forzamos configuración de página
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
 LATINO_A_AMERICANO = {
@@ -13,8 +13,7 @@ LATINO_A_AMERICANO = {
 def procesar_texto_selectivo(texto_bruto, lineas_omitir):
     if not texto_bruto: return ""
     
-    # --- BLOQUE 1: NORMALIZACIÓN UTF-8 ---
-    # Convertimos a string asegurando limpieza de saltos de línea
+    # --- BLOQUE 1: NORMALIZACIÓN ---
     texto = texto_bruto.replace('\r\n', '\n')
     lineas = texto.split('\n')
     
@@ -23,11 +22,8 @@ def procesar_texto_selectivo(texto_bruto, lineas_omitir):
     
     def traducir_acorde(match):
         raiz_lat = match.group(1).upper()
-        cualidad = match.group(2) or ""
-        alteracion = match.group(3) or ""
-        numero = match.group(4) or ""
         raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
-        return f"{raiz_amer}{alteracion}{cualidad}{numero}"
+        return f"{raiz_amer}{match.group(3) or ''}{match.group(2) or ''}{match.group(4) or ''}"
 
     resultado_intermedio = []
     for i, linea in enumerate(lineas):
@@ -63,17 +59,22 @@ def procesar_texto_selectivo(texto_bruto, lineas_omitir):
 # --- INTERFAZ ---
 st.title("🎸 Cancionero Pro 2026")
 
-# Cargador de archivos con codificación explícita
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
     try:
-        # Leemos forzando UTF-8 para evitar errores de decodificación
-        contenido = archivo.getvalue().decode("utf-8", errors="replace")
+        # DETECCIÓN DE CODIFICACIÓN (Soluciona el error de la ñ)
+        raw_data = archivo.read()
+        resultado_codif = chardet.detect(raw_data)
+        codificacion = resultado_codif['encoding']
+        
+        # Decodificamos con la codificación detectada (ANSI, UTF-8, etc.)
+        contenido = raw_data.decode(codificacion)
         lineas = contenido.split('\n')
         
-        # Escaneo de oraciones sospechosas
-        patron_duda = r'\b(RE|MI|SOL|LA|SI)\b\s\b(RE|MI|SOL|LA|SI|[a-zñáéíóú]+)\b'
+        # Escaneo de oraciones dudosas (Nota + palabra que no es nota)
+        notas_reg = r'(DO|RE|MI|FA|SOL|LA|SI)'
+        patron_duda = rf'\b{notas_reg}\b\s(?!\b{notas_reg}\b)[a-zA-ZñÑáéíóúÁÉÍÓÚ]+'
         
         lineas_sospechosas = []
         for idx, linea in enumerate(lineas):
@@ -81,23 +82,17 @@ if archivo:
                 lineas_sospechosas.append((idx, linea))
         
         omitir_indices = []
-        
         if lineas_sospechosas:
-            st.warning("⚠️ Se detectaron oraciones que podrían confundirse con notas:")
-            st.write("Selecciona solo las que **SÍ SON MÚSICA**:")
-            
+            st.warning("⚠️ Se detectaron posibles oraciones:")
             for idx, texto in lineas_sospechosas:
                 if not st.checkbox(f"Renglón {idx+1}: {texto.strip()}", value=False, key=idx):
                     omitir_indices.append(idx)
         
-        if st.button("Procesar Cancionero"):
+        if st.button("Procesar y Guardar"):
             texto_final = procesar_texto_selectivo(contenido, omitir_indices)
-            
-            st.subheader("Vista Previa:")
             st.code(texto_final, language="text")
 
-            # --- JS ACCIONES (UTF-8 compatible) ---
-            # Escapamos caracteres que rompen el JS
+            # Preparación para JavaScript (UTF-8 puro)
             texto_js = texto_final.replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$")
             
             components.html(f"""
@@ -121,4 +116,4 @@ if archivo:
             """, height=100)
             
     except Exception as e:
-        st.error(f"Error crítico de lectura: {e}. Asegúrate de que el archivo sea un .txt válido.")
+        st.error(f"Error al cargar: {e}")
