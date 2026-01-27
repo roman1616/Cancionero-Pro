@@ -1,28 +1,37 @@
 import streamlit as st
 
 # 1. Configuración de página
-st.set_page_config(page_title="Editor Musical Dark 2026", layout="centered")
+st.set_page_config(page_title="Editor Musical 2026", layout="centered")
 
 # Diccionario de cifrado americano
 CONVERSION = {"DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A", "SI": "B", 
               "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#",
               "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"}
 
-# --- GESTIÓN DE TEMA Y ESTADO ---
+# --- GESTIÓN DE ESTADO ---
 if "tema_oscuro" not in st.session_state:
-    st.session_state.tema_oscuro = True  # Por defecto oscuro
+    st.session_state.tema_oscuro = True
 
 if "texto_maestro" not in st.session_state:
     st.session_state.texto_maestro = ""
 
+# --- FUNCIONES ---
+def al_subir_archivo():
+    if st.session_state.uploader_key:
+        contenido = st.session_state.uploader_key.read().decode("utf-8")
+        st.session_state.texto_maestro = contenido
+        # Actualizamos la key del editor para que se refresque visualmente
+        if "editor_interactivo" in st.session_state:
+            st.session_state.editor_interactivo = contenido
+
 # --- CSS DINÁMICO SEGÚN TEMA ---
 if st.session_state.tema_oscuro:
-    bg_color_1 = "#1E1E1E" # Gris casi negro (Notas)
-    bg_color_2 = "#252A34" # Azul oscuro profundo (Letra)
+    bg_color_1 = "#1E1E1E" # Gris (Notas)
+    bg_color_2 = "#252A34" # Azul Oscuro (Letra)
     text_color = "#FFFFFF" # Blanco
 else:
     bg_color_1 = "#FFFFFF" # Blanco (Notas)
-    bg_color_2 = "#F0F7FF" # Azul muy claro (Letra)
+    bg_color_2 = "#F0F7FF" # Azul Claro (Letra)
     text_color = "#000000" # Negro
 
 st.markdown(f"""
@@ -39,45 +48,40 @@ st.markdown(f"""
         background-size: 100% 64px !important;
         background-attachment: local !important;
         background-position: 0 0 !important;
-        border: 1px solid #444 !important;
     }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNCIONES ---
-def al_subir_archivo():
-    if st.session_state.uploader_key:
-        contenido = st.session_state.uploader_key.read().decode("utf-8")
-        st.session_state.editor_interactivo = contenido
-        st.session_state.texto_maestro = contenido
-
-def cambiar_tema():
-    st.session_state.tema_oscuro = not st.session_state.tema_oscuro
-
 # --- INTERFAZ ---
-col_t1, col_t2 = st.columns([0.8, 0.2])
+col_t1, col_t2 = st.columns([0.7, 0.3])
 with col_t1:
-    st.title("🎸 Editor Transpositor 2026")
+    st.title("🎸 Editor Musical Pro")
 with col_t2:
+    # Corrección del error: st.button no usa on_change de esta forma
     label_tema = "☀️ Modo Claro" if st.session_state.tema_oscuro else "🌙 Modo Oscuro"
-    st.button(label_tema, on_change=cambiar_tema)
+    if st.button(label_tema, use_container_width=True):
+        st.session_state.tema_oscuro = not st.session_state.tema_oscuro
+        st.rerun() # Forzamos recarga para aplicar el nuevo CSS
 
-st.markdown(f"Configuración actual: **Renglón 1 ({'Gris' if st.session_state.tema_oscuro else 'Blanco'}) = Notas** | **Renglón 2 ({'Azul' if st.session_state.tema_oscuro else 'Celeste'}) = Letra**")
-
-# Cargador
+# Cargador de archivos
 st.file_uploader("📂 Cargar canción (.txt)", type=["txt"], key="uploader_key", on_change=al_subir_archivo)
 
-# Altura dinámica
+# Cálculo de altura
 n_lineas = max(len(st.session_state.texto_maestro.split("\n")), 1)
 altura_fija = (n_lineas * 32) + 20
 
-# Editor
-st.session_state.texto_maestro = st.text_area(
+# Editor principal
+# Usamos 'key' para que el callback de carga pueda escribir aquí
+texto_editado = st.text_area(
     "Editor:",
     height=altura_fija,
     key="editor_interactivo",
-    value=st.session_state.texto_maestro
+    value=st.session_state.texto_maestro,
+    label_visibility="collapsed"
 )
+
+# Sincronización del texto editado
+st.session_state.texto_maestro = texto_editado
 
 # --- ACCIONES ---
 st.divider()
@@ -87,7 +91,9 @@ btn_prev = c1.button("👁️ Previsualizar", use_container_width=True)
 
 if c2.button("🗑️ Limpiar Todo", use_container_width=True):
     st.session_state.texto_maestro = ""
-    st.session_state.editor_interactivo = ""
+    # También debemos limpiar el valor de la key del widget
+    if "editor_interactivo" in st.session_state:
+        st.session_state.editor_interactivo = ""
     st.rerun()
 
 if st.session_state.texto_maestro:
@@ -104,7 +110,7 @@ if st.session_state.texto_maestro:
     c3.download_button(
         label="💾 Descargar TXT",
         data="\n".join(resultado_final),
-        file_name="cancion_2026.txt",
+        file_name="cancion_transpuesta.txt",
         mime="text/plain",
         use_container_width=True
     )
@@ -116,6 +122,5 @@ if st.session_state.texto_maestro:
                 if (i + 1) % 2 != 0:
                     st.markdown(f"**`:blue[{linea}]`**")
                 else:
-                    color_prev = "white" if st.session_state.tema_oscuro else "black"
-                    st.markdown(f"<span style='color:{color_prev}'>{linea}</span>", unsafe_allow_html=True)
-
+                    c_prev = "white" if st.session_state.tema_oscuro else "black"
+                    st.markdown(f"<span style='color:{c_prev}'>{linea}</span>", unsafe_allow_html=True)
