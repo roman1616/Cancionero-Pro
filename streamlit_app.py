@@ -1,101 +1,81 @@
 import streamlit as st
 
-# Configuración de página
 st.set_page_config(page_title="Editor Musical 2026", layout="wide")
 
-# Diccionario de cifrado americano
-CONVERSION = {
-    "DO": "C", "RE": "D", "MI": "E", "FA": "F", 
-    "SOL": "G", "LA": "A", "SI": "B",
-    "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#",
-    "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"
-}
+# Diccionario de cifrado
+CONVERSION = {"DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A", "SI": "B", 
+              "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#",
+              "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"}
 
-def convertir_notas(linea):
-    palabras = linea.upper().split()
-    return "   ".join([CONVERSION.get(p, p) for p in palabras])
+# --- ESTILO CSS PARA ALINEACIÓN REAL ---
+# Forzamos que tanto el editor como los números tengan exactamente el mismo line-height
+st.markdown("""
+    <style>
+    .stTextArea textarea {
+        line-height: 1.6 !important;
+        padding-top: 10px !important;
+        font-family: monospace !important;
+        font-size: 16px !important;
+    }
+    .line-numbers {
+        line-height: 1.6 !important;
+        font-family: monospace !important;
+        font-size: 16px !important;
+        color: #888;
+        text-align: right;
+        padding-top: 10px; /* Debe coincidir con el padding del textarea */
+        user-select: none;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- INICIALIZACIÓN DE ESTADO (Evita el Error de Key/Value) ---
-if "contenido_editor" not in st.session_state:
-    st.session_state.contenido_editor = ""
+if "contenido" not in st.session_state:
+    st.session_state.contenido = ""
 
-# Función para cargar el archivo correctamente
-def callback_archivo():
-    if st.session_state.uploader_input:
-        texto = st.session_state.uploader_input.read().decode("utf-8")
-        st.session_state.contenido_editor = texto
+def al_cargar():
+    if st.session_state.uploader:
+        st.session_state.contenido = st.session_state.uploader.read().decode("utf-8")
 
 # --- INTERFAZ ---
 st.title("🎸 Transpositor de Notas 2026")
+st.file_uploader("📂 Sube archivo .txt", type=["txt"], key="uploader", on_change=al_cargar)
 
-# 1. Cargador de archivos
-st.file_uploader(
-    "📂 Sube tu archivo .txt", 
-    type=["txt"], 
-    key="uploader_input", 
-    on_change=callback_archivo
-)
-
-# 2. EDITOR CON NUMERACIÓN ESTÁTICA Y ALTURA DINÁMICA
-st.subheader("📝 Editor de Contenido")
-
-# Calculamos las líneas para la numeración y la altura
-lineas_actuales = st.session_state.contenido_editor.split("\n")
+# Procesar líneas
+lineas_actuales = st.session_state.contenido.split("\n")
 n_lineas = max(len(lineas_actuales), 1)
-# En 2026, 31px por línea es el estándar para evitar scroll interno en Streamlit
-altura_dinamica = max(250, n_lineas * 31) 
+# Calculamos altura dinámica para evitar scroll
+altura_px = max(200, n_lineas * 25.6 + 20) # 25.6 es 16px * 1.6 de line-height
 
-col_num, col_edit = st.columns([0.04, 0.96], gap="small")
+col_n, col_e = st.columns([0.05, 0.95], gap="small")
 
-with col_num:
-    # Generamos números estáticos
+with col_n:
+    # Generamos la columna de números con la clase CSS 'line-numbers'
     numeros_html = "<br>".join([f"{i+1}" for i in range(n_lineas)])
-    st.markdown(
-        f"""<div style='line-height: 1.58; font-family: monospace; font-size: 1.2rem; 
-        text-align: right; color: #888; padding-top: 40px;'>{numeros_html}</div>""", 
-        unsafe_allow_html=True
-    )
+    st.markdown(f'<div class="line-numbers">{numeros_html}</div>', unsafe_allow_html=True)
 
-with col_edit:
-    # Usamos solo la KEY vinculada al estado para evitar el error de duplicidad
-    # El valor se sincroniza automáticamente a través de la key
-    st.text_area(
-        "Editor Principal",
-        key="contenido_editor", 
-        height=altura_dinamica,
-        label_visibility="collapsed"
-    )
+with col_e:
+    # Editor vinculado al estado
+    texto_edit = st.text_area("Editor", key="contenido", height=int(altura_px), label_visibility="collapsed")
 
-# 3. PREVISUALIZACIÓN PROCESADA
-if st.session_state.contenido_editor:
+# --- PREVISUALIZACIÓN ---
+if st.session_state.contenido:
     st.divider()
-    st.subheader("👁️ Previsualización (Notas Convertidas)")
-    
-    resultado_final = []
-    lineas_proceso = st.session_state.contenido_editor.split('\n')
+    st.subheader("👁️ Previsualización Final")
+    lineas_p = st.session_state.contenido.split('\n')
+    resultado = []
     
     with st.container(border=True):
-        for i, linea in enumerate(lineas_proceso):
-            idx = i + 1
-            if idx % 2 != 0: # Renglón IMPAR: Notas
-                notas_c = convertir_notas(linea)
-                resultado_final.append(notas_c)
-                st.markdown(f"**`:blue[{notas_c}]`**")
-            else: # Renglón PAR: Letra
-                resultado_final.append(linea)
+        for i, linea in enumerate(lineas_p):
+            if (i + 1) % 2 != 0: # NOTAS
+                conv = "   ".join([CONVERSION.get(p.upper(), p) for p in linea.split()])
+                resultado.append(conv)
+                st.markdown(f"**`:blue[{conv}]`**")
+            else: # LETRA
+                resultado.append(linea)
                 st.text(linea)
 
-    # 4. BOTONES DE ACCIÓN
-    st.divider()
-    c1, c2 = st.columns(2)
-    with c1:
-        st.download_button(
-            label="💾 Descargar TXT",
-            data="\n".join(resultado_final),
-            file_name="cancion_cifrada.txt",
-            mime="text/plain",
-            use_container_width=True
-        )
+    st.download_button("💾 Descargar TXT", data="\n".join(resultado), file_name="cancion.txt")
+
     with c2:
         if st.button("🗑️ Limpiar Todo", use_container_width=True):
             st.session_state.contenido_editor = ""
