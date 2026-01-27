@@ -1,8 +1,8 @@
 import streamlit as st
 import re
 import streamlit.components.v1 as components
-import chardet  # Librería para detectar la codificación automáticamente
 
+# Configuración de página
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
 LATINO_A_AMERICANO = {
@@ -63,16 +63,18 @@ archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibilit
 
 if archivo:
     try:
-        # DETECCIÓN DE CODIFICACIÓN (Soluciona el error de la ñ)
+        # LECTURA ROBUSTA DE CODIFICACIÓN (Sin librerías externas)
         raw_data = archivo.read()
-        resultado_codif = chardet.detect(raw_data)
-        codificacion = resultado_codif['encoding']
-        
-        # Decodificamos con la codificación detectada (ANSI, UTF-8, etc.)
-        contenido = raw_data.decode(codificacion)
+        try:
+            # Intentamos UTF-8 primero
+            contenido = raw_data.decode('utf-8')
+        except UnicodeDecodeError:
+            # Si falla, usamos Latin-1 (ISO-8859-1) que soporta la "ñ" de archivos viejos
+            contenido = raw_data.decode('iso-8859-1')
+            
         lineas = contenido.split('\n')
         
-        # Escaneo de oraciones dudosas (Nota + palabra que no es nota)
+        # Escaneo de oraciones dudosas (Incluye ñ y tildes en el patrón)
         notas_reg = r'(DO|RE|MI|FA|SOL|LA|SI)'
         patron_duda = rf'\b{notas_reg}\b\s(?!\b{notas_reg}\b)[a-zA-ZñÑáéíóúÁÉÍÓÚ]+'
         
@@ -90,9 +92,10 @@ if archivo:
         
         if st.button("Procesar y Guardar"):
             texto_final = procesar_texto_selectivo(contenido, omitir_indices)
+            st.subheader("Vista Previa:")
             st.code(texto_final, language="text")
 
-            # Preparación para JavaScript (UTF-8 puro)
+            # Preparación para JavaScript (Forzamos UTF-8 en el navegador)
             texto_js = texto_final.replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$")
             
             components.html(f"""
@@ -103,6 +106,7 @@ if archivo:
                 <script>
                     const txt = `{texto_js}`;
                     document.getElementById('dl').onclick = () => {{
+                        // Añadimos el BOM (Byte Order Mark) para que Windows reconozca la ñ correctamente
                         const b = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), txt], {{type:'text/plain;charset=utf-8'}});
                         const a = document.createElement('a');
                         a.href = URL.createObjectURL(b); a.download = "PRO_{archivo.name}"; a.click();
@@ -116,4 +120,4 @@ if archivo:
             """, height=100)
             
     except Exception as e:
-        st.error(f"Error al cargar: {e}")
+        st.error(f"Error al procesar: {e}")
