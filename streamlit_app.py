@@ -22,8 +22,7 @@ def quitar_acentos(texto):
 def procesar_texto(texto):
     if not texto: return ""
     
-    # --- PASO 1: Formato Minúsculas e Inicial Mayúscula (Sin acentos) ---
-    # Aplicamos primero la eliminación de acentos para evitar que se borren letras
+    # 1. Normalización: UTF-8 y quitar acentos (Evita símbolos raros)
     texto = quitar_acentos(texto)
     
     lineas_sucias = texto.split('\n')
@@ -31,7 +30,7 @@ def procesar_texto(texto):
     for l in lineas_sucias:
         l = l.strip()
         if len(l) > 0:
-            # Convertimos toda la línea a minúscula y capitalizamos la primera letra
+            # Formato: Primera letra mayúscula, resto minúscula
             nueva_linea = l[0].upper() + l[1:].lower()
             lineas_limpias.append(nueva_linea)
         else:
@@ -49,11 +48,21 @@ def procesar_texto(texto):
             resto_acorde = match.group(2)
             inicio, fin = match.start(), match.end()
             
-            # --- FILTROS ANTI-FRASES ---
+            # --- FILTROS ANTI-FRASES MEJORADOS ---
             lo_que_sigue = linea[fin:]
-            if inicio > 0 and linea[inicio-1].isalpha(): continue
-            if re.match(r'^ +[a-z]', lo_que_sigue): continue
-            if re.match(r'^[a-z]', lo_que_sigue): continue
+            
+            # 1. Si la nota es una sola letra (A, E, D, etc) y lo que sigue es una letra minúscula, es una palabra, NO un acorde.
+            # Ejemplo: "A esa" -> 'A' es nota, pero le sigue ' ' y luego 'e'. Se descarta.
+            if len(acorde_original) == 1 and re.match(r'^[a-z]', lo_que_sigue.strip()):
+                continue
+
+            # 2. Evitar que detecte letras dentro de palabras (Ej: "pArtA")
+            if inicio > 0 and linea[inicio-1].isalpha(): 
+                continue
+            
+            # 3. Si lo que sigue es texto normal (letras minúsculas pegadas o con espacio)
+            if re.match(r'^[a-zñáéíóú]', lo_que_sigue): continue
+            if re.match(r'^ +[a-zñáéíóú]', lo_que_sigue): continue
 
             # --- CONVERSIÓN ---
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
@@ -82,20 +91,15 @@ st.markdown(f"""
         <img src='https://raw.githubusercontent.com' alt='Icono' style='width: 45px; height: 45px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Cifrado Americano • Texto Normalizado (Sin acentos) • 2026</p>", unsafe_allow_html=True)
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
     try:
-        nombre_archivo = archivo.name
-        # --- LECTURA ROBUSTA PARA EVITAR '' ---
         raw_bytes = archivo.getvalue()
         try:
-            # Intenta UTF-8 (Estándar 2026)
             contenido = raw_bytes.decode("utf-8")
         except UnicodeDecodeError:
-            # Si falla, intenta Latin-1 (Archivos viejos de Windows)
             contenido = raw_bytes.decode("latin-1")
             
         texto_final = procesar_texto(contenido)
@@ -105,7 +109,6 @@ if archivo:
 
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
-        # BARRA DE ACCIONES (Sin cambios en funcionalidad)
         components.html(f"""
             <style>
                 .action-bar {{
@@ -130,7 +133,7 @@ if archivo:
             </div>
             <script>
                 const content = `{texto_js}`;
-                const fileName = "{nombre_archivo}";
+                const fileName = "{archivo.name}";
 
                 document.getElementById('dl').onclick = () => {{
                     const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
@@ -151,4 +154,4 @@ if archivo:
         """, height=100)
     
     except Exception as e:
-        st.error(f"Error al procesar el archivo: {e}")
+        st.error(f"Error: {e}")
