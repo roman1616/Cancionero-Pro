@@ -1,6 +1,7 @@
 import streamlit as st
 import re
 import streamlit.components.v1 as components
+import unicodedata
 
 # 1. Configuración de página centrada
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
@@ -11,30 +12,38 @@ LATINO_A_AMERICANO = {
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
 }
 
+def quitar_acentos(texto):
+    """Reemplaza letras con acento por su versión normal (á -> a)."""
+    # Normaliza a forma NFD para separar el acento de la letra y luego filtra
+    return "".join(
+        c for c in unicodedata.normalize('NFD', texto)
+        if unicodedata.category(c) != 'Mn'
+    )
+
 def procesar_texto(texto):
     if not texto: return ""
     
-    # --- PASO 1: Formato Minúsculas e Inicial Mayúscula (Respetando acentos) ---
-    lineas_sucias = texto.split('\n')
-    lineas_limpias = []
-    for l in lineas_sucias:
-        l = l.strip()
-        if len(l) > 0:
-            # Convertimos toda la línea a minúscula y capitalizamos la primera letra
-            # Esto funciona correctamente con á, é, í, ó, ú, ñ
-            nueva_linea = l[0].upper() + l[1:].lower()
-            lineas_limpias.append(nueva_linea)
-        else:
-            lineas_limpias.append("")
-            
+    # --- NORMALIZACIÓN Y FORMATO ---
+    # 1. Quitamos acentos para evitar errores de codificación/borrado
+    texto = quitar_acentos(texto)
+    
+    lineas_formateadas = []
+    for line in texto.split('\n'):
+        # 2. Aplicamos formato: Minúsculas con Inicial Mayúscula
+        line = line.strip().lower()
+        if line:
+            line = line[0].upper() + line[1:]
+        lineas_formateadas.append(line)
+    
+    texto_preprocesado = '\n'.join(lineas_formateadas)
+    lineas = texto_preprocesado.split('\n')
     resultado_final = []
+    
     # Patrón: Nota base + resto del acorde
     patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
 
-    for linea in lineas_limpias:
+    for linea in lineas:
         linea_lista = list(linea)
-        # Usamos un offset para compensar si el nombre del acorde cambia de longitud
-        # pero en tu código original usas ljust para mantener el ancho, así que mantenemos esa lógica.
         for match in re.finditer(patron_universal, linea, flags=re.IGNORECASE):
             acorde_original = match.group(0)
             raiz_orig = match.group(1).upper()
@@ -44,8 +53,8 @@ def procesar_texto(texto):
             # --- FILTROS ANTI-FRASES ---
             lo_que_sigue = linea[fin:]
             if inicio > 0 and linea[inicio-1].isalpha(): continue
-            if re.match(r'^ +[a-zñáéíóú]', lo_que_sigue): continue
-            if re.match(r'^[a-zñáéíóú]', lo_que_sigue): continue
+            if re.match(r'^ +[a-z]', lo_que_sigue): continue
+            if re.match(r'^[a-z]', lo_que_sigue): continue
 
             # --- CONVERSIÓN ---
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
@@ -54,12 +63,11 @@ def procesar_texto(texto):
             if not (lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*")):
                 nuevo_acorde += "'"
 
-            # --- MANTENER POSICIÓN (Crucial para no borrar letras siguientes) ---
+            # --- MANTENER POSICIÓN ---
             ancho_original = len(acorde_original)
             if lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*"):
                 ancho_original += 1
             
-            # Ajustamos el nuevo acorde al espacio que ocupaba el viejo
             sustitucion = nuevo_acorde.ljust(ancho_original)
 
             for i, char in enumerate(sustitucion):
@@ -72,18 +80,18 @@ def procesar_texto(texto):
 # --- INTERFAZ ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com' alt='Icono' style='width: 45px; height: 45px;'>
-        <h1>Cancionero Pro</h1>   
+        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
+        <h1>Cancionero Pro 2026</h1>   
     </div>""", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano, corrige formato y respeta acentos.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Cifrado Americano • Texto Normalizado • Sin Acentos</p>", unsafe_allow_html=True)
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
     try:
         nombre_archivo = archivo.name
-        # Se usa utf-8-sig para manejar archivos creados en Windows con BOM
-        contenido = archivo.getvalue().decode("utf-8-sig")
+        # Se usa utf-8 con reemplazo para mayor seguridad
+        contenido = archivo.getvalue().decode("utf-8", errors="replace")
         texto_final = procesar_texto(contenido)
         
         st.subheader("Vista Previa:")
