@@ -57,26 +57,26 @@ def procesar_texto(texto):
 # --- INTERFAZ ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
+        <img src='https://raw.githubusercontent.com' alt='Icono' style='width: 45px; height: 45px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)
 
-# CARGADOR DE ARCHIVOS (Optimizado para evitar AxiosError en Android)
+# CARGADOR DE ARCHIVOS
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
     try:
         nombre_archivo = archivo.name
         
-        # --- AGREGADO: CONVERSIÓN A UTF-8 ANTES QUE NADA ---
-        raw_bytes = archivo.getvalue()
+        # --- PASAR A UTF-8 ANTES DE PROCESAR ---
+        contenido_raw = archivo.getvalue()
         try:
-            # Intenta decodificar como UTF-8 estándar
-            contenido = raw_bytes.decode("utf-8")
+            # Intentar UTF-8 (estándar actual 2026)
+            contenido = contenido_raw.decode("utf-8")
         except UnicodeDecodeError:
-            # Si falla (archivos de Windows), convierte desde Latin-1 a UTF-8
-            contenido = raw_bytes.decode("latin-1")
+            # Si falla, forzar decodificación Latin-1 para asegurar compatibilidad
+            contenido = contenido_raw.decode("latin-1")
             
         texto_final = procesar_texto(contenido)
         
@@ -86,7 +86,7 @@ if archivo:
         # Escapamos el texto para JavaScript
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
-        # BARRA DE ACCIONES FLOTANTE (BOTONES IGUALES SIN FONDO)
+        # BARRA DE ACCIONES FLOTANTE
         components.html(f"""
             <style>
                 .action-bar {{
@@ -133,3 +133,4 @@ if archivo:
     
     except Exception as e:
         st.error(f"Error al procesar el archivo: {e}")
+
