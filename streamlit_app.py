@@ -13,45 +13,55 @@ def convertir_linea_notas(linea):
     convertidas = [CONVERSION.get(p, p) for p in palabras]
     return "   ".join(convertidas)
 
-def cargar_archivo():
+# --- FUNCIÓN PARA CARGAR EL ARCHIVO AL EDITOR ---
+def cargar_archivo_al_state():
     if st.session_state.uploader is not None:
-        st.session_state.editor_content = st.session_state.uploader.read().decode("utf-8")
+        # Leemos el archivo y lo inyectamos directamente en la 'key' del editor
+        contenido = st.session_state.uploader.read().decode("utf-8")
+        st.session_state.main_editor = contenido
 
-st.set_page_config(page_title="Editor Profesional 2026", layout="wide")
+st.set_page_config(page_title="Editor Musical Pro 2026", layout="wide")
 
 st.title("🎸 Transpositor con Líneas Laterales")
 
-if "editor_content" not in st.session_state:
-    st.session_state.editor_content = ""
+# 1. Cargador de archivos (Usa callback para actualizar el editor al instante)
+st.file_uploader(
+    "Sube tu archivo .txt", 
+    type=["txt"], 
+    key="uploader", 
+    on_change=cargar_archivo_al_state
+)
 
-# 1. Carga de archivo
-st.file_uploader("Sube tu .txt", type=["txt"], key="uploader", on_change=cargar_archivo)
+# 2. Área de Edición con Números
+st.subheader("Editor de Contenido")
 
-# 2. ÁREA DE EDICIÓN CON NÚMEROS LATERALES
-st.subheader("Editor de Canción")
+# Aseguramos que la key del editor exista en el session_state
+if "main_editor" not in st.session_state:
+    st.session_state.main_editor = ""
 
 col_indices, col_texto = st.columns([0.05, 0.95])
 
 with col_indices:
-    # Generamos la columna de números según el contenido actual
-    lineas_actuales = st.session_state.editor_content.split("\n")
+    # Calculamos cuántas líneas hay para poner los números
+    lineas_actuales = st.session_state.main_editor.split("\n")
     n_lineas = max(len(lineas_actuales), 1)
-    # Creamos un bloque de texto con los números alineados
     numeros_html = "<br>".join([f"<b>{i+1}</b>" for i in range(n_lineas)])
-    st.markdown(f"<div style='line-height: 2.3; text-align: right; color: gray; padding-top: 25px;'>{numeros_html}</div>", unsafe_allow_html=True)
+    # Estilo CSS para alinear números con los renglones del editor
+    st.markdown(
+        f"<div style='line-height: 2.3; text-align: right; color: #888; padding-top: 25px;'>{numeros_html}</div>", 
+        unsafe_allow_html=True
+    )
 
 with col_texto:
+    # El text_area usa la 'key' que actualizamos con el cargador
     texto_input = st.text_area(
-        "Ingresa Notas (Impares) y Letra (Pares):",
-        value=st.session_state.editor_content,
-        height=400,
+        "Edición (Impares=Notas, Pares=Letra)",
         key="main_editor",
+        height=400,
         label_visibility="collapsed"
     )
-    # Actualizar estado para que la columna de números reaccione
-    st.session_state.editor_content = texto_input
 
-# 3. PREVISUALIZACIÓN Y RESULTADO
+# 3. Previsualización y Descarga
 if texto_input:
     st.divider()
     st.subheader("👁️ Previsualización (Cifrado Americano)")
@@ -61,19 +71,17 @@ if texto_input:
     
     with st.container(border=True):
         for i, linea in enumerate(lineas):
-            num = i + 1
-            if num % 2 != 0: # NOTAS
+            if (i + 1) % 2 != 0: # NOTAS
                 notas_c = convertir_linea_notas(linea)
                 resultado_final.append(notas_c)
                 st.markdown(f"**`:blue[{notas_c}]`**")
             else: # LETRA
                 resultado_final.append(linea)
-                st.markdown(f"&nbsp;{linea}")
+                st.text(linea)
 
-    # 4. BOTONES DE ACCIÓN
     st.divider()
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
         st.download_button(
             label="💾 Descargar TXT",
             data="\n".join(resultado_final),
@@ -81,7 +89,7 @@ if texto_input:
             mime="text/plain",
             use_container_width=True
         )
-    with col_btn2:
+    with col_d2:
         if st.button("🗑️ Limpiar Todo", use_container_width=True):
-            st.session_state.editor_content = ""
+            st.session_state.main_editor = ""
             st.rerun()
