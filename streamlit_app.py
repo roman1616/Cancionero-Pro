@@ -13,27 +13,7 @@ LATINO_A_AMERICANO = {
 
 def procesar_texto(texto):
     if not texto: return ""
-    
-    # --- PROCESAMIENTO DE ORACIONES A MINÚSCULAS ---
-    lineas_entrada = texto.split('\n')
-    lineas_pre_procesadas = []
-    
-    for linea in lineas_entrada:
-        palabras = linea.split()
-        # Si tiene más de 3 palabras, se considera oración y se pasa a minúscula
-        if len(palabras) > 3:
-            linea = linea.lower()
-        
-        # Si la línea tiene contenido, aseguramos que empiece con Mayúscula (salto de línea)
-        if linea.strip():
-            linea = linea.strip()[0].upper() + linea.strip()[1:]
-            
-        lineas_pre_procesadas.append(linea)
-    
-    texto_base = '\n'.join(lineas_pre_procesadas)
-    # ----------------------------------------------
-
-    lineas = texto_base.split('\n')
+    lineas = texto.split('\n')
     resultado_final = []
     # Patrón: Nota base + resto del acorde
     patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
@@ -77,7 +57,7 @@ def procesar_texto(texto):
 # --- INTERFAZ ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
+        <img src='https://raw.githubusercontent.com' alt='Icono' style='width: 45px; height: 45px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)
@@ -88,7 +68,16 @@ archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibilit
 if archivo:
     try:
         nombre_archivo = archivo.name
-        contenido = archivo.getvalue().decode("utf-8")
+        
+        # --- PASAR A UTF-8 ANTES DE PROCESAR ---
+        contenido_raw = archivo.getvalue()
+        try:
+            # Intentar UTF-8 (estándar actual 2026)
+            contenido = contenido_raw.decode("utf-8")
+        except UnicodeDecodeError:
+            # Si falla, forzar decodificación Latin-1 para asegurar compatibilidad
+            contenido = contenido_raw.decode("latin-1")
+            
         texto_final = procesar_texto(contenido)
         
         st.subheader("Vista Previa:")
@@ -144,4 +133,3 @@ if archivo:
     
     except Exception as e:
         st.error(f"Error al procesar el archivo: {e}")
-
