@@ -2,71 +2,52 @@ import streamlit as st
 import re
 import streamlit.components.v1 as components
 
+# 1. Configuración de página centrada
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
-# Diccionario de raíces
+# Diccionario de conversión (Latino a Americano)
 LATINO_A_AMERICANO = {
     'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
 }
 
-def procesar_texto(texto_bruto):
-    if not texto_bruto: return ""
-    
-    # --- BLOQUE 1: NORMALIZACIÓN UTF-8 ---
-    texto = texto_bruto.replace('\r\n', '\n')
-    
-    # --- BLOQUE 2: CONVERSIÓN DE CIFRADO (Ej: Lam# -> Am# -> A#m) ---
-    # Este patrón busca la raíz latina y captura lo que sigue
-    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)(m|maj|min|aug|dim|sus|add|M)?([#b])?([0-9]*)'
-    
-    def traducir_acorde(match):
-        raiz_lat = match.group(1).upper()
-        cualidad = match.group(2) if match.group(2) else ""
-        alteracion = match.group(3) if match.group(3) else ""
-        numero = match.group(4) if match.group(4) else ""
-        
-        raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
-        
-        # Reordenar: La raíz + alteración (#/b) + cualidad (m) + número
-        # Ejemplo: Lam# -> Raiz: A, Cualidad: m, Alteracion: # -> A#m
-        return f"{raiz_amer}{alteracion}{cualidad}{numero}"
-
+def procesar_texto(texto):
+    if not texto: return ""
     lineas = texto.split('\n')
-    texto_convertido = []
-    for linea in lineas:
-        # Primero convertimos los latinos a americanos reordenando símbolos
-        nueva_linea = re.sub(patron_latino, traducir_acorde, linea, flags=re.IGNORECASE)
-        texto_convertido.append(nueva_linea)
-
-    # --- BLOQUE 3: COLOCACIÓN DE APÓSTROFES ---
     resultado_final = []
-    # Busca acordes ya en formato americano (A-G)
-    patron_final = r'\b([A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
+    
+    # Patrón mejorado: Captura la nota base (do-si) y el resto del acorde
+    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#b]?[a-zA-Z0-9\/\+\-\(]*)'
 
-    for linea in texto_convertido:
-        linea_lista = list(linea)
-        ajuste = 0
-        for m in re.finditer(patron_final, linea):
-            fin = m.end() + ajuste
-            # Evitar duplicar apóstrofe si ya existe
-            if fin < len(linea_lista):
-                if linea_lista[fin] not in ["'", "*"]:
-                    linea_lista.insert(fin, "'")
-                    ajuste += 1
-            else:
-                linea_lista.append("'")
-                ajuste += 1
-        resultado_final.append("".join(linea_lista))
+    for linea in lineas:
+        # Usamos re.sub con una función de reemplazo para mayor control
+        def reemplazar(match):
+            nota_latina = match.group(1).upper()
+            resto = match.group(2)
+            
+            # Convertir nota base
+            nota_americana = LATINO_A_AMERICANO.get(nota_latina, nota_latina)
+            acorde_completo = f"{nota_americana}{resto}"
+            
+            # Si ya tiene apóstrofe o asterisco, no lo duplicamos
+            # Si no, lo agregamos al final
+            if not (acorde_completo.endswith("'") or acorde_completo.endswith("*")):
+                return f"{acorde_completo}'"
+            return acorde_completo
 
+        # Aplicamos la conversión ignorando mayúsculas/minúsculas en la búsqueda
+        nueva_linea = re.sub(patron_latino, reemplazar, linea, flags=re.IGNORECASE)
+        resultado_final.append(nueva_linea)
+        
     return '\n'.join(resultado_final)
 
-# --- INTERFAZ STREAMLIT ---
+# --- INTERFAZ ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com' style='width: 45px; height: 45px;'>
+        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
@@ -80,30 +61,50 @@ if archivo:
         st.code(texto_final, language="text")
 
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
+
         components.html(f"""
             <style>
-                .action-bar {{ position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; }}
-                .btn {{ width: 140px; height: 45px; border: none; border-radius: 20px; font-weight: bold; cursor: pointer; color: white; }}
-                .dl {{ background: #007AFF; }} .sh {{ background: #34C759; }}
+                .action-bar {{
+                    position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
+                    display: flex; gap: 15px; z-index: 9999;
+                }}
+                .btn {{
+                    width: 150px; height: 50px; border: none; border-radius: 25px;
+                    font-family: -apple-system, system-ui, sans-serif;
+                    font-size: 16px; font-weight: 700; cursor: pointer;
+                    display: flex; align-items: center; justify-content: center;
+                    gap: 8px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                    transition: transform 0.1s;
+                }}
+                .btn:active {{ transform: scale(0.95); }}
+                .download-btn {{ background-color: #007AFF; }}
+                .share-btn {{ background-color: #34C759; }}
             </style>
             <div class="action-bar">
-                <button id="dl" class="btn dl">💾 Guardar</button>
-                <button id="sh" class="btn sh">📤 Compartir</button>
+                <button id="dl" class="btn download-btn">💾 Guardar</button>
+                <button id="sh" class="btn share-btn">📤 Compartir</button>
             </div>
             <script>
-                const txt = `{texto_js}`;
+                const content = `{texto_js}`;
+                const fileName = "{nombre_archivo}";
+
                 document.getElementById('dl').onclick = () => {{
-                    const b = new Blob([txt], {{type:'text/plain'}});
+                    const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
+                    const url = URL.createObjectURL(b);
                     const a = document.createElement('a');
-                    a.href = URL.createObjectURL(b); a.download = "PRO_{nombre_archivo}"; a.click();
+                    a.href = url; a.download = "PRO_" + fileName; a.click();
                 }};
+
                 document.getElementById('sh').onclick = async () => {{
-                    const b = new Blob([txt], {{type:'text/plain'}});
-                    const f = new File([b], "{nombre_archivo}", {{type:'text/plain'}});
-                    if(navigator.share) await navigator.share({{files:[f]}});
+                    const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
+                    const file = new File([b], fileName, {{ type: 'text/plain' }});
+                    if (navigator.share) {{
+                        try {{ await navigator.share({{ files: [file] }}); }} 
+                        catch (e) {{ if (e.name !== 'AbortError') console.log("Error:", e); }}
+                    }} else {{ alert("Navegador no compatible con compartir"); }}
                 }};
             </script>
         """, height=100)
+    
     except Exception as e:
-        st.error(f"Error: {e}")
-detetcar oracion asi no cambia la en una oracion por A
+        st.error(f"Error al procesar el archivo: {e}")
