@@ -13,8 +13,22 @@ LATINO_A_AMERICANO = {
 
 def procesar_texto(texto):
     if not texto: return ""
-    lineas = texto.split('\n')
+    
+    # --- NUEVA FUNCIONALIDAD: Formato de minúsculas con inicial mayúscula ---
+    # Pasamos todo a minúsculas y capitalizamos la primera letra de cada línea
+    lineas_formateadas = []
+    for line in texto.split('\n'):
+        line = line.strip().lower()
+        if line:
+            line = line[0].upper() + line[1:]
+        lineas_formateadas.append(line)
+    
+    # Re-unimos para el procesamiento de acordes
+    texto_preprocesado = '\n'.join(lineas_formateadas)
+    
+    lineas = texto_preprocesado.split('\n')
     resultado_final = []
+    
     # Patrón: Nota base + resto del acorde
     patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
 
@@ -26,7 +40,7 @@ def procesar_texto(texto):
             resto_acorde = match.group(2)
             inicio, fin = match.start(), match.end()
             
-            # --- FILTROS ANTI-FRASES (Ej: "La Repandilla" o "A la gloria") ---
+            # --- FILTROS ANTI-FRASES ---
             lo_que_sigue = linea[fin:]
             if inicio > 0 and linea[inicio-1].isalpha(): continue
             if re.match(r'^ +[a-zñáéíóú]', lo_que_sigue): continue
@@ -36,7 +50,6 @@ def procesar_texto(texto):
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
             nuevo_acorde = f"{raiz_nueva}{resto_acorde}"
             
-            # Añadir apóstrofe si no existe ya un marcador
             if not (lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*")):
                 nuevo_acorde += "'"
 
@@ -60,24 +73,22 @@ st.markdown(f"""
         <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano, normaliza texto y añade apóstrofes.</p>", unsafe_allow_html=True)
 
-# CARGADOR DE ARCHIVOS (Optimizado para evitar AxiosError en Android)
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
     try:
         nombre_archivo = archivo.name
-        contenido = archivo.getvalue().decode("utf-8")
+        # --- FORZAR LECTURA UTF-8 ---
+        contenido = archivo.getvalue().decode("utf-8", errors="ignore")
         texto_final = procesar_texto(contenido)
         
         st.subheader("Vista Previa:")
         st.code(texto_final, language="text")
 
-        # Escapamos el texto para JavaScript
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
-        # BARRA DE ACCIONES FLOTANTE (BOTONES IGUALES SIN FONDO)
         components.html(f"""
             <style>
                 .action-bar {{
@@ -123,5 +134,4 @@ if archivo:
         """, height=100)
     
     except Exception as e:
-        # Agregamos la 'f' antes de las comillas para que reconozca la variable {e}
         st.error(f"Error al procesar el archivo: {e}")
