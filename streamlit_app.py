@@ -2,7 +2,7 @@ import streamlit as st
 import re
 import streamlit.components.v1 as components
 
-# 1. Configuración de página
+# 1. Configuración de página centrada
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
 # Diccionario de conversión
@@ -14,74 +14,74 @@ LATINO_A_AMERICANO = {
 def procesar_texto(texto):
     if not texto: return ""
     
-    # Asegurar UTF-8 al inicio
+    # Asegurar UTF-8
     texto = texto.encode("utf-8").decode("utf-8")
     
     lineas = texto.split('\n')
     resultado_final = []
     
-    # Patrón: Nota base + (opcional sostenido/bemol) + (resto del acorde m, 7, etc)
-    # Separamos el grupo del sostenido para poder manipular su posición
-    patron = r'(do|re|mi|fa|sol|la|si|[a-gA-G])(#|b)?((?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
+    # Patrón mejorado: Captura Nota (1), Sostenido (2) y Resto como m, 7, etc (3)
+    # Ejemplo "Fam#": Grupo 1: Fa, Grupo 2: None, Grupo 3: m#
+    patron = r'(do|re|mi|fa|sol|la|si|[a-gA-G])(#|b)?((?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?#?)'
 
     for linea in lineas:
-        # Trabajamos sobre la línea de derecha a izquierda para no romper los índices al insertar caracteres
-        matches = list(re.finditer(patron, linea, flags=re.IGNORECASE))
         linea_lista = list(linea)
+        matches = list(re.finditer(patron, linea, flags=re.IGNORECASE))
         
+        # Procesar de atrás hacia adelante para no romper los índices al insertar caracteres
         for match in reversed(matches):
             inicio, fin = match.start(), match.end()
             raiz_orig = match.group(1).upper()
             alteracion = match.group(2) if match.group(2) else ""
             resto = match.group(3) if match.group(3) else ""
             
-            # --- FILTROS DE SEGURIDAD (Evitar procesar palabras comunes) ---
+            # Filtros para no procesar palabras comunes
             lo_que_sigue = linea[fin:]
             if inicio > 0 and linea[inicio-1].isalpha(): continue
             if re.match(r'^[a-zñáéíóú]', lo_que_sigue): continue
 
-            # --- LÓGICA DE CONVERSIÓN Y REORDENAMIENTO ---
+            # CONVERSIÓN
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
             
-            # Casos especiales de sostenido (Ej: Fam# -> Fm#)
-            # El usuario pide que si hay sostenido (#), quede al final: Fm#' -> Fm#'
-            # Pero específicamente solicitó: "Fam# lo convierte a Fm'# y tendría que quedar así Fm#'"
-            # Es decir: Raiz + Resto + Apostrofe + Sostenido
+            # Combinamos todo el cuerpo del acorde (Ej: F + m)
+            # Si el resto contiene un # (como en Fam#), lo movemos al final después del apóstrofe
+            cuerpo_acorde = f"{raiz_nueva}{alteracion}{resto}"
             
-            if alteracion == "#":
-                # Construcción: Nota convertida + resto (m, 7, etc) + apóstrofe + sostenido
-                nuevo_acorde = f"{raiz_nueva}{resto}'#"
-            else:
-                # Si no hay sostenido, solo añade el apóstrofe al final del acorde (incluyendo bemoles)
-                nuevo_acorde = f"{raiz_nueva}{alteracion}{resto}'"
+            tiene_sostenido = False
+            if '#' in cuerpo_acorde:
+                tiene_sostenido = True
+                cuerpo_acorde = cuerpo_acorde.replace('#', '')
 
-            # Reemplazar el bloque exacto en la lista de caracteres
+            # Construcción final: Cuerpo + Apóstrofe + Sostenido (si lo tenía)
+            # Resultado de Fam# -> Fm#'
+            nuevo_acorde = f"{cuerpo_acorde}'#" if tiene_sostenido else f"{cuerpo_acorde}'"
+
+            # Reemplazo en la línea
             linea_lista[inicio:fin] = list(nuevo_acorde)
                     
         resultado_final.append("".join(linea_lista))
     
     return '\n'.join(resultado_final)
 
-# --- INTERFAZ STREAMLIT ---
+# --- INTERFAZ ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
         <img src='https://raw.githubusercontent.com' alt='Icono' style='width: 45px; height: 45px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Versión 2026: Conversión exacta de sostenidos (Ej: Fam# -> Fm#')</p>", unsafe_allow_html=True)
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
     try:
         nombre_archivo = archivo.name
-        # Decodificación explícita UTF-8
-        contenido = archivo.read().decode("utf-8")
+        contenido = archivo.getvalue().decode("utf-8")
         texto_final = procesar_texto(contenido)
         
-        st.subheader("Vista Previa (Formato 2026):")
+        st.subheader("Vista Previa:")
         st.code(texto_final, language="text")
 
-        # Preparar para JS
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
         components.html(f"""
@@ -91,16 +91,16 @@ if archivo:
                     display: flex; gap: 15px; z-index: 9999;
                 }}
                 .btn {{
-                    width: 140px; height: 45px; border: none; border-radius: 20px;
-                    font-family: sans-serif; font-size: 14px; font-weight: bold;
-                    cursor: pointer; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+                    width: 150px; height: 50px; border: none; border-radius: 25px;
+                    font-family: sans-serif; font-size: 16px; font-weight: bold;
+                    cursor: pointer; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
                 }}
                 .dl {{ background-color: #007AFF; }}
                 .sh {{ background-color: #34C759; }}
             </style>
             <div class="action-bar">
-                <button id="dl" class="btn dl">💾 GUARDAR</button>
-                <button id="sh" class="btn sh">📤 COMPARTIR</button>
+                <button id="dl" class="btn dl">💾 Guardar</button>
+                <button id="sh" class="btn sh">📤 Compartir</button>
             </div>
             <script>
                 const content = `{texto_js}`;
@@ -120,6 +120,4 @@ if archivo:
         """, height=100)
     
     except Exception as e:
-        st.error(f"Error crítico de procesamiento: {e}")
-
-
+        st.error(f"Error: {e}")
