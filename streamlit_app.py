@@ -15,7 +15,7 @@ def procesar_texto(texto):
     if not texto: return ""
     lineas = texto.split('\n')
     resultado_final = []
-    # Patrón: Nota base + resto del acorde
+    # Patrón: Nota base (1) + resto del acorde (2)
     patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
 
     for linea in lineas:
@@ -37,9 +37,10 @@ def procesar_texto(texto):
             # --- CONVERSIÓN ---
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
             
-            # UNIMOS TODO: Raíz + Resto + Apóstrofe al final
+            # CORRECCIÓN: Unimos Raíz + Resto y LUEGO el apóstrofe al final
             nuevo_acorde = f"{raiz_nueva}{resto_acorde}"
             
+            # Añadir apóstrofe si no existe ya un marcador
             if not (lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*")):
                 nuevo_acorde += "'"
 
@@ -48,6 +49,7 @@ def procesar_texto(texto):
             if lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*"):
                 ancho_original += 1
             
+            # Ajustar con espacios para no mover el resto del texto
             sustitucion = nuevo_acorde.ljust(ancho_original)
 
             for i, char in enumerate(sustitucion):
@@ -77,8 +79,10 @@ if archivo:
         st.subheader("Vista Previa:")
         st.code(texto_final, language="text")
 
+        # Escapamos el texto para JavaScript
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
+        # BARRA DE ACCIONES FLOTANTE
         components.html(f"""
             <style>
                 .action-bar {{
