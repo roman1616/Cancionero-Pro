@@ -13,20 +13,28 @@ LATINO_A_AMERICANO = {
 
 def procesar_texto(texto):
     if not texto: return ""
+    
+    # Forzar tratamiento de texto en UTF-8
+    texto = texto.encode("utf-8", errors="ignore").decode("utf-8")
+    
     lineas = texto.split('\n')
     resultado_final = []
+    
     # Patrón: Nota base + resto del acorde
     patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
 
     for linea in lineas:
         linea_lista = list(linea)
-        for match in re.finditer(patron_universal, linea, flags=re.IGNORECASE):
+        # Buscamos los matches y los procesamos en orden inverso para no romper los índices
+        matches = list(re.finditer(patron_universal, linea, flags=re.IGNORECASE))
+        
+        for match in reversed(matches):
             acorde_original = match.group(0)
             raiz_orig = match.group(1).upper()
             resto_acorde = match.group(2)
             inicio, fin = match.start(), match.end()
             
-            # --- FILTROS ANTI-FRASES (Ej: "La Repandilla" o "A la gloria") ---
+            # --- FILTROS ANTI-FRASES ---
             lo_que_sigue = linea[fin:]
             if inicio > 0 and linea[inicio-1].isalpha(): continue
             if re.match(r'^ +[a-zñáéíóú]', lo_que_sigue): continue
@@ -34,22 +42,16 @@ def procesar_texto(texto):
 
             # --- CONVERSIÓN ---
             raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
+            
+            # Construimos el nuevo acorde: Raíz + Resto (que ya incluye el # si existía)
             nuevo_acorde = f"{raiz_nueva}{resto_acorde}"
             
-            # Añadir apóstrofe si no existe ya un marcador
+            # El apóstrofe SIEMPRE al final de todo
             if not (lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*")):
                 nuevo_acorde += "'"
 
-            # --- MANTENER POSICIÓN ---
-            ancho_original = len(acorde_original)
-            if lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*"):
-                ancho_original += 1
-            
-            sustitucion = nuevo_acorde.ljust(ancho_original)
-
-            for i, char in enumerate(sustitucion):
-                if inicio + i < len(linea_lista):
-                    linea_lista[inicio + i] = char
+            # Reemplazo preciso en la lista de caracteres
+            linea_lista[inicio:fin] = list(nuevo_acorde)
                     
         resultado_final.append("".join(linea_lista))
     return '\n'.join(resultado_final)
@@ -57,12 +59,11 @@ def procesar_texto(texto):
 # --- INTERFAZ ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
+        <img src='https://raw.githubusercontent.com' alt='Icono' style='width: 45px; height: 45px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y coloca el apóstrofe al final absoluto.</p>", unsafe_allow_html=True)
 
-# CARGADOR DE ARCHIVOS (Optimizado para evitar AxiosError en Android)
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
@@ -74,10 +75,8 @@ if archivo:
         st.subheader("Vista Previa:")
         st.code(texto_final, language="text")
 
-        # Escapamos el texto para JavaScript
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
-        # BARRA DE ACCIONES FLOTANTE (BOTONES IGUALES SIN FONDO)
         components.html(f"""
             <style>
                 .action-bar {{
@@ -123,5 +122,5 @@ if archivo:
         """, height=100)
     
     except Exception as e:
-        # Agregamos la 'f' antes de las comillas para que reconozca la variable {e}
         st.error(f"Error al procesar el archivo: {e}")
+
