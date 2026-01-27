@@ -11,47 +11,61 @@ LATINO_A_AMERICANO = {
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
 }
 
-def procesar_texto(texto):
-    if not texto: return ""
+def procesar_texto(texto_bruto):
+    if not texto_bruto: return ""
+    
+    # --- BLOQUE 1: NORMALIZACIÓN UTF-8 ---
+    # Aseguramos que el contenido sea tratado como string de Python (UTF-8 por defecto)
+    # y limpiamos caracteres de retorno de carro de Windows
+    texto = texto_bruto.replace('\r\n', '\n')
+    
+    # --- BLOQUE 2: CONVERSIÓN LATINO A AMERICANO ---
+    # Patrón para detectar notas latinas (ignora mayúsculas/minúsculas)
+    patron_notas = r'\b(DO|RE|MI|FA|SOL|LA|SI)\b'
+    
+    def reemplazar_nota(match):
+        nota = match.group(1).upper()
+        return LATINO_A_AMERICANO.get(nota, nota)
+
+    # Aplicamos la conversión nota por nota preservando el resto (m, 7, maj7, etc)
+    # Usamos un patrón que detecte la nota al inicio de una palabra
     lineas = texto.split('\n')
-    resultado_final = []
-    # Patrón: Nota base + resto del acorde
-    patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
-
+    texto_americano = []
+    
+    patron_acorde = r'([Dd][Oo]|[Rr][Ee]|[Mm][Ii]|[Ff][Aa]|[Ss][Oo][Ll]|[Ll][Aa]|[Ss][Ii])'
+    
     for linea in lineas:
-        linea_lista = list(linea)
-        for match in re.finditer(patron_universal, linea, flags=re.IGNORECASE):
-            acorde_original = match.group(0)
-            raiz_orig = match.group(1).upper()
-            resto_acorde = match.group(2)
-            inicio, fin = match.start(), match.end()
-            
-            # --- FILTROS ANTI-FRASES (Ej: "La Repandilla" o "A la gloria") ---
-            lo_que_sigue = linea[fin:]
-            if inicio > 0 and linea[inicio-1].isalpha(): continue
-            if re.match(r'^ +[a-zñáéíóú]', lo_que_sigue): continue
-            if re.match(r'^[a-zñáéíóú]', lo_que_sigue): continue
+        # Convertimos solo las raíces de los acordes
+        nueva_linea = re.sub(patron_acorde, reemplazar_nota, linea)
+        texto_americano.append(nueva_linea)
 
-            # --- CONVERSIÓN ---
-            raiz_nueva = LATINO_A_AMERICANO.get(raiz_orig, raiz_orig)
-            nuevo_acorde = f"{raiz_nueva}{resto_acorde}"
-            
-            # Añadir apóstrofe si no existe ya un marcador
-            if not (lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*")):
-                nuevo_acorde += "'"
+    # --- BLOQUE 3: COLOCACIÓN DE APÓSTROFES ---
+    # Una vez que todo es Americano (C, D, E, F, G, A, B), ponemos el apóstrofe
+    resultado_final = []
+    # Busca Notas A-G seguidas opcionalmente de sostenidos, bemoles y tipos de acorde
+    patron_final = r'\b([A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
 
-            # --- MANTENER POSICIÓN ---
-            ancho_original = len(acorde_original)
-            if lo_que_sigue.startswith("'") or lo_que_sigue.startswith("*"):
-                ancho_original += 1
+    for linea in texto_americano:
+        linea_con_apostrofes = list(linea)
+        offset = 0
+        
+        for match in re.finditer(patron_final, linea):
+            acorde = match.group(0)
+            fin = match.end() + offset
             
-            sustitucion = nuevo_acorde.ljust(ancho_original)
+            # Verificamos si ya tiene apóstrofe o asterisco para no duplicar
+            if fin < len(linea_con_apostrofes):
+                siguiente_char = linea_con_apostrofes[fin]
+                if siguiente_char not in ["'", "*"]:
+                    linea_con_apostrofes.insert(fin, "'")
+                    offset += 1
+            else:
+                # Si es el final de la línea, lo añadimos
+                linea_con_apostrofes.append("'")
+                offset += 1
+                
+        resultado_final.append("".join(linea_con_apostrofes))
 
-            for i, char in enumerate(sustitucion):
-                if inicio + i < len(linea_lista):
-                    linea_lista[inicio + i] = char
-                    
-        resultado_final.append("".join(linea_lista))
     return '\n'.join(resultado_final)
 
 # --- INTERFAZ ---
@@ -60,24 +74,21 @@ st.markdown(f"""
         <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)
 
-# CARGADOR DE ARCHIVOS (Optimizado para evitar AxiosError en Android)
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
     try:
         nombre_archivo = archivo.name
+        # El bloque de decodificación asegura la integridad del UTF-8
         contenido = archivo.getvalue().decode("utf-8")
         texto_final = procesar_texto(contenido)
         
         st.subheader("Vista Previa:")
         st.code(texto_final, language="text")
 
-        # Escapamos el texto para JavaScript
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
 
-        # BARRA DE ACCIONES FLOTANTE (BOTONES IGUALES SIN FONDO)
         components.html(f"""
             <style>
                 .action-bar {{
@@ -90,9 +101,7 @@ if archivo:
                     font-size: 16px; font-weight: 700; cursor: pointer;
                     display: flex; align-items: center; justify-content: center;
                     gap: 8px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                    transition: transform 0.1s;
                 }}
-                .btn:active {{ transform: scale(0.95); }}
                 .download-btn {{ background-color: #007AFF; }}
                 .share-btn {{ background-color: #34C759; }}
             </style>
@@ -102,26 +111,21 @@ if archivo:
             </div>
             <script>
                 const content = `{texto_js}`;
-                const fileName = "{nombre_archivo}";
-
                 document.getElementById('dl').onclick = () => {{
                     const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
                     const url = URL.createObjectURL(b);
                     const a = document.createElement('a');
-                    a.href = url; a.download = "PRO_" + fileName; a.click();
+                    a.href = url; a.download = "PRO_{nombre_archivo}"; a.click();
                 }};
-
                 document.getElementById('sh').onclick = async () => {{
                     const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
-                    const file = new File([b], fileName, {{ type: 'text/plain' }});
+                    const file = new File([b], "{nombre_archivo}", {{ type: 'text/plain' }});
                     if (navigator.share) {{
-                        try {{ await navigator.share({{ files: [file] }}); }} 
-                        catch (e) {{ if (e.name !== 'AbortError') console.log("Error:", e); }}
+                        try {{ await navigator.share({{ files: [file] }}); }} catch (e) {{}}
                     }} else {{ alert("Usa 'Guardar'"); }}
                 }};
             </script>
         """, height=100)
     
     except Exception as e:
-        # Agregamos la 'f' antes de las comillas para que reconozca la variable {e}
         st.error(f"Error al procesar el archivo: {e}")
