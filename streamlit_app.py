@@ -2,10 +2,10 @@ import streamlit as st
 import re
 import streamlit.components.v1 as components
 
-# 1. Configuración de página centrada
+# Configuración de página
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
-# Diccionario de conversión (Latino a Americano)
+# Diccionario de conversión base
 LATINO_A_AMERICANO = {
     'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
@@ -13,98 +13,85 @@ LATINO_A_AMERICANO = {
 
 def procesar_texto(texto):
     if not texto: return ""
+    
+    # Aseguramos que el texto sea tratado como string (ya viene decodificado de bytes)
     lineas = texto.split('\n')
     resultado_final = []
     
-    # Patrón mejorado: Captura la nota base (do-si) y el resto del acorde
-    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#b]?[a-zA-Z0-9\/\+\-\(]*)'
+    # Regex que busca: Nota Latina (grupo 1) + Sostenido/Bemol (grupo 2) + resto (grupo 3)
+    # Ejemplo en "SOL#m7": G1=SOL, G2=#, G3=m7
+    patron = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#b]?)(m|maj|min|aug|dim|sus|add|M|[0-9]*)'
 
     for linea in lineas:
-        # Usamos re.sub con una función de reemplazo para mayor control
         def reemplazar(match):
-            nota_latina = match.group(1).upper()
-            resto = match.group(2)
+            nota_lat = match.group(1).upper()
+            alteracion = match.group(2) # El # o b
+            resto = match.group(3)      # El m, 7, etc.
             
-            # Convertir nota base
-            nota_americana = LATINO_A_AMERICANO.get(nota_latina, nota_latina)
-            acorde_completo = f"{nota_americana}{resto}"
+            # 1. Convertir nota base
+            nota_ame = LATINO_A_AMERICANO.get(nota_lat, nota_lat)
             
-            # Si ya tiene apóstrofe o asterisco, no lo duplicamos
-            # Si no, lo agregamos al final
-            if not (acorde_completo.endswith("'") or acorde_completo.endswith("*")):
-                return f"{acorde_completo}'"
-            return acorde_completo
+            # 2. Reconstruir: Nota Americana + Alteración + Modo + Apóstrofe
+            # Ejemplo: LA + # + m -> A + # + m + '
+            acorde_transformado = f"{nota_ame}{alteracion}{resto}'"
+            return acorde_transformado
 
-        # Aplicamos la conversión ignorando mayúsculas/minúsculas en la búsqueda
-        nueva_linea = re.sub(patron_latino, reemplazar, linea, flags=re.IGNORECASE)
+        # Reemplazo con ignorar mayúsculas para capturar "lam" o "LaM"
+        nueva_linea = re.sub(patron, reemplazar, linea, flags=re.IGNORECASE)
         resultado_final.append(nueva_linea)
         
     return '\n'.join(resultado_final)
 
-# --- INTERFAZ ---
-st.markdown(f"""
-    <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
-        <h1>Cancionero Pro</h1>   
+# --- INTERFAZ STREAMLIT ---
+st.markdown("""
+    <div style='text-align: center;'>
+        <h1>🎸 Cancionero Pro 2026</h1>
+        <p>Conversión exacta a Cifrado Americano con Apóstrofe</p>
     </div>""", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)
 
-archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
+# Cargador de archivos con forzado de encoding
+archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
 if archivo:
     try:
-        nombre_archivo = archivo.name
-        contenido = archivo.getvalue().decode("utf-8")
+        # LEER Y FORZAR UTF-8
+        bytes_data = archivo.read()
+        contenido = bytes_data.decode("utf-8", errors="ignore")
+        
         texto_final = procesar_texto(contenido)
         
-        st.subheader("Vista Previa:")
+        st.subheader("Vista Previa (UTF-8):")
         st.code(texto_final, language="text")
 
+        # Preparar para descarga/compartir
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
-
+        
         components.html(f"""
-            <style>
-                .action-bar {{
-                    position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
-                    display: flex; gap: 15px; z-index: 9999;
-                }}
-                .btn {{
-                    width: 150px; height: 50px; border: none; border-radius: 25px;
-                    font-family: -apple-system, system-ui, sans-serif;
-                    font-size: 16px; font-weight: 700; cursor: pointer;
-                    display: flex; align-items: center; justify-content: center;
-                    gap: 8px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                    transition: transform 0.1s;
-                }}
-                .btn:active {{ transform: scale(0.95); }}
-                .download-btn {{ background-color: #007AFF; }}
-                .share-btn {{ background-color: #34C759; }}
-            </style>
-            <div class="action-bar">
-                <button id="dl" class="btn download-btn">💾 Guardar</button>
-                <button id="sh" class="btn share-btn">📤 Compartir</button>
-            </div>
             <script>
                 const content = `{texto_js}`;
-                const fileName = "{nombre_archivo}";
-
-                document.getElementById('dl').onclick = () => {{
-                    const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
-                    const url = URL.createObjectURL(b);
+                const blob = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
+                
+                window.parent.document.addEventListener('keydown', e => {{}}); // dummy
+                
+                function descargar() {{
+                    const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
-                    a.href = url; a.download = "PRO_" + fileName; a.click();
-                }};
+                    a.href = url; a.download = "PRO_{archivo.name}";
+                    a.click();
+                }}
 
-                document.getElementById('sh').onclick = async () => {{
-                    const b = new Blob([content], {{ type: 'text/plain;charset=utf-8' }});
-                    const file = new File([b], fileName, {{ type: 'text/plain' }});
+                async function compartir() {{
+                    const file = new File([blob], "{archivo.name}", {{ type: 'text/plain' }});
                     if (navigator.share) {{
-                        try {{ await navigator.share({{ files: [file] }}); }} 
-                        catch (e) {{ if (e.name !== 'AbortError') console.log("Error:", e); }}
-                    }} else {{ alert("Navegador no compatible con compartir"); }}
-                }};
+                        await navigator.share({{ files: [file], title: 'Cancionero Pro' }});
+                    }} else {{ alert("Usa 'Guardar'"); }}
+                }}
             </script>
+            <div style="display: flex; gap: 10px; justify-content: center; padding-top: 20px;">
+                <button onclick="descargar()" style="padding: 15px 30px; border-radius: 25px; background: #007AFF; color: white; border: none; font-weight: bold; cursor: pointer;">💾 Guardar .txt</button>
+                <button onclick="compartir()" style="padding: 15px 30px; border-radius: 25px; background: #34C759; color: white; border: none; font-weight: bold; cursor: pointer;">📤 Compartir</button>
+            </div>
         """, height=100)
-    
+
     except Exception as e:
-        st.error(f"Error al procesar el archivo: {e}")
+        st.error(f"Error procesando el archivo UTF-8: {e}")
