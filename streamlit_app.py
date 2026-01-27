@@ -1,5 +1,8 @@
 import streamlit as st
 
+# Configuración inicial
+st.set_page_config(page_title="Music Transposer 2026", layout="wide")
+
 # Diccionario de conversión
 CONVERSION = {
     "DO": "C", "RE": "D", "MI": "E", "FA": "F", 
@@ -13,83 +16,99 @@ def convertir_linea_notas(linea):
     convertidas = [CONVERSION.get(p, p) for p in palabras]
     return "   ".join(convertidas)
 
-# --- FUNCIÓN PARA CARGAR EL ARCHIVO AL EDITOR ---
-def cargar_archivo_al_state():
-    if st.session_state.uploader is not None:
-        # Leemos el archivo y lo inyectamos directamente en la 'key' del editor
-        contenido = st.session_state.uploader.read().decode("utf-8")
-        st.session_state.main_editor = contenido
+# --- GESTIÓN DE ESTADO ---
+if "contenido_musical" not in st.session_state:
+    st.session_state.contenido_musical = ""
 
-st.set_page_config(page_title="Editor Musical Pro 2026", layout="wide")
+def al_subir_archivo():
+    if st.session_state.uploader_input:
+        texto = st.session_state.uploader_input.read().decode("utf-8")
+        st.session_state.contenido_musical = texto
 
-st.title("🎸 Transpositor con Líneas Laterales")
+# --- INTERFAZ DE USUARIO ---
+st.title("🎸 Editor con Renglones Dinámicos")
 
-# 1. Cargador de archivos (Usa callback para actualizar el editor al instante)
+# 1. Cargador de archivos
 st.file_uploader(
-    "Sube tu archivo .txt", 
+    "Carga tu archivo .txt", 
     type=["txt"], 
-    key="uploader", 
-    on_change=cargar_archivo_al_state
+    key="uploader_input", 
+    on_change=al_subir_archivo
 )
 
-# 2. Área de Edición con Números
-st.subheader("Editor de Contenido")
+st.subheader("Editor de Canción")
 
-# Aseguramos que la key del editor exista en el session_state
-if "main_editor" not in st.session_state:
-    st.session_state.main_editor = ""
+# 2. GENERACIÓN DINÁMICA DE RENGLONES
+# Dividimos el texto actual para contar líneas
+lineas_actuales = st.session_state.contenido_musical.split("\n")
+total_lineas = len(lineas_actuales) if st.session_state.contenido_musical else 1
 
-col_indices, col_texto = st.columns([0.05, 0.95])
+col_numeros, col_editor = st.columns([0.04, 0.96], gap="small")
 
-with col_indices:
-    # Calculamos cuántas líneas hay para poner los números
-    lineas_actuales = st.session_state.main_editor.split("\n")
-    n_lineas = max(len(lineas_actuales), 1)
-    numeros_html = "<br>".join([f"<b>{i+1}</b>" for i in range(n_lineas)])
-    # Estilo CSS para alinear números con los renglones del editor
+with col_numeros:
+    # Creamos los números con el mismo espaciado que el text_area
+    numeros_lista = "<br>".join([f"{i+1}" for i in range(total_lineas)])
     st.markdown(
-        f"<div style='line-height: 2.3; text-align: right; color: #888; padding-top: 25px;'>{numeros_html}</div>", 
+        f"""
+        <div style="
+            line-height: 1.6; 
+            font-family: monospace; 
+            font-size: 1.2rem; 
+            text-align: right; 
+            color: #555; 
+            padding-top: 40px;
+            user-select: none;
+        ">
+            {numeros_lista}
+        </div>
+        """, 
         unsafe_allow_html=True
     )
 
-with col_texto:
-    # El text_area usa la 'key' que actualizamos con el cargador
-    texto_input = st.text_area(
-        "Edición (Impares=Notas, Pares=Letra)",
-        key="main_editor",
+with col_editor:
+    # El editor actualiza el estado 'contenido_musical' en cada cambio
+    texto_editado = st.text_area(
+        label="Editor de texto",
+        value=st.session_state.contenido_musical,
         height=400,
-        label_visibility="collapsed"
+        key="editor_principal",
+        label_visibility="collapsed",
+        on_change=lambda: setattr(st.session_state, 'contenido_musical', st.session_state.editor_principal)
     )
+    # Sincronizamos el estado global
+    st.session_state.contenido_musical = texto_editado
 
-# 3. Previsualización y Descarga
-if texto_input:
+# 3. PREVISUALIZACIÓN PROCESADA
+if st.session_state.contenido_musical:
     st.divider()
-    st.subheader("👁️ Previsualización (Cifrado Americano)")
+    st.subheader("👁️ Previsualización (Notas Convertidas)")
     
+    lineas_proceso = st.session_state.contenido_musical.split('\n')
     resultado_final = []
-    lineas = texto_input.split('\n')
     
     with st.container(border=True):
-        for i, linea in enumerate(lineas):
-            if (i + 1) % 2 != 0: # NOTAS
+        for i, linea in enumerate(lineas_proceso):
+            num = i + 1
+            if num % 2 != 0: # IMPAR: Convertir a Americano
                 notas_c = convertir_linea_notas(linea)
                 resultado_final.append(notas_c)
                 st.markdown(f"**`:blue[{notas_c}]`**")
-            else: # LETRA
+            else: # PAR: Mantener Letra
                 resultado_final.append(linea)
-                st.text(linea)
+                st.markdown(f"&nbsp;{linea}")
 
+    # 4. BOTONES
     st.divider()
-    col_d1, col_d2 = st.columns(2)
-    with col_d1:
+    c1, c2 = st.columns(2)
+    with c1:
         st.download_button(
             label="💾 Descargar TXT",
             data="\n".join(resultado_final),
-            file_name="cancion_cifrada.txt",
+            file_name="cancion_cifrada_2026.txt",
             mime="text/plain",
             use_container_width=True
         )
-    with col_d2:
-        if st.button("🗑️ Limpiar Todo", use_container_width=True):
-            st.session_state.main_editor = ""
+    with c2:
+        if st.button("🗑️ Borrar todo", use_container_width=True):
+            st.session_state.contenido_musical = ""
             st.rerun()
