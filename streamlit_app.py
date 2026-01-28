@@ -26,6 +26,8 @@ def tiene_potencial_duda(linea):
 
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
+    
+    # 1. Patrón para capturar el acorde latino completo
     patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)(m|maj|min|aug|dim|sus|add|M)?([#b])?([0-9]*)'
     
     def traducir_acorde(match):
@@ -33,31 +35,33 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
         cualidad = match.group(2) or ""
         alteracion = match.group(3) or ""
         numero = match.group(4) or ""
-        # Reorganizamos: Raiz + Alteración (#/b) + Cualidad (m/maj) + Numero
-        return f"{LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)}{alteracion}{cualidad}{numero}"
+        # Colocamos la alteración (#/b) pegada a la raíz americana
+        raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
+        return f"{raiz_amer}{alteracion}{cualidad}{numero}"
 
-    resultado_intermedio = []
+    resultado_traduccion = []
     for i, linea in enumerate(lineas):
         if i in lineas_a_procesar:
-            resultado_intermedio.append(re.sub(patron_latino, traducir_acorde, linea))
+            # Primero convertimos a Americano (Ej: LA# -> A#)
+            linea_traducida = re.sub(patron_latino, traducir_acorde, linea)
+            resultado_traduccion.append(linea_traducida)
         else:
-            resultado_intermedio.append(linea)
+            resultado_traduccion.append(linea)
 
-    # --- CORRECCIÓN DE APÓSTROFE: Siempre al final del bloque de acorde ---
+    # 2. Paso final: Colocar el apóstrofe al final del acorde americano (Ej: A# -> A#')
     resultado_final = []
-    # Este patrón detecta el acorde completo transformado
-    patron_final = r'\b([A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
+    patron_americano = r'\b([A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
 
-    for i, linea in enumerate(resultado_intermedio):
+    for i, linea in enumerate(resultado_traduccion):
         if i not in lineas_a_procesar:
             resultado_final.append(linea)
             continue
             
         linea_lista = list(linea)
         ajuste = 0
-        for m in re.finditer(patron_final, linea):
-            # fin es la posición justo después del acorde completo (ej: C#m7)
+        for m in re.finditer(patron_americano, linea):
             fin = m.end() + ajuste
+            # Insertar apóstrofe solo si no hay uno ya
             if fin < len(linea_lista):
                 if linea_lista[fin] not in ["'", "*"]:
                     linea_lista.insert(fin, "'")
@@ -70,7 +74,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
     return '\n'.join(resultado_final)
 
 # --- INTERFAZ ---
-st.title("🎸 Cancionero Inteligente")
+st.title("🎸 Cancionero Inteligente 2026")
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
 if archivo:
@@ -93,28 +97,27 @@ if archivo:
         else:
             es_linea_musica_anterior = False
 
-    st.subheader("🔍 Informe de Escaneo")
-    st.success(f"Se detectaron {len(confirmados_auto)} líneas de música automáticamente.")
+    st.subheader("🔍 Análisis")
+    st.success(f"Se detectaron {len(confirmados_auto)} líneas de acordes automáticamente.")
 
     seleccion_manual = []
     if indices_duda:
-        st.warning("Marca solo las notas musicales")
+        st.warning("Confirma si estas líneas son música:")
         for idx in indices_duda:
             if st.checkbox(f"Renglón {idx+1}: {lineas[idx].strip()}", value=False, key=idx):
                 seleccion_manual.append(idx)
     
-    if st.button("✨ Procesar y Convertir"):
+    if st.button("✨ Procesar"):
         total_indices = confirmados_auto + seleccion_manual
         texto_final = procesar_texto_selectivo(contenido, total_indices)
         
-        st.subheader("Resultado Final:")
+        st.subheader("Resultado:")
         st.code(texto_final, language="text")
 
-        # --- JS CON DOBLE CUADRO DE ACEPTACIÓN ---
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
             <div style="text-align: center; margin-top: 20px;">
-                <button id="actionBtn" style="padding: 15px 30px; background: #007AFF; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">💾 FINALIZAR ARCHIVO</button>
+                <button id="actionBtn" style="padding: 15px 30px; background: #007AFF; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 FINALIZAR</button>
             </div>
             <script>
                 document.getElementById('actionBtn').onclick = async () => {{
@@ -123,22 +126,14 @@ if archivo:
                     const blob = new Blob([contenido], {{ type: 'text/plain' }});
                     const file = new File([blob], fileName, {{ type: 'text/plain' }});
                     
-                    const deseaCompartir = confirm("🎵 COMPARTIR 🎵\\n\\n¿Deseas enviar el archivo por WhatsApp u otra App?");
-                    
-                    if (deseaCompartir) {{
-                        if (navigator.share && navigator.canShare({{ files: [file] }})) {{
-                            try {{
-                                await navigator.share({{ files: [file] }});
-                                return; 
-                            }} catch (e) {{ console.log("Error al compartir"); }}
-                        }} else {{
-                            alert("Tu dispositivo no soporta la función de compartir.");
+                    if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
+                        if (navigator.share) {{
+                            try {{ await navigator.share({{ files: [file] }}); return; }} 
+                            catch(e) {{}}
                         }}
                     }}
 
-                    const deseaDescargar = confirm("💾 DESCARGAR 💾\\n\\n¿Deseas guardar el archivo directamente en tu equipo?");
-                    
-                    if (deseaDescargar) {{
+                    if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
                         const a = document.createElement('a');
                         a.href = URL.createObjectURL(blob);
                         a.download = fileName;
