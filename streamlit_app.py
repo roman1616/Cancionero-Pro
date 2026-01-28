@@ -1,116 +1,84 @@
 import streamlit as st
 
 # 1. Configuración de página
-st.set_page_config(page_title="Editor Musical Pro 2026", layout="wide")
+st.set_page_config(page_title="Procesador Musical de Confirmación", layout="centered")
 
-# Diccionario de cifrado americano
-CONVERSION = {
-    "DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A", "SI": "B", 
-    "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#",
-    "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"
-}
-
-# --- ESTILO CSS DARK CON ALINEACIÓN ---
-st.markdown("""
-    <style>
-    .stTextArea textarea {
-        line-height: 32px !important; 
-        font-family: 'Courier New', monospace !important;
-        font-size: 18px !important;
-        color: #FFFFFF !important;
-        background-color: #1E1E1E !important;
-        border: 1px solid #444 !important;
-        padding-top: 15px !important;
-    }
-    /* Estilo para que los interruptores queden alineados con los renglones */
-    .stToggle {
-        height: 32px !important;
-        margin-top: 10px !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+# Diccionario de cifrado
+CONVERSION = {"DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A", "SI": "B", 
+              "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#",
+              "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"}
 
 # --- GESTIÓN DE ESTADO ---
 if "texto_maestro" not in st.session_state:
     st.session_state.texto_maestro = ""
+if "procesar" not in st.session_state:
+    st.session_state.procesar = False
 
 def al_subir():
-    if st.session_state.uploader_key:
-        contenido = st.session_state.uploader_key.read().decode("utf-8")
-        st.session_state.texto_maestro = contenido
-        st.session_state.editor_key = contenido
+    if st.session_state.uploader:
+        st.session_state.texto_maestro = st.session_state.uploader.read().decode("utf-8")
+        st.session_state.procesar = False # Reset al cargar nuevo
 
-# --- INTERFAZ ---
-st.title("🎸 Editor Musical (Control Manual por Línea)")
-st.file_uploader("📂 Cargar canción (.txt)", type=["txt"], key="uploader_key", on_change=al_subir)
+# --- INTERFAZ DE ENTRADA ---
+st.title("🎸 Procesador con Confirmación")
+st.file_uploader("📂 Sube tu .txt", type=["txt"], key="uploader", on_change=al_subir)
 
-st.divider()
+# Editor principal
+st.session_state.texto_maestro = st.text_area(
+    "1. Edita el texto original aquí:",
+    value=st.session_state.texto_maestro,
+    height=250,
+    key="editor_raw"
+)
 
-# Procesar líneas del contenido actual
-lineas_actuales = st.session_state.texto_maestro.split('\n')
-n_lineas = max(len(lineas_actuales), 1)
+if st.button("🛠️ Preparar Oraciones para Clasificar"):
+    st.session_state.procesar = True
 
-# Estructura: Toggles a la izquierda, Editor a la derecha
-col_toggles, col_editor = st.columns([0.15, 0.85])
-
-with col_toggles:
-    st.write("**¿Es Música?**")
-    config_lineas = []
-    # Generamos un interruptor para cada línea detectada
-    for i in range(n_lineas):
-        # Sugerimos 'Música' en impares por defecto, pero es manual
-        sugerencia = (i + 1) % 2 != 0
-        es_musica = st.toggle(f"L{i+1}", value=sugerencia, key=f"tgl_{i}")
-        config_lineas.append(es_musica)
-
-with col_editor:
-    # Altura calculada para evitar scroll interno y alinear con toggles
-    altura_dinamica = (n_lineas * 32) + 60
-    st.session_state.texto_maestro = st.text_area(
-        "Editor", height=int(altura_dinamica), key="editor_key",
-        value=st.session_state.texto_maestro, label_visibility="collapsed"
-    )
-
-# --- PROCESAMIENTO FINAL ---
-if st.session_state.texto_maestro:
-    resultado_final = []
-    lineas_proceso = st.session_state.texto_maestro.split('\n')
-    
-    for i, linea in enumerate(lineas_proceso):
-        # Solo convertimos si el Toggle de esa línea está encendido
-        if i < len(config_lineas) and config_lineas[i]:
-            palabras = linea.split()
-            # Validación estricta: solo cambia si la palabra es una nota real
-            conv = "   ".join([CONVERSION.get(p.upper().strip(".,!"), p) for p in palabras])
-            resultado_final.append(conv)
-        else:
-            # Si el toggle está apagado, se queda como texto puro (Letra)
-            resultado_final.append(linea)
-
+# --- SECCIÓN DE CLASIFICACIÓN (Lo que buscabas) ---
+if st.session_state.procesar and st.session_state.texto_maestro:
     st.divider()
-    c1, c2, c3 = st.columns(3)
+    st.subheader("2. Selecciona qué líneas son NOTAS:")
     
-    # Visualización con colores bajo demanda
-    if c1.button("👁️ Previsualizar", use_container_width=True):
-        st.subheader("Vista Previa:")
-        with st.container(border=True):
-            for i, linea in enumerate(resultado_final):
-                if config_lineas[i]:
-                    st.markdown(f"**`:blue[{linea}]`**")
-                else:
-                    st.markdown(f"<span style='color:white'>{linea}</span>", unsafe_allow_html=True)
+    lineas = st.session_state.texto_maestro.split('\n')
+    mapa_notas = []
+    
+    # Aquí se muestra cada oración con su check individual
+    for i, linea in enumerate(lineas):
+        if linea.strip(): # Solo líneas con contenido
+            # El check aparece antes de la oración
+            es_nota = st.checkbox(f"L{i+1}: {linea}", value=((i+1)%2!=0), key=f"check_{i}")
+            mapa_notas.append((linea, es_nota))
+        else:
+            mapa_notas.append(("", False))
 
-    # Limpiar todo
-    if c2.button("🗑️ Limpiar Todo", use_container_width=True):
-        st.session_state.texto_maestro = ""
-        st.session_state.editor_key = ""
-        st.rerun()
+    # --- GENERACIÓN FINAL ---
+    st.divider()
+    if st.button("✅ Generar Cifrado Final"):
+        resultado_final = []
+        for texto, es_nota in mapa_notas:
+            if es_nota:
+                # Procesa solo las palabras que son notas reales
+                palabras = texto.split()
+                conv = "   ".join([CONVERSION.get(p.upper().strip(".,!"), p) for p in palabras])
+                resultado_final.append(conv)
+            else:
+                resultado_final.append(texto)
+        
+        # Guardamos resultado para descargar
+        texto_final = "\n".join(resultado_final)
+        
+        st.success("¡Cifrado generado con éxito!")
+        st.subheader("3. Resultado Final:")
+        st.code(texto_final, language=None)
+        
+        st.download_button(
+            label="💾 Descargar Resultado",
+            data=texto_final,
+            file_name="cancion_procesada.txt",
+            use_container_width=True
+        )
 
-    # Descarga limpia (Sin colores, solo texto y notas transpuestas)
-    c3.download_button(
-        label="💾 Descargar TXT",
-        data="\n".join(resultado_final),
-        file_name="cancion_transpuesta.txt",
-        mime="text/plain",
-        use_container_width=True
-    )
+if st.button("🗑️ Limpiar Todo"):
+    st.session_state.texto_maestro = ""
+    st.session_state.procesar = False
+    st.rerun()
