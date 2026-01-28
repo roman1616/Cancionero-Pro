@@ -1,14 +1,14 @@
 import streamlit as st
 
-# 1. Configuración (Debe ser lo primero)
+# 1. Configuración original
 st.set_page_config(page_title="Editor Musical Pro", layout="wide")
 
-# Diccionario de cifrado
+# Diccionario de cifrado del historial
 CONVERSION = {"DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A", "SI": "B", 
               "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#",
               "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"}
 
-# --- ESTILO CSS (Rescatado del historial) ---
+# --- ESTILO CSS ORIGINAL (Rescatado) ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; }
@@ -23,73 +23,89 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- INICIALIZACIÓN DE ESTADO (Para que los botones no mueran) ---
-if "contenido" not in st.session_state: st.session_state.contenido = ""
-if "fase" not in st.session_state: st.session_state.fase = "edicion"
+# --- ESTADO DE SESIÓN (Persistencia de datos) ---
+if "texto_maestro" not in st.session_state:
+    st.session_state.texto_maestro = ""
+if "ver_analisis" not in st.session_state:
+    st.session_state.ver_analisis = False
 
-# --- FUNCIONES DE ACCIÓN ---
-def cargar_archivo():
-    if st.session_state.uplo:
-        st.session_state.contenido = st.session_state.uplo.read().decode("utf-8")
-
-def procesar(): st.session_state.fase = "validacion"
-def reiniciar(): 
-    st.session_state.contenido = ""
-    st.session_state.fase = "edicion"
+# --- FUNCIÓN DE CARGA ---
+def al_cargar():
+    if st.session_state.uploader_key:
+        st.session_state.texto_maestro = st.session_state.uploader_key.read().decode("utf-8")
+        st.session_state.ver_analisis = False
 
 # --- INTERFAZ ---
 st.title("🎸 Transpositor con Detector de Coincidencias")
 
-if st.session_state.fase == "edicion":
-    st.file_uploader("📂 Sube tu .txt", type=["txt"], key="uplo", on_change=cargar_archivo)
-    
-    # El editor carga el contenido del archivo inmediatamente
-    st.session_state.contenido = st.text_area("Editor:", value=st.session_state.contenido, height=300)
-    
-    if st.button("🔍 Analizar Coincidencias"):
-        st.session_state.fase = "validacion"
-        st.rerun()
+# Cargador
+st.file_uploader("📂 Sube tu archivo .txt", type=["txt"], key="uploader_key", on_change=al_cargar)
 
-elif st.session_state.fase == "validacion":
+# Editor (Muestra el contenido del txt o lo que escribas)
+st.session_state.texto_maestro = st.text_area(
+    "1. Edita el texto original:",
+    value=st.session_state.texto_maestro,
+    height=250,
+    key="editor_raw"
+)
+
+if st.button("🔍 Analizar Coincidencias"):
+    st.session_state.ver_analisis = True
+
+# --- PANEL DE VALIDACIÓN CON ALERTA NARANJA ---
+if st.session_state.ver_analisis and st.session_state.texto_maestro:
+    st.divider()
     st.subheader("2. Validación de Oraciones")
-    lineas = st.session_state.contenido.split('\n')
+    
+    lineas = st.session_state.texto_maestro.split('\n')
     decisiones = []
 
     for i, linea in enumerate(lineas):
-        if not linea.strip(): continue
+        if not linea.strip(): 
+            decisiones.append(("", False))
+            continue
         
-        # Lógica de alerta naranja rescatada
         palabras = linea.upper().split()
-        tiene_notas = any(p in CONVERSION for p in palabras)
-        es_impar = (i + 1) % 2 != 0
-        conflicto = (es_impar and not tiene_notas) or (not es_impar and tiene_notas)
+        notas_detectadas = [p for p in palabras if p in CONVERSION]
         
-        col1, col2 = st.columns([0.1, 0.9])
-        with col1:
-            es_musica = st.checkbox("Nota", value=es_impar, key=f"c_{i}")
-        with col2:
-            if conflicto:
+        # Lógica de conflicto original
+        es_impar = (i + 1) % 2 != 0
+        hay_conflicto = (es_impar and not notas_detectadas) or (not es_impar and notas_detectadas)
+        
+        col_check, col_texto = st.columns([0.08, 0.92])
+        
+        with col_check:
+            es_nota = st.checkbox("", value=es_impar, key=f"c_{i}")
+        
+        with col_texto:
+            if hay_conflicto:
                 # MENSAJE EXACTO DEL HISTORIAL
-                st.markdown(f'<div class="alerta-naranja">⚠️ Se ha detectado una posible coincidencia entre texto y notas musicales en el renglón {i+1}:<br>{linea}</div>', unsafe_allow_html=True)
+                st.markdown(f'''
+                    <div class="alerta-naranja">
+                        ⚠️ Se ha detectado una posible coincidencia entre texto y notas musicales en el renglón {i+1}.<br>
+                        "{linea}"
+                    </div>
+                ''', unsafe_allow_html=True)
             else:
                 st.text(linea)
-        decisiones.append((linea, es_musica))
+        
+        decisiones.append((linea, es_nota))
 
-    # Botones de salida
+    # --- ACCIONES FINALES ---
+    st.divider()
     if st.button("🚀 Generar Cifrado Final"):
         res = []
-        for t, m in decisiones:
-            if m:
-                res.append("   ".join([CONVERSION.get(p.upper(), p) for p in t.split()]))
+        for txt, es_n in decisiones:
+            if es_n:
+                conv = "   ".join([CONVERSION.get(p.upper().strip(".,!"), p) for p in txt.split()])
+                res.append(conv)
             else:
-                res.append(t)
-        st.code("\n".join(res))
-        st.download_button("💾 Descargar", "\n".join(res), file_name="cancion.txt")
+                res.append(txt)
+        
+        st.code("\n".join(res), language=None)
+        st.download_button("💾 Descargar Resultado", "\n".join(res), file_name="final.txt")
 
-    if st.button("⬅️ Volver al Editor"):
-        st.session_state.fase = "edicion"
-        st.rerun()
-
-if st.button("🗑️ Limpiar Todo"):
-    reiniciar()
+if st.button("🗑️ Reiniciar Todo"):
+    st.session_state.texto_maestro = ""
+    st.session_state.ver_analisis = False
     st.rerun()
