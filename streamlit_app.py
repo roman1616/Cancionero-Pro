@@ -1,102 +1,88 @@
 import streamlit as st
 
 class EditorConfig:
-    """Configuración única para evitar discrepancias."""
+    """Configuración maestra para evitar errores de sincronización."""
     LH = 32
     GRIS = "#1E1E1E"
     AZUL = "#252A34"
-    TEXTO_HEX = "#FFFFFF"
+    TEXTO = "#FFFFFF !important"
     ANCHO = "2500px"
 
 class StyleEngine:
-    """Anula absolutamente todos los estilos internos de Streamlit."""
+    """Inyección de CSS para visibilidad absoluta y fondo sincronizado."""
     @staticmethod
     def aplicar():
-        # Atacamos incluso las clases internas dinámicas (.st-ae, .st-af, etc.)
         st.markdown(f"""
             <style>
-            /* 1. BLINDAJE TOTAL DE VISIBILIDAD */
+            /* VISIBILIDAD TOTAL */
             div[data-baseweb="textarea"] textarea {{
-                color: {EditorConfig.TEXTO_HEX} !important;
-                -webkit-text-fill-color: {EditorConfig.TEXTO_HEX} !important;
-                fill: {EditorConfig.TEXTO_HEX} !important;
-                opacity: 1 !important;
+                color: {EditorConfig.TEXTO};
+                -webkit-text-fill-color: {EditorConfig.TEXTO};
                 caret-color: white !important;
-                -webkit-opacity: 1 !important;
+                font-family: 'Courier New', monospace !important;
+                font-size: 18px !important;
+                line-height: {EditorConfig.LH}px !important;
+                width: {EditorConfig.ANCHO} !important;
+                white-space: pre !important;
+                overflow-wrap: normal !important;
+                background: transparent !important;
+                padding: 0 !important;
             }}
-
-            /* 2. ELIMINAR CAPAS INTERNAS QUE OCULTAN EL TEXTO */
-            div[data-baseweb="textarea"] div {{
-                background-color: transparent !important;
-            }}
-
-            /* 3. CONTENEDOR Y RAYADO (Sincronización de líneas) */
+            /* CONTENEDOR Y RAYADO */
             div[data-baseweb="textarea"] {{
                 background-color: {EditorConfig.GRIS} !important;
-                background-image: linear-gradient(
-                    {EditorConfig.GRIS} 50%, 
-                    {EditorSettings.AZUL if 'EditorSettings' in globals() else EditorConfig.AZUL} 50%
-                ) !important;
+                background-image: linear-gradient({EditorConfig.GRIS} 50%, {EditorConfig.AZUL} 50%) !important;
                 background-size: {EditorConfig.ANCHO} {EditorConfig.LH * 2}px !important;
                 background-attachment: local !important;
                 background-position: 0px 0px !important;
                 overflow-x: auto !important;
                 padding: 0 !important;
-                border: 1px solid #444 !important;
             }}
-
-            /* 4. ESTRUCTURA PARA SCROLL */
-            textarea {{
-                line-height: {EditorConfig.LH}px !important;
-                font-family: 'Courier New', monospace !important;
-                font-size: 18px !important;
-                width: {EditorConfig.ANCHO} !important;
-                white-space: pre !important;
-                overflow-wrap: normal !important;
-                padding: 0px !important;
-            }}
-            
             [data-testid="stFileUploader"] label {{ display: none; }}
             </style>
         """, unsafe_allow_html=True)
 
-class MusicEditor:
+class MusicEditorApp:
     def __init__(self):
-        if "content" not in st.session_state:
-            st.session_state.content = ""
+        # Estado maestro
+        if "texto_maestro" not in st.session_state:
+            st.session_state.texto_maestro = ""
         StyleEngine.aplicar()
 
-    def sync_data(self):
-        # Cargador
-        f = st.file_uploader("Subir", type=['txt'], key="u_file", label_visibility="collapsed")
+    def gestionar_entrada(self):
+        # 1. Cargador de archivos
+        archivo = st.file_uploader("Subir", type=['txt'], key="u_file", label_visibility="collapsed")
         
-        # Lógica de limpieza y carga anticipada
-        if f:
-            new = f.read().decode("utf-8")
-            if st.session_state.content != new:
-                st.session_state.content = new
+        # 2. Lógica de Sincronización Forzada
+        if archivo is not None:
+            contenido_subido = archivo.read().decode("utf-8")
+            if st.session_state.texto_maestro != contenido_subido:
+                st.session_state.texto_maestro = contenido_subido
                 st.rerun()
-        elif st.session_state.content != "" and f is None:
-            # Si el uploader se vacía, borramos el editor
-            st.session_state.content = ""
-            st.rerun()
+        else:
+            # ANTICIPACIÓN: Si el uploader está vacío pero hay texto, LIMPIAMOS TODO
+            if st.session_state.texto_maestro != "":
+                st.session_state.texto_maestro = ""
+                # Borramos también la memoria interna del widget
+                if "main_editor" in st.session_state:
+                    del st.session_state["main_editor"]
+                st.rerun()
 
-    def draw(self):
-        n = len(st.session_state.content.split("\n"))
-        h = (n * EditorConfig.LH) + 40
+    def mostrar_editor(self):
+        n_lineas = len(st.session_state.texto_maestro.split("\n"))
+        altura = (n_lineas * EditorConfig.LH) + 40
         
-        # Renderizado
-        st.session_state.content = st.text_area(
-            "Editor",
-            value=st.session_state.content,
-            height=h,
-            key="v_editor",
+        # El valor del editor siempre sigue al estado maestro
+        st.session_state.texto_maestro = st.text_area(
+            "Editor Musical",
+            value=st.session_state.texto_maestro,
+            height=altura,
+            key="main_editor",
             label_visibility="collapsed"
         )
 
-# --- START ---
-st.title("🎸 Editor Sincronizado 2026")
-app = MusicEditor()
-app.sync_data()
-app.draw()
-
+# --- EJECUCIÓN ---
+st.title("🎸 Editor Pro Sincronizado")
+app = MusicEditorApp()
+app.gestionar_entrada()
+app.mostrar_editor()
