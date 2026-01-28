@@ -4,40 +4,45 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
-# Diccionario de raíces
 LATINO_A_AMERICANO = {
     'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
 }
 
-def procesar_texto(texto_bruto, notas_permitidas):
+def obtener_lista_acordes(texto):
+    # Detecta posibles acordes latinos para pedir confirmación
+    patron = r'\b(DO|RE|MI|FA|SOL|LA|SI)(?:m|maj|min|aug|dim|sus|add|M)?(?:[#b])?(?:[0-9]*)?\b'
+    matches = re.finditer(patron, texto, flags=re.IGNORECASE)
+    # Guardamos el texto exacto encontrado y su posición para que el usuario sepa qué es
+    encontrados = []
+    for m in matches:
+        encontrados.append(m.group(0))
+    return sorted(list(set(encontrados))) # Retorna lista única de términos encontrados
+
+def procesar_texto_selectivo(texto_bruto, items_aprobados):
     if not texto_bruto: return ""
     
     # --- BLOQUE 1: NORMALIZACIÓN UTF-8 ---
     texto = texto_bruto.replace('\r\n', '\n')
     
     # --- BLOQUE 2: CONVERSIÓN DE CIFRADO ---
-    # Capturamos la raíz y sus complementos
     patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)(m|maj|min|aug|dim|sus|add|M)?([#b])?([0-9]*)'
     
     def traducir_acorde(match):
-        raiz_lat = match.group(1).upper()
-        # Si la nota no está en la lista de confirmadas, se devuelve tal cual
-        if raiz_lat in ['RE', 'MI', 'SOL', 'LA', 'SI'] and raiz_lat not in notas_permitidas:
-            return match.group(0)
+        texto_original = match.group(0)
+        # SI el texto exacto no fue aprobado por el usuario, se queda igual
+        if texto_original not in items_aprobados:
+            return texto_original
             
-        cualidad = match.group(2) if match.group(2) else ""
-        alteracion = match.group(3) if match.group(3) else ""
-        numero = match.group(4) if match.group(4) else ""
-        
+        raiz_lat = match.group(1).upper()
+        cualidad = match.group(2) or ""
+        alteracion = match.group(3) or ""
+        numero = match.group(4) or ""
         raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
         return f"{raiz_amer}{alteracion}{cualidad}{numero}"
 
     lineas = texto.split('\n')
-    texto_convertido = []
-    for linea in lineas:
-        nueva_linea = re.sub(patron_latino, traducir_acorde, linea, flags=re.IGNORECASE)
-        texto_convertido.append(nueva_linea)
+    texto_convertido = [re.sub(patron_latino, traducir_acorde, l, flags=re.IGNORECASE) for l in lineas]
 
     # --- BLOQUE 3: COLOCACIÓN DE APÓSTROFES ---
     resultado_final = []
@@ -47,6 +52,7 @@ def procesar_texto(texto_bruto, notas_permitidas):
         linea_lista = list(linea)
         ajuste = 0
         for m in re.finditer(patron_final, linea):
+            # Solo ponemos apóstrofe a lo que se convirtió (o ya era americano)
             fin = m.end() + ajuste
             if fin < len(linea_lista):
                 if linea_lista[fin] not in ["'", "*"]:
@@ -59,39 +65,38 @@ def procesar_texto(texto_bruto, notas_permitidas):
 
     return '\n'.join(resultado_final)
 
-# --- INTERFAZ STREAMLIT ---
-st.markdown("<h1 style='text-align: center;'>🎸 Cancionero Pro 2026</h1>", unsafe_allow_html=True)
+# --- INTERFAZ ---
+st.title("🎸 Cancionero Pro 2026")
 
-archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
+archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
 if archivo:
-    contenido_original = archivo.getvalue().decode("utf-8")
+    contenido = archivo.getvalue().decode("utf-8")
     
-    # Detectar qué notas de la lista están presentes en el texto
-    notas_a_confirmar = ['RE', 'MI', 'SOL', 'LA', 'SI']
-    notas_encontradas = [n for n in notas_a_confirmar if re.search(rf'\b{n}\b', contenido_original, re.I)]
-
-    notas_seleccionadas = []
+    # 1. Escaneo de candidatos
+    candidatos = obtener_lista_acordes(contenido)
     
-    if notas_encontradas:
-        st.warning("Se encontraron notas que podrían ser palabras. Selecciona cuáles quieres convertir a cifrado americano:")
-        cols = st.columns(len(notas_encontradas))
-        for i, nota in enumerate(notas_encontradas):
-            if cols[i].checkbox(f"Convertir {nota}", value=False):
-                notas_seleccionadas.append(nota)
+    if candidatos:
+        st.subheader("Confirmación de Notas Musicales")
+        st.write("Selecciona los elementos que son **acordes** (los que no marques se tratarán como texto normal):")
         
-        # DO y FA se agregan por defecto ya que no suelen ser palabras comunes en oraciones
-        notas_seleccionadas.extend(['DO', 'FA'])
-    else:
-        notas_seleccionadas = ['DO', 'RE', 'MI', 'FA', 'SOL', 'LA', 'SI']
-
-    if st.button("Procesar Canción") or not notas_encontradas:
-        try:
-            texto_final = procesar_texto(contenido_original, notas_seleccionadas)
+        # Crear un grid de checkboxes para que sea fácil seleccionar
+        cols = st.columns(3)
+        aprobados = []
+        for i, cand in enumerate(candidatos):
+            with cols[i % 3]:
+                # Por defecto marcamos los que tienen símbolos (m, #, 7) porque casi seguro son notas
+                es_nota_probable = any(char in cand.lower() for char in ['m', '#', 'b', '7', '4', 's'])
+                if st.checkbox(f"Convertir '{cand}'", value=es_nota_probable, key=cand):
+                    aprobados.append(cand)
+        
+        if st.button("Procesar Cambios"):
+            texto_final = procesar_texto_selectivo(contenido, aprobados)
             
             st.subheader("Vista Previa:")
             st.code(texto_final, language="text")
 
+            # --- ACCIONES ---
             texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
             components.html(f"""
                 <style>
@@ -117,5 +122,5 @@ if archivo:
                     }};
                 </script>
             """, height=100)
-        except Exception as e:
-            st.error(f"Error: {e}")
+    else:
+        st.warning("No se detectaron notas latinas en el archivo.")
