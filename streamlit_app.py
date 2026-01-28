@@ -58,8 +58,7 @@ class StyleManager:
 
 class MusicApp:
     def __init__(self):
-        if "texto" not in st.session_state:
-            st.session_state.texto = "DO     RE     MI\nEsto es una linea de prueba"
+        
         StyleManager.aplicar()
 
     def run(self):
