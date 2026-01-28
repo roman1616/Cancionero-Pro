@@ -11,30 +11,16 @@ LATINO_A_AMERICANO = {
 
 def es_musica_obvia(linea):
     if not linea.strip(): return False
-    
-    # REGLA NUEVA: Si hay notas en minúsculas, es muy probable que sea texto
-    # Pero si hay símbolos como #, / o números pegados, manda la música
     tiene_simbolos = re.search(r'[#b]|/|dim|aug|sus|maj|add|[A-G]\d', linea)
-    
-    # Regla 1: Símbolos musicales explícitos
     if tiene_simbolos: return True
-    # Regla 2: Doble espacio (alineación)
     if "  " in linea: return True
-    
-    # Regla 3: Notas en MAYÚSCULAS
-    notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea) # Sin re.I (Case sensitive)
+    notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea)
     palabras = re.findall(r'\w+', linea)
-    
-    # Si es una sola palabra y está en mayúsculas
     if len(palabras) == 1 and len(notas_mayus) == 1: return True
-    # Si hay 2 o más notas en mayúsculas
     if len(set(notas_mayus)) >= 2: return True
-    
     return False
 
 def tiene_potencial_duda(linea):
-    # Solo genera duda si la nota está en MAYÚSCULAS
-    # Si dice "la" o "mi" en minúsculas, ni siquiera entra aquí
     notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea)
     return len(notas_mayus) > 0
 
@@ -54,8 +40,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
 
     for i, linea in enumerate(lineas):
         if i in lineas_a_procesar:
-            # Solo traducimos si detecta el patrón
-            nueva_linea = re.sub(patron_latino, traducir_acorde, linea) # Case sensitive
+            nueva_linea = re.sub(patron_latino, traducir_acorde, linea)
             linea_lista = list(nueva_linea)
             ajuste = 0
             for m in re.finditer(patron_final, nueva_linea):
@@ -72,25 +57,20 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
     return '\n'.join(resultado_final)
 
 # --- INTERFAZ ---
-st.title("🎸 Cancionero Inteligente 2026")
+st.title("🎸 Cancionero Inteligente")
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
 if archivo:
     contenido = archivo.getvalue().decode("utf-8")
     lineas = contenido.split('\n')
-    
     confirmados_auto = []
     indices_duda = []
     es_linea_musica_anterior = False
 
     for idx, linea in enumerate(lineas):
-        if idx < 0: continue 
-        
-        # Filtro de seguridad: Si la anterior fue música, esta es texto
         if es_linea_musica_anterior:
             es_linea_musica_anterior = False
             continue
-
         if es_musica_obvia(linea):
             confirmados_auto.append(idx)
             es_linea_musica_anterior = True
@@ -105,7 +85,7 @@ if archivo:
 
     seleccion_manual = []
     if indices_duda:
-        st.warning("Se encontraron notas en MAYÚSCULAS que podrían ser texto. ¿Son música?")
+        st.warning("Marca solo las notas musicales")
         for idx in indices_duda:
             if st.checkbox(f"Renglón {idx+1}: {lineas[idx].strip()}", value=False, key=idx):
                 seleccion_manual.append(idx)
@@ -117,16 +97,38 @@ if archivo:
         st.subheader("Resultado Final:")
         st.code(texto_final, language="text")
 
-        # JS Download
+        # --- JS CON DOBLE CONFIRMACIÓN Y DETECCIÓN PC/MÓVIL ---
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
+            <div style="text-align: center; margin-top: 20px;">
+                <button id="mainBtn" style="padding: 15px 30px; background: #34C759; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 GUARDAR / COMPARTIR</button>
+            </div>
             <script>
-                const b = new Blob([`{texto_js}`], {{type:'text/plain'}});
-                const a = document.createElement('a');
-                a.innerText = "💾 DESCARGAR ARCHIVO";
-                a.href = URL.createObjectURL(b);
-                a.download = "PRO_{archivo.name}";
-                a.style = "display: block; width: 200px; margin: 20px auto; padding: 15px; background: #34C759; color: white; text-align: center; border-radius: 10px; font-family: sans-serif; font-weight: bold; text-decoration: none;";
-                document.body.appendChild(a);
+                document.getElementById('mainBtn').onclick = async () => {{
+                    const contenido = `{texto_js}`;
+                    const fileName = "PRO_{archivo.name}";
+                    const blob = new Blob([contenido], {{ type: 'text/plain' }});
+                    const file = new File([blob], fileName, {{ type: 'text/plain' }});
+                    
+                    const esPC = /Windows|Macintosh|Linux/i.test(navigator.userAgent) && !/iPhone|iPad|Android/i.test(navigator.userAgent);
+
+                    // 1. Lógica de compartir para móviles
+                    if (!esPC && navigator.canShare && navigator.canShare({{ files: [file] }})) {{
+                        const deseaCompartir = confirm("🎵 COMPARTIR 🎵\\n\\n¿Deseas compartir este archivo por (WhatsApp, Email, Dropbox, iCloud, etc.)?");
+                        if (deseaCompartir) {{
+                            try {{
+                                await navigator.share({{ files: [file] }});
+                                return; 
+                            }} catch (e) {{ console.log("Compartir cancelado"); }}
+                        }}
+                    }}
+
+                    // 2. Descarga automática si es PC o si canceló compartir
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = fileName;
+                    a.click();
+                    alert("✅ Archivo guardado localmente");
+                }};
             </script>
-        """, height=100)
+        """, height=120)
