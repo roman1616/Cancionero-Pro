@@ -124,4 +124,3 @@ if st.session_state.texto_maestro:
         st.subheader("Vista de Ensayo")
         preview_html = "".join([f"<div style='background-color:{bg_color_1 if (i+1)%2!=0 else bg_color_2}; color:white; min-width:{ancho_virtual}; padding: 2px 10px; white-space: pre; font-family: monospace;'>{linea if linea.strip() else '&nbsp;'}</div>" for i, linea in enumerate(resultado_final)])
         st.markdown(f'<div style="overflow-x: auto; border-radius: 8px; border: 1px solid #444;">{preview_html}</div>', unsafe_allow_html=True)
-
