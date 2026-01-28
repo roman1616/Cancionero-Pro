@@ -3,17 +3,15 @@ import streamlit.components.v1 as components
 import re
 
 class Config:
-    """Configuración Maestra."""
+    """Ajustes de estilo y mapeo de notas."""
     LH = 32
-    COLOR_NOTAS = "#1E1E1E" # Gris
-    COLOR_LETRA = "#16213E" # Azul
+    COLOR_NOTAS = "#1E1E1E"
+    COLOR_LETRA = "#16213E"
     TEXTO = "#FFFFFF !important"
     ANCHO = "2500px"
-    # Diccionario completo para evitar fallos de detección
-    LAT_AM = {
+    MAPA = {
         "DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A", "SI": "B",
-        "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#",
-        "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"
+        "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#"
     }
 
 class StyleEngine:
@@ -44,7 +42,7 @@ class MusicEditor:
         StyleEngine.aplicar()
 
     def gestionar_sync(self):
-        f = st.file_uploader("Subir", type=['txt'], key="u_f", label_visibility="collapsed")
+        f = st.file_uploader("Cargar", type=['txt'], key="u_f", label_visibility="collapsed")
         if f:
             st.session_state.nom = f.name
             c = f.read().decode("utf-8")
@@ -53,42 +51,47 @@ class MusicEditor:
         elif st.session_state.txt != "" and f is None:
             st.session_state.txt = ""; st.session_state.v += 1; st.rerun()
 
-    def boton_convertir(self):
-        if st.button("🔄 Cambiar Cifrado (L9+)"):
-            lineas = st.session_state.txt.split("\n")
-            resultado = []
-            for i, linea in enumerate(lineas):
-                # Renglones impares (1,3,5...) a partir del 9
-                if (i + 1) >= 9 and (i + 1) % 2 != 0:
-                    # Separamos por espacios pero manteniendo los delimitadores para no romper la alineación
-                    partes = re.split(r'(\s+)', linea)
-                    nueva_linea = []
-                    for p in partes:
-                        p_limpio = p.upper().strip()
-                        # 1. ¿Es nota latina? -> Convertir a Am + '
-                        if p_limpio in Config.LAT_AM:
-                            nueva_linea.append(Config.LAT_AM[p_limpio] + "'")
-                        # 2. ¿Es ya americana (C, D, Am, G7, etc)? -> Solo añadir '
-                        elif p_limpio and re.match(r'^[A-G][#B1-9M]*$', p_limpio):
-                            nueva_linea.append(p.strip() + "'")
-                        else:
-                            nueva_linea.append(p)
-                    resultado.append("".join(nueva_linea))
-                else:
-                    resultado.append(linea)
-            st.session_state.txt = "\n".join(resultado)
-            st.session_state.v += 1
-            st.rerun()
+    def convertir_cifrado(self):
+        """Procesa líneas impares desde la 9: Latino -> Am' o Am -> Am'"""
+        lineas = st.session_state.txt.split("\n")
+        nuevas = []
+        for i, linea in enumerate(lineas):
+            # Línea 9 en adelante (i >= 8) y líneas impares (1, 3, 5...)
+            if (i + 1) >= 9 and (i + 1) % 2 != 0:
+                # Separar manteniendo espacios para no romper alineación
+                partes = re.split(r'(\s+)', linea)
+                procesadas = []
+                for p in partes:
+                    p_up = p.upper().strip()
+                    # 1. Si es Latino
+                    if p_up in Config.MAPA:
+                        procesadas.append(Config.MAPA[p_up] + "'")
+                    # 2. Si ya es Americano (C, G, Am, etc.)
+                    elif p.strip() and re.match(r'^[A-G][#bM1-9]*$', p.strip().upper()):
+                        procesadas.append(p.strip() + "'")
+                    else:
+                        procesadas.append(p)
+                nuevas.append("".join(procesadas))
+            else:
+                nuevas.append(linea)
+        
+        st.session_state.txt = "\n".join(nuevas)
+        st.session_state.v += 1 # Forzamos nueva versión del widget para que se VEA el cambio
+        st.rerun()
 
-    def render_editor(self):
+    def render_interfaz(self):
+        st.title("🎸 Editor Musical Pro")
+        if st.button("🔄 CONVERTIR NOTAS (L9+)"):
+            self.convertir_cifrado()
+
         n = len(st.session_state.txt.split("\n"))
-        # Capturamos el cambio en el área de texto para no perder lo escrito
-        txt_input = st.text_area("Ed", value=st.session_state.txt, height=(n*Config.LH)+40, 
-                                 key=f"e_{st.session_state.v}", label_visibility="collapsed")
-        if txt_input != st.session_state.txt:
-            st.session_state.txt = txt_input
+        # El editor se guarda en session_state cada vez que cambia
+        st.session_state.txt = st.text_area(
+            "Editor", value=st.session_state.txt, height=(n*Config.LH)+40, 
+            key=f"ed_v{st.session_state.v}", label_visibility="collapsed"
+        )
 
-    def render_save_file(self):
+    def render_js_save(self):
         if st.session_state.txt:
             t_js = st.session_state.txt.replace("`", "\\`").replace("${", "\\${")
             nom = st.session_state.nom
@@ -112,10 +115,8 @@ class MusicEditor:
                 </script>
             """, height=80)
 
-# --- START ---
-st.title("🎸 Editor Musical Pro")
+# --- EJECUCIÓN ---
 app = MusicEditor()
 app.gestionar_sync()
-app.boton_convertir()
-app.render_editor()
-app.render_save_file()
+app.render_interfaz()
+app.render_js_save()
