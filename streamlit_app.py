@@ -97,38 +97,42 @@ if archivo:
         st.subheader("Resultado Final:")
         st.code(texto_final, language="text")
 
-        # --- JS CON DOBLE CONFIRMACIÓN Y DETECCIÓN PC/MÓVIL ---
+        # --- JS CON DOBLE CUADRO DE ACEPTACIÓN ---
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
             <div style="text-align: center; margin-top: 20px;">
-                <button id="mainBtn" style="padding: 15px 30px; background: #34C759; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 GUARDAR / COMPARTIR</button>
+                <button id="actionBtn" style="padding: 15px 30px; background: #007AFF; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">💾 FINALIZAR ARCHIVO</button>
             </div>
             <script>
-                document.getElementById('mainBtn').onclick = async () => {{
+                document.getElementById('actionBtn').onclick = async () => {{
                     const contenido = `{texto_js}`;
                     const fileName = "PRO_{archivo.name}";
                     const blob = new Blob([contenido], {{ type: 'text/plain' }});
                     const file = new File([blob], fileName, {{ type: 'text/plain' }});
                     
-                    const esPC = /Windows|Macintosh|Linux/i.test(navigator.userAgent) && !/iPhone|iPad|Android/i.test(navigator.userAgent);
-
-                    // 1. Lógica de compartir para móviles
-                    if (!esPC && navigator.canShare && navigator.canShare({{ files: [file] }})) {{
-                        const deseaCompartir = confirm("🎵 COMPARTIR 🎵\\n\\n¿Deseas compartir este archivo por (WhatsApp, Email, Dropbox, iCloud, etc.)?");
-                        if (deseaCompartir) {{
+                    // 1. PRIMER CUADRO: COMPARTIR
+                    const deseaCompartir = confirm("🎵 COMPARTIR 🎵\\n\\n¿Deseas enviar el archivo por WhatsApp u otra App?");
+                    
+                    if (deseaCompartir) {{
+                        if (navigator.share && navigator.canShare({{ files: [file] }})) {{
                             try {{
                                 await navigator.share({{ files: [file] }});
-                                return; 
-                            }} catch (e) {{ console.log("Compartir cancelado"); }}
+                                return; // Éxito
+                            }} catch (e) {{ console.log("Error al compartir"); }}
+                        }} else {{
+                            alert("Tu dispositivo no soporta la función de compartir archivos.");
                         }}
                     }}
 
-                    // 2. Descarga automática si es PC o si canceló compartir
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = fileName;
-                    a.click();
-                    alert("✅ Archivo guardado localmente");
+                    // 2. SEGUNDO CUADRO: DESCARGAR (Solo si el anterior fue 'No' o falló)
+                    const deseaDescargar = confirm("💾 DESCARGAR 💾\\n\\n¿Deseas guardar el archivo directamente en tu equipo?");
+                    
+                    if (deseaDescargar) {{
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = fileName;
+                        a.click();
+                    }}
                 }};
             </script>
         """, height=120)
