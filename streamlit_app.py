@@ -1,15 +1,16 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import re
+import hashlib
 
 class Config:
-    """Configuración maestra para sincronización y mapeo."""
+    """Configuración maestra: Estilos, Colores y Mapeo."""
     LH = 32
-    COLOR_NOTAS = "#1E1E1E"
-    COLOR_LETRA = "#16213E"
+    COLOR_NOTAS = "#1E1E1E" # Gris
+    COLOR_LETRA = "#16213E" # Azul
     TEXTO = "#FFFFFF !important"
     ANCHO = "2500px"
-    # Mapeo Latino -> Americano
+    # Mapeo de notas para conversión automática
     MAPA = {
         "DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A", "SI": "B",
         "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#",
@@ -17,11 +18,11 @@ class Config:
     }
 
 class StyleEngine:
-    """Mantiene la visibilidad blindada."""
     @staticmethod
     def aplicar():
         st.markdown(f"""
             <style>
+            /* VISIBILIDAD BLINDADA */
             [data-testid="stTextArea"] div, [data-baseweb="textarea"] > div {{ background-color: transparent !important; }}
             textarea {{
                 color: {Config.TEXTO}; -webkit-text-fill-color: {Config.TEXTO};
@@ -37,60 +38,69 @@ class StyleEngine:
             </style>
         """, unsafe_allow_html=True)
 
-class MusicEditorApp:
+class MusicEditor:
     def __init__(self):
         if "txt" not in st.session_state: st.session_state.txt = ""
         if "nom" not in st.session_state: st.session_state.nom = "cancion.txt"
         StyleEngine.aplicar()
 
-    def procesar_automatico(self, texto):
-        """Aplica cifrado americano + ' automáticamente en impares L9+."""
-        lineas = texto.split("\n")
+    def procesar_texto(self, texto_crudo):
+        """Convierte notas automáticamente: Impares L9+ -> Am'."""
+        lineas = texto_crudo.split("\n")
         nuevas = []
         for i, linea in enumerate(lineas):
             num_l = i + 1
-            # Solo líneas impares desde la 9
+            # Solo renglones impares a partir del 9
             if num_l >= 9 and num_l % 2 != 0:
-                # Separar por espacios para procesar notas individuales
-                palabras = re.split(r'(\s+)', linea)
+                # Separar por espacios para no perder la posición
+                partes = re.split(r'(\s+)', linea)
                 procesadas = []
-                for p in palabras:
+                for p in partes:
                     limpia = p.upper().strip().replace("'", "")
+                    # Si es nota latina o americana, transformar
                     if limpia in Config.MAPA:
                         procesadas.append(Config.MAPA[limpia] + "'")
                     elif p.strip() and re.match(r'^[A-G][#B1-9M]*$', limpia):
-                        procesadas.append(p.strip() + "'")
+                        procesadas.append(p.strip().replace("'", "") + "'")
                     else:
                         procesadas.append(p)
                 nuevas.append("".join(procesadas))
             else:
-                # Si es par o menor a 9, se queda como está (se restaura)
+                # Restauración: Si no es impar L9+, se quitan los apóstrofes automáticos
                 nuevas.append(linea)
         return "\n".join(nuevas)
 
-    def gestionar_sync(self):
+    def gestionar_datos(self):
         f = st.file_uploader("Cargar", type=['txt'], key="u_f", label_visibility="collapsed")
         if f:
             st.session_state.nom = f.name
             c = f.read().decode("utf-8")
             if st.session_state.txt != c:
-                st.session_state.txt = self.procesar_automatico(c)
+                st.session_state.txt = self.procesar_texto(c)
                 st.rerun()
         elif st.session_state.txt != "" and f is None:
             st.session_state.txt = ""; st.rerun()
 
-    def render(self):
+    def render_editor(self):
         st.title("🎸 Editor Automático 2026")
-        n = len(st.session_state.txt.split("\n"))
+        n_lineas = len(st.session_state.txt.split("\n"))
         
-        # El procesamiento ocurre en el on_change para ser automático
+        # Generamos un hash del texto para la key. 
+        # Si el texto procesado cambia, la key cambia y el widget se refresca visualmente.
+        txt_hash = hashlib.md5(st.session_state.txt.encode()).hexdigest()
+        
         nuevo_val = st.text_area(
-            "Editor", value=st.session_state.txt, height=(n*Config.LH)+40, 
-            key="main_ed", label_visibility="collapsed"
+            "Editor", 
+            value=st.session_state.txt, 
+            height=(n_lineas * Config.LH) + 40, 
+            key=f"editor_{txt_hash}", 
+            label_visibility="collapsed"
         )
         
-        if nuevo_val != st.session_state.txt:
-            st.session_state.txt = self.procesar_automatico(nuevo_val)
+        # Procesamiento reactivo
+        texto_procesado = self.procesar_texto(nuevo_val)
+        if texto_procesado != st.session_state.txt:
+            st.session_state.txt = texto_procesado
             st.rerun()
 
     def render_save(self):
@@ -117,8 +127,8 @@ class MusicEditorApp:
                 </script>
             """, height=80)
 
-# --- GO ---
-app = MusicEditorApp()
-app.gestionar_sync()
-app.render()
+# --- RUN ---
+app = MusicEditor()
+app.gestionar_datos()
+app.render_editor()
 app.render_save()
