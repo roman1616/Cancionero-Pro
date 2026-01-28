@@ -1,101 +1,108 @@
 import streamlit as st
 
 class Config:
-    """Configuración de medidas y colores."""
-    LINE_HEIGHT = 32  
-    FONT_SIZE = 18
-    BG_NOTAS = "#1E1E1E" # Gris Notas
-    BG_LETRA = "#252A34" # Azul Letra
-    TEXT_COLOR = "#FFFFFF" # Blanco puro para el texto
+    """Configuración Maestra: Si cambias un valor aquí, se ajusta toda la app."""
+    LINE_HEIGHT = 32
+    BG_NOTAS = "#1E1E1E"
+    BG_LETRA = "#252A34"
+    TEXT_COLOR = "#FFFFFF"
     ANCHO_VIRTUAL = "2500px"
 
 class StyleEngine:
-    """Gestiona el CSS inyectado con corrección de visibilidad."""
+    """Motor de Estilos: Blinda la visibilidad del texto y la alineación."""
     @staticmethod
-    def get_css():
-        return f"""
-        <style>
-        /* 1. Forzar visibilidad y alineación en el área de texto */
-        .stTextArea textarea {{
-            line-height: {Config.LINE_HEIGHT}px !important;
-            font-family: 'Courier New', monospace !important;
-            font-size: {Config.FONT_SIZE}px !important;
-            
-            /* Corrección de Color: Forzamos blanco */
-            color: {Config.TEXT_COLOR} !important;
-            -webkit-text-fill-color: {Config.TEXT_COLOR} !important;
-            
-            /* Scroll lateral: Evitamos que el texto salte de línea */
-            width: {Config.ANCHO_VIRTUAL} !important;
-            white-space: pre !important;
-            overflow-wrap: normal !important;
+    def aplicar():
+        st.markdown(f"""
+            <style>
+            /* 1. CONTENEDOR RAIZ: Forzamos el scroll lateral */
+            div[data-baseweb="textarea"] {{
+                background-color: {Config.BG_NOTAS} !important;
+                overflow-x: auto !important;
+                padding: 0 !important;
+            }}
 
-            /* Fondo rayado sincronizado */
-            background-image: linear-gradient(
-                {Config.BG_NOTAS} 50%, 
-                {Config.BG_LETRA} 50%
-            ) !important;
-            background-size: {Config.ANCHO_VIRTUAL} {Config.LINE_HEIGHT * 2}px !important;
-            background-attachment: local !important;
-            background-position: 0 0 !important;
-            
-            padding-top: 0px !important;
-            padding-bottom: 0px !important;
-            border: none !important;
-            caret-color: white !important; /* Color del cursor */
-        }}
-        
-        /* 2. Contenedor del scroll lateral */
-        .stTextArea div[data-baseweb="textarea"] {{
-            overflow-x: auto !important;
-            background-color: {Config.BG_NOTAS} !important;
-        }}
+            /* 2. TEXTAREA: Forzamos visibilidad, fuente y fondo rayado */
+            div[data-baseweb="textarea"] textarea {{
+                /* Texto Blanco Real */
+                color: {Config.TEXT_COLOR} !important;
+                -webkit-text-fill-color: {Config.TEXT_COLOR} !important;
+                
+                /* Tipografía y Medidas */
+                font-family: 'Courier New', Courier, monospace !important;
+                font-size: 18px !important;
+                line-height: {Config.LINE_HEIGHT}px !important;
+                
+                /* Estructura No-Wrap para que funcione el scroll */
+                width: {Config.ANCHO_VIRTUAL} !important;
+                white-space: pre !important;
+                overflow-wrap: normal !important;
+                
+                /* Fondo sincronizado: Notas (Gris) / Letra (Azul) */
+                background-image: linear-gradient(
+                    {Config.BG_NOTAS} 50%, 
+                    {Config.BG_LETRA} 50%
+                ) !important;
+                background-size: {Config.ANCHO_VIRTUAL} {Config.LINE_HEIGHT * 2}px !important;
+                background-attachment: local !important;
+                background-position: 0px 0px !important;
+                background-repeat: repeat-y !important;
 
-        /* 3. Ajuste del botón de carga */
-        section[data-testid="stFileUploader"] label {{ display: none; }}
-        </style>
-        """
+                /* Reset de bordes y paddings internos */
+                padding: 0px !important;
+                border: none !important;
+                outline: none !important;
+            }}
 
-class MusicEditor:
-    """Componente Editor orientado a objetos."""
+            /* 3. SCROLLBAR: Estética para que no estorbe */
+            div[data-baseweb="textarea"]::-webkit-scrollbar {{
+                height: 8px;
+            }}
+            div[data-baseweb="textarea"]::-webkit-scrollbar-thumb {{
+                background: #444;
+                border-radius: 4px;
+            }}
+            </style>
+        """, unsafe_allow_html=True)
+
+class MusicEditorApp:
     def __init__(self):
-        if "content" not in st.session_state:
-            st.session_state.content = ""
-        st.markdown(StyleEngine.get_css(), unsafe_allow_html=True)
+        # Inicialización de estado
+        if "texto" not in st.session_state:
+            st.session_state.texto = "DO     RE     MI\nEsta es una linea de prueba"
+        StyleEngine.aplicar()
 
-    def draw_uploader(self):
-        file = st.file_uploader("Subir", type=['txt'], key="u_file", label_visibility="collapsed")
-        if file:
-            # Al subir, actualizamos el estado maestro
-            st.session_state.content = file.read().decode("utf-8")
-
-    def draw_editor(self):
-        # Calcular líneas para altura dinámica
-        lines = st.session_state.content.split("\n")
-        calc_height = (len(lines) * Config.LINE_HEIGHT) + 40
+    def render(self):
+        st.title("🎸 Editor POO Sincronizado")
         
-        # El text_area debe estar vinculado a session_state.content
-        st.session_state.content = st.text_area(
-            label="Editor de Canciones",
-            value=st.session_state.content,
-            height=calc_height,
-            key="main_editor_v2",
+        # Cargador de archivos
+        archivo = st.file_uploader("Cargar", type=["txt"], key="u_txt", label_visibility="collapsed")
+        if archivo:
+            st.session_state.texto = archivo.read().decode("utf-8")
+
+        # Cálculo de altura basado en líneas
+        num_lineas = len(st.session_state.texto.split("\n"))
+        altura = (num_lineas * Config.LINE_HEIGHT) + 20
+
+        # Editor Principal
+        # Vinculamos directamente el valor al session_state
+        nuevo_texto = st.text_area(
+            "Editor",
+            value=st.session_state.texto,
+            height=altura,
+            key="area_editor",
             label_visibility="collapsed"
         )
+        
+        # Actualización de estado
+        if nuevo_texto != st.session_state.texto:
+            st.session_state.texto = nuevo_texto
 
-# --- APP EXECUTION ---
-st.title("🎸 Editor Pro Sincronizado")
-app = MusicEditor()
+        # Botón Limpiar
+        if st.button("🗑️ Limpiar Todo"):
+            st.session_state.texto = ""
+            st.rerun()
 
-# Layout de botones superiores
-c1, _ = st.columns([1, 3])
-with c1:
-    app.draw_uploader()
-
-# Área del Editor
-app.draw_editor()
-
-# Botones inferiores
-if st.button("🗑️ Limpiar Todo"):
-    st.session_state.content = ""
-    st.rerun()
+# --- EJECUCIÓN ---
+if __name__ == "__main__":
+    app = MusicEditorApp()
+    app.render()
