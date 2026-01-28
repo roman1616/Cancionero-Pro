@@ -1,30 +1,31 @@
 import streamlit as st
 
 class Config:
-    """Configuración única de medidas para sincronización total."""
-    LINE_HEIGHT = 32  # Altura exacta de cada renglón en píxeles
+    """Configuración de medidas y colores."""
+    LINE_HEIGHT = 32  
     FONT_SIZE = 18
-    BG_NOTAS = "#1E1E1E" # Gris
-    BG_LETRA = "#252A34" # Azul oscuro
-    TEXT_COLOR = "#FFFFFF"
-    ANCHO_VIRTUAL = "2800px" # Espacio para scroll lateral sin cortes
+    BG_NOTAS = "#1E1E1E" # Gris Notas
+    BG_LETRA = "#252A34" # Azul Letra
+    TEXT_COLOR = "#FFFFFF" # Blanco puro para el texto
+    ANCHO_VIRTUAL = "2500px"
 
 class StyleEngine:
-    """Gestiona el CSS inyectado garantizando la alineación."""
+    """Gestiona el CSS inyectado con corrección de visibilidad."""
     @staticmethod
     def get_css():
-        # El background-size debe ser exactamente el doble del LINE_HEIGHT (64px)
-        # para cubrir un ciclo completo de (Notas + Letra).
         return f"""
         <style>
+        /* 1. Forzar visibilidad y alineación en el área de texto */
         .stTextArea textarea {{
             line-height: {Config.LINE_HEIGHT}px !important;
             font-family: 'Courier New', monospace !important;
             font-size: {Config.FONT_SIZE}px !important;
+            
+            /* Corrección de Color: Forzamos blanco */
             color: {Config.TEXT_COLOR} !important;
             -webkit-text-fill-color: {Config.TEXT_COLOR} !important;
             
-            /* Ajuste de scroll y ancho */
+            /* Scroll lateral: Evitamos que el texto salte de línea */
             width: {Config.ANCHO_VIRTUAL} !important;
             white-space: pre !important;
             overflow-wrap: normal !important;
@@ -38,23 +39,20 @@ class StyleEngine:
             background-attachment: local !important;
             background-position: 0 0 !important;
             
-            /* Reset de paddings para evitar desfases */
             padding-top: 0px !important;
             padding-bottom: 0px !important;
             border: none !important;
+            caret-color: white !important; /* Color del cursor */
         }}
         
-        /* Contenedor del scroll lateral con sombras de la Opción 3 */
+        /* 2. Contenedor del scroll lateral */
         .stTextArea div[data-baseweb="textarea"] {{
             overflow-x: auto !important;
-            background: 
-                linear-gradient(to right, {Config.BG_NOTAS} 30%, rgba(0,0,0,0)),
-                linear-gradient(to right, rgba(0,0,0,0), {Config.BG_NOTAS} 70%) 100% 0,
-                radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.5), rgba(0,0,0,0)) 100% 0 !important;
-            background-repeat: no-repeat !important;
-            background-size: 40px 100%, 40px 100%, 14px 100% !important;
-            background-attachment: local, local, scroll !important;
+            background-color: {Config.BG_NOTAS} !important;
         }}
+
+        /* 3. Ajuste del botón de carga */
+        section[data-testid="stFileUploader"] label {{ display: none; }}
         </style>
         """
 
@@ -66,34 +64,38 @@ class MusicEditor:
         st.markdown(StyleEngine.get_css(), unsafe_allow_html=True)
 
     def draw_uploader(self):
-        # Botón de carga minimalista
         file = st.file_uploader("Subir", type=['txt'], key="u_file", label_visibility="collapsed")
         if file:
+            # Al subir, actualizamos el estado maestro
             st.session_state.content = file.read().decode("utf-8")
 
     def draw_editor(self):
+        # Calcular líneas para altura dinámica
         lines = st.session_state.content.split("\n")
-        # Calculamos la altura exacta: número de líneas * LINE_HEIGHT
-        calc_height = (len(lines) * Config.LINE_HEIGHT) + 20
+        calc_height = (len(lines) * Config.LINE_HEIGHT) + 40
         
+        # El text_area debe estar vinculado a session_state.content
         st.session_state.content = st.text_area(
-            label="Editor",
+            label="Editor de Canciones",
             value=st.session_state.content,
             height=calc_height,
-            key="main_editor",
+            key="main_editor_v2",
             label_visibility="collapsed"
         )
 
-# --- APP MAIN ---
+# --- APP EXECUTION ---
 st.title("🎸 Editor Pro Sincronizado")
-editor = MusicEditor()
+app = MusicEditor()
 
-col_file, _ = st.columns([1, 3])
-with col_file:
-    editor.draw_uploader()
+# Layout de botones superiores
+c1, _ = st.columns([1, 3])
+with c1:
+    app.draw_uploader()
 
-editor.draw_editor()
+# Área del Editor
+app.draw_editor()
 
-if st.button("🗑️ Limpiar"):
+# Botones inferiores
+if st.button("🗑️ Limpiar Todo"):
     st.session_state.content = ""
     st.rerun()
