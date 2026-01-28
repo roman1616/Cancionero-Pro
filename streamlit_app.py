@@ -3,7 +3,7 @@ import streamlit as st
 # 1. Configuración de página
 st.set_page_config(page_title="Editor Musical Pro 2026", layout="wide")
 
-# Diccionario de cifrado
+# Diccionario de cifrado americano
 CONVERSION = {
     "DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A", "SI": "B", 
     "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#",
@@ -21,6 +21,11 @@ st.markdown("""
         background-color: #1E1E1E !important;
         border: 1px solid #444 !important;
     }
+    /* Alineación de los checkboxes con los renglones */
+    .stCheckbox {
+        margin-bottom: 8px !important;
+        height: 32px !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -30,49 +35,51 @@ if "texto_maestro" not in st.session_state:
 
 def al_subir():
     if st.session_state.uploader_key:
-        st.session_state.texto_maestro = st.session_state.uploader_key.read().decode("utf-8")
-        st.session_state.editor_key = st.session_state.texto_maestro
+        contenido = st.session_state.uploader_key.read().decode("utf-8")
+        st.session_state.texto_maestro = contenido
+        st.session_state.editor_key = contenido
 
 # --- INTERFAZ ---
-st.title("🎸 Editor con Selección de Notas")
+st.title("🎸 Editor de Canciones (Selección Manual)")
+st.file_uploader("📂 Cargar canción (.txt)", type=["txt"], key="uploader_key", on_change=al_subir)
 
-col_editor, col_opciones = st.columns([0.7, 0.3])
+st.divider()
+
+# Procesar líneas actuales
+lineas_actuales = st.session_state.texto_maestro.split('\n')
+n_lineas = max(len(lineas_actuales), 1)
+
+# Creamos la cuadrícula: Checkboxes a la izquierda, Editor a la derecha
+col_checks, col_editor = st.columns([0.15, 0.85])
+
+with col_checks:
+    st.write("**¿Es Nota?**")
+    es_nota_map = []
+    # Generamos un checkbox para cada línea
+    for i in range(n_lineas):
+        # Sugerencia automática: impar es nota, pero el usuario manda
+        sugerencia = (i + 1) % 2 != 0
+        es_nota = st.checkbox(f"L{i+1}", value=sugerencia, key=f"check_linea_{i}")
+        es_nota_map.append(es_nota)
 
 with col_editor:
-    st.file_uploader("📂 Cargar canción (.txt)", type=["txt"], key="uploader_key", on_change=al_subir)
-    
-    lineas = st.session_state.texto_maestro.split('\n')
-    n_lineas = max(len(lineas), 1)
-    
-    texto_input = st.text_area(
-        "Editor:", height=(n_lineas * 32) + 40, key="editor_key",
+    # Altura calculada para que coincida con los checkboxes
+    altura_dinamica = (n_lineas * 32) + 40
+    st.session_state.texto_maestro = st.text_area(
+        "Editor", height=altura_dinamica, key="editor_key",
         value=st.session_state.texto_maestro, label_visibility="collapsed"
     )
-    st.session_state.texto_maestro = texto_input
 
-with col_opciones:
-    st.subheader("⚙️ Configuración")
-    st.write("Marca los renglones que son **NOTAS**:")
-    
-    # Creamos un checkbox por cada renglón detectado
-    seleccion_notas = []
-    for i in range(n_lineas):
-        # Por defecto, marcamos los impares como notas para ahorrar tiempo
-        es_impar = (i + 1) % 2 != 0
-        if st.checkbox(f"Renglón {i+1}", value=es_impar, key=f"check_{i}"):
-            seleccion_notas.append(True)
-        else:
-            seleccion_notas.append(False)
-
-# --- PROCESAMIENTO ---
+# --- PROCESAMIENTO FINAL ---
 if st.session_state.texto_maestro:
-    lineas_finales = st.session_state.texto_maestro.split('\n')
     resultado_final = []
-
-    for i, linea in enumerate(lineas_finales):
-        # Si el checkbox de este renglón está marcado, procesamos como notas
-        if i < len(seleccion_notas) and seleccion_notas[i]:
+    lineas_proceso = st.session_state.texto_maestro.split('\n')
+    
+    for i, linea in enumerate(lineas_proceso):
+        # Solo procesamos si el checkbox correspondiente está marcado
+        if i < len(es_nota_map) and es_nota_map[i]:
             palabras = linea.split()
+            # Validación estricta: si no está en el diccionario, se queda como texto
             conv = "   ".join([CONVERSION.get(p.upper().strip(".,!"), p) for p in palabras])
             resultado_final.append(conv)
         else:
@@ -81,26 +88,27 @@ if st.session_state.texto_maestro:
     st.divider()
     c1, c2, c3 = st.columns(3)
     
-    # Previsualización
-    if c1.button("👁️ Ver Resultado", use_container_width=True):
-        st.subheader("Vista Final:")
+    # Visualización
+    if c1.button("👁️ Previsualizar Resultado", use_container_width=True):
+        st.subheader("Vista Previa del Cifrado")
         with st.container(border=True):
             for i, linea in enumerate(resultado_final):
-                if seleccion_notas[i]:
+                if es_nota_map[i]:
                     st.markdown(f"**`:blue[{linea}]`**")
                 else:
                     st.text(linea)
 
     # Limpiar
-    if c2.button("🗑️ Limpiar", use_container_width=True):
+    if c2.button("🗑️ Limpiar Todo", use_container_width=True):
         st.session_state.texto_maestro = ""
         st.session_state.editor_key = ""
         st.rerun()
 
-    # Descargar
+    # Descarga limpia
     c3.download_button(
         label="💾 Descargar TXT",
         data="\n".join(resultado_final),
-        file_name="cancion_personalizada.txt",
+        file_name="cancion_transpuesta.txt",
+        mime="text/plain",
         use_container_width=True
     )
