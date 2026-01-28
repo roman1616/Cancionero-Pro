@@ -1,92 +1,95 @@
 import streamlit as st
 
-class EditorConfig:
-    """Configuración maestra para sincronización total."""
+class Config:
+    """Configuración de estilos y sincronización."""
     LINE_HEIGHT = 32
-    BG_NOTAS = "#1E1E1E"  # Gris casi negro
-    BG_LETRA = "#252A34"  # Azul profundo
-    TEXT_COLOR = "#FFFFFF" # Blanco puro forzado
+    BG_NOTAS = "#1E1E1E"
+    BG_LETRA = "#252A34"
+    TEXT_COLOR = "#FFFFFF"
     ANCHO_VIRTUAL = "2500px"
 
-class StyleManager:
-    """Gestiona el CSS inyectado con selectores de alta prioridad."""
+class StyleEngine:
+    """Motor CSS con alta especificidad para visibilidad y alineación."""
     @staticmethod
     def aplicar():
         st.markdown(f"""
             <style>
-            /* 1. Forzamos el contenedor del textarea a ser oscuro */
+            /* Reset del contenedor */
             div[data-baseweb="textarea"] {{
-                background-color: {EditorConfig.BG_NOTAS} !important;
+                background-color: {Config.BG_NOTAS} !important;
                 border: 1px solid #444 !important;
+                padding: 0 !important;
             }}
 
-            /* 2. Estilo agresivo para el TEXTAREA (Cuerpo del texto) */
+            /* Forzar visibilidad del texto y fondo sincronizado */
             .stTextArea textarea {{
-                /* VISIBILIDAD CRÍTICA */
-                color: {EditorConfig.TEXT_COLOR} !important;
-                -webkit-text-fill-color: {EditorConfig.TEXT_COLOR} !important;
-                opacity: 1 !important;
-                caret-color: white !important;
-
-                /* FUENTE Y ALINEACIÓN */
-                font-family: 'Courier New', Courier, monospace !important;
+                color: {Config.TEXT_COLOR} !important;
+                -webkit-text-fill-color: {Config.TEXT_COLOR} !important;
+                font-family: 'Courier New', monospace !important;
                 font-size: 18px !important;
-                line-height: {EditorConfig.LINE_HEIGHT}px !important;
+                line-height: {Config.LINE_HEIGHT}px !important;
                 padding: 0px !important;
-                
-                /* SCROLL LATERAL */
-                width: {EditorConfig.ANCHO_VIRTUAL} !important;
+                width: {Config.ANCHO_VIRTUAL} !important;
                 white-space: pre !important;
                 overflow-wrap: normal !important;
-
-                /* FONDO RAYADO SINCRONIZADO */
                 background-image: linear-gradient(
-                    {EditorConfig.BG_NOTAS} 50%, 
-                    {EditorConfig.BG_LETRA} 50%
+                    {Config.BG_NOTAS} 50%, 
+                    {Config.BG_LETRA} 50%
                 ) !important;
-                background-size: {EditorConfig.ANCHO_VIRTUAL} {EditorConfig.LINE_HEIGHT * 2}px !important;
+                background-size: {Config.ANCHO_VIRTUAL} {Config.LINE_HEIGHT * 2}px !important;
                 background-attachment: local !important;
                 background-position: 0px 0px !important;
-                background-repeat: repeat-y !important;
+                border: none !important;
+                caret-color: white !important;
             }}
-
-            /* Ocultar etiquetas sobrantes del uploader */
-            [data-testid="stFileUploader"] section {{ padding: 0; }}
+            
+            /* Ocultar etiquetas del uploader */
             [data-testid="stFileUploader"] label {{ display: none; }}
             </style>
         """, unsafe_allow_html=True)
 
-class MusicApp:
+class MusicEditor:
     def __init__(self):
+        # Inicializamos vacío para que no aparezca información al inicio
+        if "content" not in st.session_state:
+            st.session_state.content = ""
+        StyleEngine.aplicar()
+
+    def handle_file_logic(self):
+        """Gestiona la carga y el borrado automático al quitar el archivo."""
+        uploaded_file = st.file_uploader("Cargar", type=['txt'], key="u_file", label_visibility="collapsed")
         
-        StyleManager.aplicar()
+        if uploaded_file is not None:
+            # Solo actualizamos si el contenido es distinto (evita bucles)
+            new_content = uploaded_file.read().decode("utf-8")
+            if st.session_state.content != new_content:
+                st.session_state.content = new_content
+        else:
+            # Si el cargador está vacío, borramos el contenido del editor
+            if st.session_state.content != "":
+                st.session_state.content = ""
 
-    def run(self):
-        st.title("🎸 Editor Pro POO")
+    def render_editor(self):
+        """Renderiza el área de edición con altura dinámica."""
+        lines = st.session_state.content.split("\n")
+        calc_height = (len(lines) * Config.LINE_HEIGHT) + 32
         
-        # Cargador compacto
-        archivo = st.file_uploader("Upload", type=["txt"], key="u_txt", label_visibility="collapsed")
-        if archivo:
-            st.session_state.texto = archivo.read().decode("utf-8")
-
-        # Editor con altura dinámica
-        lineas = st.session_state.texto.split("\n")
-        altura = (len(lineas) * EditorConfig.LINE_HEIGHT) + 20
-
-        # Captura de entrada con clave única
-        st.session_state.texto = st.text_area(
-            "Editor",
-            value=st.session_state.texto,
-            height=altura,
-            key="input_editor",
+        # El área aparece vacía por defecto
+        st.session_state.content = st.text_area(
+            label="Editor",
+            value=st.session_state.content,
+            height=calc_height,
+            key="main_editor_poo",
             label_visibility="collapsed"
         )
 
-        if st.button("🗑️ Limpiar"):
-            st.session_state.texto = ""
-            st.rerun()
+# --- EJECUCIÓN PRINCIPAL ---
+st.title("🎸 Editor Pro Sincronizado")
+app = MusicEditor()
 
-# Ejecución blindada
-if __name__ == "__main__":
-    app = MusicApp()
-    app.run()
+app.handle_file_logic()
+app.render_editor()
+
+if st.button("🗑️ Limpiar Manual"):
+    st.session_state.content = ""
+    st.rerun()
