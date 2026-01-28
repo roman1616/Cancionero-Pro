@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 class Config:
-    """Configuración Maestra."""
+    """Valores críticos para sincronización y visibilidad."""
     LH = 32
     COLOR_NOTAS = "#1E1E1E"
     COLOR_LETRA = "#16213E"
@@ -10,25 +10,16 @@ class Config:
     ANCHO = "2500px"
 
 class StyleEngine:
-    """Anula capas de Streamlit y fuerza visibilidad de fondo y texto."""
+    """Anula el 'modo oscuro' de Streamlit que oculta el texto."""
     @staticmethod
     def aplicar():
         st.markdown(f"""
             <style>
-            [data-testid="stTextArea"] div, [data-testid="stTextArea"] textarea,
-            div[data-baseweb="textarea"], div[data-baseweb="textarea"] > div {{
+            /* 1. VISIBILIDAD: Forzamos transparencia en capas intermedias */
+            [data-testid="stTextArea"] div, [data-baseweb="textarea"] > div {{
                 background-color: transparent !important;
-                background-image: none !important;
             }}
-            div[data-baseweb="textarea"] {{
-                background-color: {Config.COLOR_NOTAS} !important;
-                background-image: linear-gradient({Config.COLOR_NOTAS} 50%, {Config.COLOR_LETRA} 50%) !important;
-                background-size: {Config.ANCHO} {Config.LH * 2}px !important;
-                background-attachment: local !important;
-                background-position: 0px 0px !important;
-                overflow-x: auto !important;
-                border: 1px solid #444 !important;
-            }}
+            /* 2. TEXTO: Blanco puro sobre fondo rayado */
             textarea {{
                 color: {Config.TEXTO};
                 -webkit-text-fill-color: {Config.TEXTO};
@@ -39,8 +30,12 @@ class StyleEngine:
                 width: {Config.ANCHO} !important;
                 white-space: pre !important;
                 overflow-wrap: normal !important;
-                padding: 0px !important;
+                background-image: linear-gradient({Config.COLOR_NOTAS} 50%, {Config.COLOR_LETRA} 50%) !important;
+                background-size: {Config.ANCHO} {Config.LH * 2}px !important;
+                background-attachment: local !important;
+                background-position: 0px 0px !important;
                 border: none !important;
+                padding: 0px !important;
             }}
             [data-testid="stFileUploader"] label {{ display: none; }}
             </style>
@@ -50,66 +45,66 @@ class MusicEditorApp:
     def __init__(self):
         if "txt" not in st.session_state: st.session_state.txt = ""
         if "v" not in st.session_state: st.session_state.v = 0
-        if "archivo_nombre" not in st.session_state: st.session_state.archivo_nombre = "cancion.txt"
+        if "nom" not in st.session_state: st.session_state.nom = "cancion.txt"
         StyleEngine.aplicar()
 
-    def gestionar_datos(self):
-        f = st.file_uploader("Subir", type=['txt'], key="u_file", label_visibility="collapsed")
+    def gestionar_sync(self):
+        """Limpia el editor al quitar el archivo usando cambio de clave."""
+        f = st.file_uploader("Cargar", type=['txt'], key="u_f", label_visibility="collapsed")
         if f:
-            st.session_state.archivo_nombre = f.name
+            st.session_state.nom = f.name
             c = f.read().decode("utf-8")
             if st.session_state.txt != c:
                 st.session_state.txt = c; st.session_state.v += 1; st.rerun()
         elif st.session_state.txt != "" and f is None:
+            # SI SE QUITA EL ARCHIVO: Reset total
             st.session_state.txt = ""; st.session_state.v += 1; st.rerun()
 
     def render_editor(self):
         n = len(st.session_state.txt.split("\n"))
         h = (n * Config.LH) + 40
-        st.session_state.txt = st.text_area("Editor", value=st.session_state.txt, height=h, key=f"ed_{st.session_state.v}", label_visibility="collapsed")
+        # El editor actualiza el estado al escribir
+        st.session_state.txt = st.text_area("Ed", value=st.session_state.txt, height=h, 
+                                           key=f"e_{st.session_state.v}", label_visibility="collapsed")
 
-    def inyectar_save_file(self):
-        """Implementa la lógica saveFile solicitada con detección de PC/Móvil."""
+    def boton_save_file(self):
+        """Inyecta tu lógica JS corregida para entorno Streamlit."""
         if st.session_state.txt:
-            texto_js = st.session_state.txt.replace("`", "\\`").replace("${", "\\${")
-            nombre = st.session_state.archivo_nombre
+            # Protegemos el texto para JavaScript
+            t_js = st.session_state.txt.replace("`", "\\`").replace("${", "\\${")
+            nom = st.session_state.nom
             
             components.html(f"""
-                <div style="position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); z-index: 999;">
-                    <button id="btnSave" style="width: 160px; height: 50px; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; color: white; background: #007AFF; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">💾 Guardar / Compartir</button>
+                <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000;">
+                    <button id="sv" style="width: 180px; height: 50px; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; color: white; background: #007AFF; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">💾 GUARDAR</button>
                 </div>
                 <script>
-                    document.getElementById('btnSave').onclick = async function() {{
-                        const contenido = `{texto_js}`;
-                        const currentFileName = "{nombre}";
+                    document.getElementById('sv').onclick = async function() {{
+                        const contenido = `{t_js}`;
+                        const currentFileName = "{nom}";
                         const blob = new Blob([contenido], {{ type: 'text/plain' }});
                         const file = new File([blob], currentFileName, {{ type: 'text/plain' }});
                         
                         const esPC = /Windows|Macintosh|Linux/i.test(navigator.userAgent) && !/iPhone|iPad|Android/i.test(navigator.userAgent);
 
-                        // 1. LÓGICA DE COMPARTIR (Móvil)
                         if (!esPC && navigator.canShare && navigator.canShare({{ files: [file] }})) {{
-                            const deseaCompartir = confirm("    🎵 COMPARTIR 🎵\\n\\n¿Deseas compartir este archivo por (WhatsApp, Email, Dropbox, iCloud, etc.)?");
-                            if (deseaCompartir) {{
+                            if (confirm("🎵 COMPARTIR 🎵\\n\\n¿Deseas compartir este archivo?")) {{
                                 try {{
                                     await navigator.share({{ files: [file] }});
-                                    return; 
-                                } catch (e) {{ console.log("Compartir cancelado"); }}
+                                    return;
+                                }} catch (e) {{ console.log("Cancelado"); }}
                             }}
                         }}
-
-                        // 2. LÓGICA DE DESCARGA (PC o Cancelado en móvil)
+                        // Descarga si es PC o canceló compartir
                         const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = "PRO_" + currentFileName;
-                        a.click();
+                        a.href = URL.createObjectURL(blob); a.download = "PRO_" + currentFileName; a.click();
                     }};
                 </script>
-            """, height=100)
+            """, height=80)
 
-# --- EXEC ---
-st.title("🎸 Editor Inteligente 2026")
+# --- GO ---
+st.title("🎸 Editor Blindado 2026")
 app = MusicEditorApp()
-app.gestionar_datos()
+app.gestionar_sync()
 app.render_editor()
-app.inyectar_save_file()
+app.boton_save_file()
