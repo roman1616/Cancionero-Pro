@@ -10,7 +10,7 @@ CONVERSION = {
     "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"
 }
 
-# --- ESTILO CSS DARK ---
+# --- ESTILO CSS DARK CON ALINEACIÓN ---
 st.markdown("""
     <style>
     .stTextArea textarea {
@@ -20,11 +20,12 @@ st.markdown("""
         color: #FFFFFF !important;
         background-color: #1E1E1E !important;
         border: 1px solid #444 !important;
+        padding-top: 15px !important;
     }
-    /* Alineación de los checkboxes con los renglones */
-    .stCheckbox {
-        margin-bottom: 8px !important;
+    /* Estilo para que los interruptores queden alineados con los renglones */
+    .stToggle {
         height: 32px !important;
+        margin-top: 10px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -40,33 +41,33 @@ def al_subir():
         st.session_state.editor_key = contenido
 
 # --- INTERFAZ ---
-st.title("🎸 Editor de Canciones (Selección Manual)")
+st.title("🎸 Editor Musical (Control Manual por Línea)")
 st.file_uploader("📂 Cargar canción (.txt)", type=["txt"], key="uploader_key", on_change=al_subir)
 
 st.divider()
 
-# Procesar líneas actuales
+# Procesar líneas del contenido actual
 lineas_actuales = st.session_state.texto_maestro.split('\n')
 n_lineas = max(len(lineas_actuales), 1)
 
-# Creamos la cuadrícula: Checkboxes a la izquierda, Editor a la derecha
-col_checks, col_editor = st.columns([0.15, 0.85])
+# Estructura: Toggles a la izquierda, Editor a la derecha
+col_toggles, col_editor = st.columns([0.15, 0.85])
 
-with col_checks:
-    st.write("**¿Es Nota?**")
-    es_nota_map = []
-    # Generamos un checkbox para cada línea
+with col_toggles:
+    st.write("**¿Es Música?**")
+    config_lineas = []
+    # Generamos un interruptor para cada línea detectada
     for i in range(n_lineas):
-        # Sugerencia automática: impar es nota, pero el usuario manda
+        # Sugerimos 'Música' en impares por defecto, pero es manual
         sugerencia = (i + 1) % 2 != 0
-        es_nota = st.checkbox(f"L{i+1}", value=sugerencia, key=f"check_linea_{i}")
-        es_nota_map.append(es_nota)
+        es_musica = st.toggle(f"L{i+1}", value=sugerencia, key=f"tgl_{i}")
+        config_lineas.append(es_musica)
 
 with col_editor:
-    # Altura calculada para que coincida con los checkboxes
-    altura_dinamica = (n_lineas * 32) + 40
+    # Altura calculada para evitar scroll interno y alinear con toggles
+    altura_dinamica = (n_lineas * 32) + 60
     st.session_state.texto_maestro = st.text_area(
-        "Editor", height=altura_dinamica, key="editor_key",
+        "Editor", height=int(altura_dinamica), key="editor_key",
         value=st.session_state.texto_maestro, label_visibility="collapsed"
     )
 
@@ -76,35 +77,36 @@ if st.session_state.texto_maestro:
     lineas_proceso = st.session_state.texto_maestro.split('\n')
     
     for i, linea in enumerate(lineas_proceso):
-        # Solo procesamos si el checkbox correspondiente está marcado
-        if i < len(es_nota_map) and es_nota_map[i]:
+        # Solo convertimos si el Toggle de esa línea está encendido
+        if i < len(config_lineas) and config_lineas[i]:
             palabras = linea.split()
-            # Validación estricta: si no está en el diccionario, se queda como texto
+            # Validación estricta: solo cambia si la palabra es una nota real
             conv = "   ".join([CONVERSION.get(p.upper().strip(".,!"), p) for p in palabras])
             resultado_final.append(conv)
         else:
+            # Si el toggle está apagado, se queda como texto puro (Letra)
             resultado_final.append(linea)
 
     st.divider()
     c1, c2, c3 = st.columns(3)
     
-    # Visualización
-    if c1.button("👁️ Previsualizar Resultado", use_container_width=True):
-        st.subheader("Vista Previa del Cifrado")
+    # Visualización con colores bajo demanda
+    if c1.button("👁️ Previsualizar", use_container_width=True):
+        st.subheader("Vista Previa:")
         with st.container(border=True):
             for i, linea in enumerate(resultado_final):
-                if es_nota_map[i]:
+                if config_lineas[i]:
                     st.markdown(f"**`:blue[{linea}]`**")
                 else:
-                    st.text(linea)
+                    st.markdown(f"<span style='color:white'>{linea}</span>", unsafe_allow_html=True)
 
-    # Limpiar
+    # Limpiar todo
     if c2.button("🗑️ Limpiar Todo", use_container_width=True):
         st.session_state.texto_maestro = ""
         st.session_state.editor_key = ""
         st.rerun()
 
-    # Descarga limpia
+    # Descarga limpia (Sin colores, solo texto y notas transpuestas)
     c3.download_button(
         label="💾 Descargar TXT",
         data="\n".join(resultado_final),
