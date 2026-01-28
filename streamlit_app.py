@@ -11,15 +11,34 @@ CONVERSION = {"DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A",
 if "texto_maestro" not in st.session_state:
     st.session_state.texto_maestro = ""
 
-# --- CSS CON ALINEACIÓN MILIMÉTRICA ---
-bg_color_1 = "#1E1E1E" # Gris (Notas)
-bg_color_2 = "#252A34" # Azul Oscuro (Letra)
+# --- CSS: BOTÓN COMPACTO Y EDITOR ---
+bg_color_1 = "#1E1E1E" 
+bg_color_2 = "#252A34" 
 text_color = "#FFFFFF" 
-ancho_virtual = "2500px" # Suficiente para cualquier línea larga
+ancho_virtual = "2500px"
 
 st.markdown(f"""
     <style>
-    /* Contenedor con Scroll y Sombra Inteligente */
+    /* 1. ESTILIZAR CARGADOR COMO BOTÓN COMPACTO */
+    section[data-testid="stFileUploader"] > label {{ display: none; }} /* Oculta el texto "Browse files" */
+    section[data-testid="stFileUploader"] {{
+        width: fit-content;
+        margin-bottom: -50px;
+    }}
+    div[data-testid="stFileUploaderDropzone"] {{
+        padding: 0 !important;
+        border: none !important;
+        background: transparent !important;
+    }}
+    div[data-testid="stFileUploaderDropzone"] > button {{
+        width: 100%;
+        background-color: #4A4A4A !important;
+        color: white !important;
+        border-radius: 5px !important;
+        padding: 0.5rem 1rem !important;
+    }}
+
+    /* 2. EDITOR CON SCROLL Y FONDO SINCRONIZADO */
     .stTextArea div[data-baseweb="textarea"] {{
         overflow-x: auto !important;
         background: 
@@ -41,30 +60,29 @@ st.markdown(f"""
         width: {ancho_virtual} !important; 
         white-space: pre !important;
         overflow-wrap: normal !important;
-        /* Rayado horizontal perfectamente alineado con line-height */
         background-image: linear-gradient({bg_color_1} 50%, {bg_color_2} 50%) !important;
-        background-size: {ancho_virtual} 64px !important; /* El ancho del fondo sigue al texto */
+        background-size: {ancho_virtual} 64px !important; 
         background-attachment: local !important;
         background-repeat: repeat-y !important;
         border: none !important;
-        padding-top: 0px !important;
     }}
-    
-    .stTextArea div[data-baseweb="textarea"]::-webkit-scrollbar {{ height: 8px; }}
-    .stTextArea div[data-baseweb="textarea"]::-webkit-scrollbar-thumb {{ background: #555; border-radius: 10px; }}
     </style>
     """, unsafe_allow_html=True)
+
+# --- LÓGICA ---
+def al_subir_archivo():
+    if st.session_state.uploader_key:
+        contenido = st.session_state.uploader_key.read().decode("utf-8")
+        st.session_state.texto_maestro = contenido
+        st.session_state.editor_interactivo = contenido
 
 # --- INTERFAZ ---
 st.title("🎸 Editor Transpositor 2026")
 
-def al_subir_archivo():
-    if st.session_state.uploader_key:
-        st.session_state.texto_maestro = st.session_state.uploader_key.read().decode("utf-8")
-        st.session_state.editor_interactivo = st.session_state.texto_maestro
+# Botón de carga compacto (estilizado vía CSS arriba)
+st.file_uploader("Subir", type=["txt"], key="uploader_key", on_change=al_subir_archivo, label_visibility="collapsed")
 
-st.file_uploader("📂 Cargar canción (.txt)", type=["txt"], key="uploader_key", on_change=al_subir_archivo)
-
+# Altura y Editor
 n_lineas = max(len(st.session_state.texto_maestro.split("\n")), 1)
 altura_fija = (n_lineas * 32) + 20
 
@@ -76,14 +94,20 @@ st.session_state.texto_maestro = st.text_area(
     label_visibility="collapsed"
 )
 
+# Botones de Acción
 st.divider()
 c1, c2, c3 = st.columns(3)
-btn_prev = c1.button("👁️ Previsualizar", use_container_width=True)
 
-if c2.button("🗑️ Limpiar Todo", use_container_width=True):
+if c1.button("👁️ Previsualizar", use_container_width=True):
+    st.session_state.show_preview = True
+else:
+    st.session_state.show_preview = False
+
+if c2.button("🗑️ Limpiar", use_container_width=True):
     st.session_state.texto_maestro = ""
     st.rerun()
 
+# Procesamiento para descarga
 if st.session_state.texto_maestro:
     lineas = st.session_state.texto_maestro.split('\n')
     resultado_final = []
@@ -94,14 +118,10 @@ if st.session_state.texto_maestro:
         else:
             resultado_final.append(linea)
 
-    c3.download_button("💾 Descargar TXT", "\n".join(resultado_final), "cancion_2026.txt", use_container_width=True)
+    c3.download_button("💾 Descargar", "\n".join(resultado_final), "cancion.txt", use_container_width=True)
 
-    if btn_prev:
-        st.subheader("Vista de Ensayo:")
-        # Previsualización con scroll lateral también
-        preview_html = "".join([f"<div style='background-color:{bg_color_1 if (i+1)%2!=0 else bg_color_2}; color:white; min-width:{ancho_virtual}; padding: 2px 10px;'>{linea if linea.strip() else '&nbsp;'}</div>" for i, linea in enumerate(resultado_final)])
-        st.markdown(f"""
-            <div style="overflow-x: auto; font-family: 'Courier New'; border: 1px solid #444; border-radius: 8px;">
-                {preview_html}
-            </div>
-            """, unsafe_allow_html=True)
+    if st.session_state.show_preview:
+        st.subheader("Vista de Ensayo")
+        preview_html = "".join([f"<div style='background-color:{bg_color_1 if (i+1)%2!=0 else bg_color_2}; color:white; min-width:{ancho_virtual}; padding: 2px 10px; white-space: pre; font-family: monospace;'>{linea if linea.strip() else '&nbsp;'}</div>" for i, linea in enumerate(resultado_final)])
+        st.markdown(f'<div style="overflow-x: auto; border-radius: 8px; border: 1px solid #444;">{preview_html}</div>', unsafe_allow_html=True)
+
