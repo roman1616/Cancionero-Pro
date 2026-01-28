@@ -10,31 +10,30 @@ CONVERSION = {
     "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"
 }
 
-# --- ESTILO CSS (Modo Oscuro y Alerta Naranja) ---
+# Notas que generan ambigüedad con el lenguaje
+AMBIGUAS = ["SOL", "LA", "SI", "DO", "RE"]
+
+# --- ESTILO CSS (Modo Oscuro y Alertas Naranjas) ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: #FFFFFF; }
     .alerta-naranja {
-        background-color: #FF8C00;
-        padding: 12px;
+        background-color: #FFA500;
+        padding: 15px;
         border-radius: 8px;
         color: #000000 !important;
         font-weight: bold;
-        margin: 5px 0px;
-        border-left: 5px solid #CC6600;
+        margin-bottom: 10px;
+        border: 2px solid #CC8400;
     }
     .renglon-ok {
-        padding: 12px;
-        color: #FFFFFF;
+        padding: 10px;
         border-bottom: 1px solid #31333F;
     }
-    /* Estilo del editor de texto */
     .stTextArea textarea {
         background-color: #1E1E1E !important;
         color: #FFFFFF !important;
         font-family: 'Courier New', monospace !important;
-        font-size: 16px !important;
-        border: 1px solid #444 !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -42,96 +41,95 @@ st.markdown("""
 # --- GESTIÓN DE ESTADO ---
 if "texto_maestro" not in st.session_state:
     st.session_state.texto_maestro = ""
-if "analisis_listo" not in st.session_state:
-    st.session_state.analisis_listo = False
+if "fase_analisis" not in st.session_state:
+    st.session_state.fase_analisis = False
 
 def al_cargar():
     if st.session_state.uploader:
         st.session_state.texto_maestro = st.session_state.uploader.read().decode("utf-8")
-        st.session_state.analisis_listo = False
+        st.session_state.fase_analisis = True
 
-# --- INTERFAZ DE ENTRADA ---
-st.title("🎸 Validador de Notas y Conflictos")
-st.file_uploader("📂 Sube tu archivo .txt", type=["txt"], key="uploader", on_change=al_cargar)
+# --- INTERFAZ ---
+st.title("🎸 Transpositor con Detector de Coincidencias")
+st.file_uploader("📂 Cargar canción (.txt)", type=["txt"], key="uploader", on_change=al_cargar)
 
 # Editor Inicial
 st.session_state.texto_maestro = st.text_area(
-    "1. Pega o edita el texto original aquí:",
+    "1. Edita el texto original:",
     value=st.session_state.texto_maestro,
-    height=250,
-    key="editor_principal"
+    height=200,
+    key="editor_raw"
 )
 
-col_btns = st.columns([0.3, 0.7])
-if col_btns[0].button("🔍 Analizar Oraciones"):
-    st.session_state.analisis_listo = True
+if st.button("🔍 Analizar Coincidencias"):
+    st.session_state.fase_analisis = True
 
-# --- PANEL DE VALIDACIÓN (LO QUE BUSCABAS) ---
-if st.session_state.analisis_listo and st.session_state.texto_maestro:
+# --- PANEL DE VALIDACIÓN (HISTORIAL RESCATADO) ---
+if st.session_state.fase_analisis and st.session_state.texto_maestro:
     st.divider()
-    st.subheader("2. Revisa los Conflictos (Naranja)")
-    st.info("Marca el checkbox si el renglón es MÚSICA. El color naranja avisa si hay incoherencias.")
+    st.subheader("2. Validación de Oraciones y Posibles Errores")
     
     lineas = st.session_state.texto_maestro.split('\n')
     decisiones = []
 
     for i, linea in enumerate(lineas):
-        if not linea.strip():
-            decisiones.append(("", False))
-            continue
-            
+        if not linea.strip(): continue
+        
         palabras = linea.upper().split()
-        notas_detectadas = [p for p in palabras if p in CONVERSION]
+        notas_encontradas = [p for p in palabras if p in CONVERSION]
+        notas_dudosas = [p for p in palabras if p in AMBIGUAS]
         
-        # Lógica de conflicto:
-        # Si es impar pero no tiene notas O si es par pero TIENE notas
+        # Lógica de Alerta Naranja rescatada:
         es_impar = (i + 1) % 2 != 0
-        hay_conflicto = (es_impar and not notas_detectadas) or (not es_impar and notas_detectadas)
+        # Conflicto si es par y hay notas, o si es impar y solo hay palabras ambiguas
+        hay_conflicto = (not es_impar and len(notas_encontradas) > 0) or \
+                        (es_impar and len(notas_encontradas) == len(notas_dudosas) and len(notas_dudosas) > 0)
         
-        col_check, col_visual = st.columns([0.08, 0.92])
+        col_chk, col_txt = st.columns([0.08, 0.92])
         
-        with col_check:
-            # Checkbox para confirmar si es música
-            es_nota = st.checkbox("", value=es_impar, key=f"c_{i}")
+        with col_chk:
+            es_nota = st.checkbox("", value=es_impar, key=f"check_{i}")
         
-        with col_visual:
+        with col_txt:
             if hay_conflicto:
-                # Fondo naranja si el sistema duda
-                st.markdown(f'<div class="alerta-naranja">⚠️ {linea}</div>', unsafe_allow_html=True)
+                # Mensaje exacto del historial
+                st.markdown(f'''
+                    <div class="alerta-naranja">
+                        ⚠️ Se ha detectado una posible coincidencia entre texto y notas musicales en el renglón {i+1}.<br>
+                        "{linea}"
+                    </div>
+                ''', unsafe_allow_html=True)
             else:
-                # Fondo normal si parece correcto
                 st.markdown(f'<div class="renglon-ok">{linea}</div>', unsafe_allow_html=True)
         
         decisiones.append((linea, es_nota))
 
-    # --- GENERACIÓN Y DESCARGA ---
+    # --- ACCIONES FINALES ---
     st.divider()
-    if st.button("🚀 Generar y Descargar Cifrado"):
-        resultado_final = []
-        for txt, es_n in decisiones:
-            if es_n:
+    if st.button("🚀 Generar Cifrado Final"):
+        resultado = []
+        for txt, marcar_como_nota in decisiones:
+            if marcar_como_nota:
                 pals = txt.split()
-                # Conversión aplicando el diccionario musical
+                # Conversión estricta
                 conv = "   ".join([CONVERSION.get(p.upper().strip(".,!"), p) for p in pals])
-                resultado_final.append(conv)
+                resultado.append(conv)
             else:
-                resultado_final.append(txt)
+                resultado.append(txt)
         
-        texto_final = "\n".join(resultado_final)
-        
-        st.success("¡Procesamiento finalizado!")
-        st.code(texto_final, language=None)
+        texto_unido = "\n".join(resultado)
+        st.success("¡Procesamiento finalizado con éxito!")
+        st.code(texto_unido, language=None)
         
         st.download_button(
-            label="💾 Descargar TXT Final",
-            data=texto_final,
+            label="💾 Descargar TXT Validado",
+            data=texto_unido,
             file_name="cancion_corregida.txt",
             mime="text/plain",
             use_container_width=True
         )
 
-# Botón limpiar
-if st.button("🗑️ Reiniciar Todo"):
+if st.button("🗑️ Reiniciar"):
     st.session_state.texto_maestro = ""
-    st.session_state.analisis_listo = False
+    st.session_state.fase_analisis = False
     st.rerun()
