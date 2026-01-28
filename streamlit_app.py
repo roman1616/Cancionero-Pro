@@ -2,11 +2,13 @@ import streamlit as st
 import re
 import streamlit.components.v1 as components
 
+# Configuración
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
 LATINO_A_AMERICANO = {'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 'SOL': 'G', 'LA': 'A', 'SI': 'B'}
 
 def transformar_linea(linea):
+    """Procesa una sola línea de texto"""
     patron_universal = r'(do|re|mi|fa|sol|la|si|[a-gA-G])([#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[a-gA-G][#b]?)?)'
     linea_lista = list(linea)
     for match in re.finditer(patron_universal, linea, flags=re.IGNORECASE):
@@ -35,43 +37,48 @@ def transformar_linea(linea):
                 linea_lista[inicio + i] = char
     return "".join(linea_lista)
 
-st.markdown("<h1 style='text-align: center;'>Cancionero Pro</h1>", unsafe_allow_html=True)
+# Interfaz
+st.markdown("<h1 style='text-align: center;'>🎹 Cancionero Pro</h1>", unsafe_allow_html=True)
 
-archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
+archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"], label_visibility="collapsed")
 
 if archivo:
-    contenido = archivo.getvalue().decode("utf-8").split('\n')
+    # Leemos todas las líneas
+    lineas_originales = archivo.getvalue().decode("utf-8").splitlines()
+    total_lineas = len(lineas_originales)
     
-    # --- SELECTOR DE RENGONES ---
-    st.write("### Selecciona los renglones a procesar:")
-    opciones = [f"Línea {i+1}: {linea[:50]}..." for i, linea in enumerate(contenido)]
+    st.markdown("### 📝 Selección de Renglones")
     
-    # Pre-seleccionamos de la línea 5 hasta el final
+    # Creamos las opciones para el selector
+    opciones = [i for i in range(total_lineas)]
+    # Pre-seleccionamos desde el renglón 7 (índice 6) hasta el final
+    predeterminados = [i for i in range(6, total_lineas)]
+    
     seleccionadas = st.multiselect(
-        "Renglones activos:", 
-        options=range(len(contenido)), 
-        format_func=lambda x: opciones[x],
-        default=range(6, len(contenido))
+        "Renglones a procesar (por defecto desde el 7):",
+        options=opciones,
+        default=predeterminados,
+        format_func=lambda x: f"Renglón {x+1}: {lineas_originales[x][:50]}..."
     )
 
-    if st.button("Procesar Selección"):
-        resultado_final = []
-        for i, linea in enumerate(contenido):
+    if st.button("🚀 Procesar y Generar"):
+        resultado = []
+        for i, linea in enumerate(lineas_originales):
             if i in seleccionadas:
-                resultado_final.append(transformar_linea(linea))
+                resultado.append(transformar_linea(linea))
             else:
-                resultado_final.append(linea)
+                resultado.append(linea)
         
-        texto_final = "\n".join(resultado_final)
+        texto_final = "\n".join(resultado)
         st.subheader("Vista Previa:")
         st.code(texto_final, language="text")
 
-        # JavaScript para Guardar/Compartir
+        # JavaScript para descarga y compartir
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
             <style>
-                .action-bar {{ position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; }}
-                .btn {{ width: 140px; height: 45px; border: none; border-radius: 20px; font-weight: bold; cursor: pointer; color: white; }}
+                .action-bar {{ position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 999; }}
+                .btn {{ width: 140px; height: 48px; border: none; border-radius: 24px; font-weight: bold; cursor: pointer; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }}
                 .dl {{ background: #007AFF; }} .sh {{ background: #34C759; }}
             </style>
             <div class="action-bar">
@@ -81,12 +88,13 @@ if archivo:
             <script>
                 const content = `{texto_js}`;
                 document.getElementById('dl').onclick = () => {{
-                    const b = new Blob([content], {{type:'text/plain'}});
+                    const b = new Blob([content], {{type:'text/plain;charset=utf-8'}});
                     const a = document.createElement('a');
                     a.href = URL.createObjectURL(b); a.download = "PRO_{archivo.name}"; a.click();
                 }};
                 document.getElementById('sh').onclick = async () => {{
-                    const file = new File([new Blob([content])], "{archivo.name}", {{type:'text/plain'}});
+                    const b = new Blob([content], {{type:'text/plain;charset=utf-8'}});
+                    const file = new File([b], "{archivo.name}", {{type:'text/plain'}});
                     if(navigator.share) await navigator.share({{files: [file]}});
                 }};
             </script>
