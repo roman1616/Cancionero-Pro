@@ -1,6 +1,6 @@
 import streamlit as st
 
-# 1. Configuración de página
+# 1. Configuración de la aplicación
 st.set_page_config(page_title="Editor Musical Pro 2026", layout="wide")
 
 # Diccionario de cifrado americano
@@ -10,10 +10,10 @@ CONVERSION = {
     "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"
 }
 
-# Notas que generan ambigüedad con el lenguaje
+# Notas que pueden ser texto común
 AMBIGUAS = ["SOL", "LA", "SI", "DO", "RE"]
 
-# --- ESTILO CSS (Modo Oscuro y Alertas Naranjas) ---
+# --- ESTILO CSS (Modo Oscuro y Alerta Naranja) ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: #FFFFFF; }
@@ -51,6 +51,8 @@ def al_cargar():
 
 # --- INTERFAZ ---
 st.title("🎸 Transpositor con Detector de Coincidencias")
+
+# Cargador de archivos
 st.file_uploader("📂 Cargar canción (.txt)", type=["txt"], key="uploader", on_change=al_cargar)
 
 # Editor Inicial
@@ -79,20 +81,20 @@ if st.session_state.fase_analisis and st.session_state.texto_maestro:
         notas_encontradas = [p for p in palabras if p in CONVERSION]
         notas_dudosas = [p for p in palabras if p in AMBIGUAS]
         
-        # Lógica de Alerta Naranja rescatada:
+        # Lógica de Alerta Naranja:
         es_impar = (i + 1) % 2 != 0
-        # Conflicto si es par y hay notas, o si es impar y solo hay palabras ambiguas
         hay_conflicto = (not es_impar and len(notas_encontradas) > 0) or \
                         (es_impar and len(notas_encontradas) == len(notas_dudosas) and len(notas_dudosas) > 0)
         
         col_chk, col_txt = st.columns([0.08, 0.92])
         
         with col_chk:
+            # Checkbox de confirmación manual
             es_nota = st.checkbox("", value=es_impar, key=f"check_{i}")
         
         with col_txt:
             if hay_conflicto:
-                # Mensaje exacto del historial
+                # Mensaje de advertencia específico
                 st.markdown(f'''
                     <div class="alerta-naranja">
                         ⚠️ Se ha detectado una posible coincidencia entre texto y notas musicales en el renglón {i+1}.<br>
@@ -111,7 +113,7 @@ if st.session_state.fase_analisis and st.session_state.texto_maestro:
         for txt, marcar_como_nota in decisiones:
             if marcar_como_nota:
                 pals = txt.split()
-                # Conversión estricta
+                # Conversión estricta mediante el diccionario
                 conv = "   ".join([CONVERSION.get(p.upper().strip(".,!"), p) for p in pals])
                 resultado.append(conv)
             else:
