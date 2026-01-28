@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 class Config:
-    """Valores críticos para sincronización y visibilidad."""
+    """Configuración maestra para asegurar visibilidad y alineación."""
     LH = 32
     COLOR_NOTAS = "#1E1E1E"
     COLOR_LETRA = "#16213E"
@@ -10,16 +10,14 @@ class Config:
     ANCHO = "2500px"
 
 class StyleEngine:
-    """Anula el 'modo oscuro' de Streamlit que oculta el texto."""
+    """Anula el modo oscuro de Streamlit y fuerza el rayado de fondo."""
     @staticmethod
     def aplicar():
         st.markdown(f"""
             <style>
-            /* VISIBILIDAD: Forzamos transparencia en capas intermedias */
             [data-testid="stTextArea"] div, [data-baseweb="textarea"] > div {{
                 background-color: transparent !important;
             }}
-            /* TEXTO: Blanco puro sobre fondo rayado */
             textarea {{
                 color: {Config.TEXTO};
                 -webkit-text-fill-color: {Config.TEXTO};
@@ -64,54 +62,54 @@ class MusicEditorApp:
         st.session_state.txt = st.text_area("Ed", value=st.session_state.txt, height=h, 
                                            key=f"e_{st.session_state.v}", label_visibility="collapsed")
 
-    def boton_save_file(self):
-        """Inyecta la lógica JS corregida con pregunta de descarga en PC."""
+    def render_boton_guardado(self):
+        """Inyecta la función saveFile con la doble confirmación obligatoria."""
         if st.session_state.txt:
+            # Escapamos el texto para que no rompa el JS
             t_js = st.session_state.txt.replace("`", "\\`").replace("${", "\\${")
             nom = st.session_state.nom
             
             components.html(f"""
                 <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000;">
-                    <button id="sv" style="width: 180px; height: 50px; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; color: white; background: #007AFF; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">💾 GUARDAR</button>
+                    <button id="saveBtn" style="width: 180px; height: 50px; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; color: white; background: #007AFF; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">💾 GUARDAR</button>
                 </div>
                 <script>
-                    document.getElementById('sv').onclick = async function() {{
-                        const contenido = `{t_js}`;
+                    async function saveFile() {{ 
+                        const contenido = `{t_js}`; 
                         const currentFileName = "{nom}";
-                        const blob = new Blob([contenido], {{ type: 'text/plain' }});
-                        const file = new File([blob], currentFileName, {{ type: 'text/plain' }});
+                        const blob = new Blob([contenido], {{ type: 'text/plain' }}); 
+                        const file = new File([blob], currentFileName, {{ type: 'text/plain' }}); 
                         
                         const esPC = /Windows|Macintosh|Linux/i.test(navigator.userAgent) && !/iPhone|iPad|Android/i.test(navigator.userAgent);
 
-                        // LÓGICA DE COMPARTIR (Móvil)
+                        // --- PASO 1: PREGUNTA COMPARTIR (SOLO MÓVIL) ---
                         if (!esPC && navigator.canShare && navigator.canShare({{ files: [file] }})) {{
-                            if (confirm("🎵 COMPARTIR 🎵\\n\\n¿Deseas compartir este archivo?")) {{
+                            const deseaCompartir = confirm("🎵 COMPARTIR 🎵\\n\\n¿Deseas compartir este archivo por (WhatsApp, Email, etc.)?");
+                            if (deseaCompartir) {{
                                 try {{
                                     await navigator.share({{ files: [file] }});
-                                    return;
-                                }} catch (e) {{ console.log("Cancelado"); }}
+                                    return; // Si comparte, termina.
+                                }} catch (e) {{ console.log("Compartir cancelado"); }}
                             }}
                         }}
-                        
-                        // LÓGICA DE DESCARGA (PC o Cancelado en móvil)
-                        let procederDescarga = true;
-                        if (esPC) {{
-                            procederDescarga = confirm("💾 DESCARGAR 💾\\n\\n¿Deseas guardar el archivo localmente en tu PC?");
-                        }}
 
-                        if (procederDescarga) {{
+                        // --- PASO 2: PREGUNTA DESCARGAR (PC O SI DIJO NO A COMPARTIR) ---
+                        const deseaDescargar = confirm("⬇️ DESCARGAR ⬇️\\n\\n¿Deseas descargar el archivo en la memoria del dispositivo?");
+                        if (deseaDescargar) {{
+                            const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
-                            a.href = URL.createObjectURL(blob); 
-                            a.download = "PRO_" + currentFileName; 
-                            a.click();
+                            a.href = url; a.download = currentFileName;
+                            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                            setTimeout(() => URL.revokeObjectURL(url), 150);
                         }}
-                    }};
+                    }}
+                    document.getElementById('saveBtn').onclick = saveFile;
                 </script>
             """, height=80)
 
-# --- GO ---
-st.title("🎸 Editor Blindado 2026")
+# --- START ---
+st.title("🎸 Editor Musical 2026")
 app = MusicEditorApp()
 app.gestionar_sync()
 app.render_editor()
-app.boton_save_file()
+app.render_boton_guardado()
