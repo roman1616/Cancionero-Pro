@@ -33,27 +33,40 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
         cualidad = match.group(2) or ""
         alteracion = match.group(3) or ""
         numero = match.group(4) or ""
+        # Reorganizamos: Raiz + Alteración (#/b) + Cualidad (m/maj) + Numero
         return f"{LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)}{alteracion}{cualidad}{numero}"
 
-    resultado_final = []
-    patron_final = r'\b([A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
-
+    resultado_intermedio = []
     for i, linea in enumerate(lineas):
         if i in lineas_a_procesar:
-            nueva_linea = re.sub(patron_latino, traducir_acorde, linea)
-            linea_lista = list(nueva_linea)
-            ajuste = 0
-            for m in re.finditer(patron_final, nueva_linea):
-                fin = m.end() + ajuste
-                if fin < len(linea_lista) and linea_lista[fin] not in ["'", "*"]:
+            resultado_intermedio.append(re.sub(patron_latino, traducir_acorde, linea))
+        else:
+            resultado_intermedio.append(linea)
+
+    # --- CORRECCIÓN DE APÓSTROFE: Siempre al final del bloque de acorde ---
+    resultado_final = []
+    # Este patrón detecta el acorde completo transformado
+    patron_final = r'\b([A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
+
+    for i, linea in enumerate(resultado_intermedio):
+        if i not in lineas_a_procesar:
+            resultado_final.append(linea)
+            continue
+            
+        linea_lista = list(linea)
+        ajuste = 0
+        for m in re.finditer(patron_final, linea):
+            # fin es la posición justo después del acorde completo (ej: C#m7)
+            fin = m.end() + ajuste
+            if fin < len(linea_lista):
+                if linea_lista[fin] not in ["'", "*"]:
                     linea_lista.insert(fin, "'")
                     ajuste += 1
-                elif fin >= len(linea_lista):
-                    linea_lista.append("'")
-                    ajuste += 1
-            resultado_final.append("".join(linea_lista))
-        else:
-            resultado_final.append(linea)
+            else:
+                linea_lista.append("'")
+                ajuste += 1
+        resultado_final.append("".join(linea_lista))
+
     return '\n'.join(resultado_final)
 
 # --- INTERFAZ ---
@@ -81,7 +94,7 @@ if archivo:
             es_linea_musica_anterior = False
 
     st.subheader("🔍 Informe de Escaneo")
-    st.success(f"Se detectaron {len(confirmados_auto)} líneas de acordes automáticamente.")
+    st.success(f"Se detectaron {len(confirmados_auto)} líneas de música automáticamente.")
 
     seleccion_manual = []
     if indices_duda:
@@ -110,21 +123,19 @@ if archivo:
                     const blob = new Blob([contenido], {{ type: 'text/plain' }});
                     const file = new File([blob], fileName, {{ type: 'text/plain' }});
                     
-                    // 1. PRIMER CUADRO: COMPARTIR
                     const deseaCompartir = confirm("🎵 COMPARTIR 🎵\\n\\n¿Deseas enviar el archivo por WhatsApp u otra App?");
                     
                     if (deseaCompartir) {{
                         if (navigator.share && navigator.canShare({{ files: [file] }})) {{
                             try {{
                                 await navigator.share({{ files: [file] }});
-                                return; // Éxito
+                                return; 
                             }} catch (e) {{ console.log("Error al compartir"); }}
                         }} else {{
-                            alert("Tu dispositivo no soporta la función de compartir archivos.");
+                            alert("Tu dispositivo no soporta la función de compartir.");
                         }}
                     }}
 
-                    // 2. SEGUNDO CUADRO: DESCARGAR (Solo si el anterior fue 'No' o falló)
                     const deseaDescargar = confirm("💾 DESCARGAR 💾\\n\\n¿Deseas guardar el archivo directamente en tu equipo?");
                     
                     if (deseaDescargar) {{
