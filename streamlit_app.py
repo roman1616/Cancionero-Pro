@@ -11,21 +11,32 @@ LATINO_A_AMERICANO = {
 
 def es_musica_obvia(linea):
     if not linea.strip(): return False
-    # Regla 1: Símbolos musicales o estructuras G7, Mim, etc.
-    if re.search(r'[#b]|/|dim|aug|sus|maj|add|[A-G]\d', linea, re.I): return True
-    # Regla 2: Doble espacio (alineación de acordes)
+    
+    # REGLA NUEVA: Si hay notas en minúsculas, es muy probable que sea texto
+    # Pero si hay símbolos como #, / o números pegados, manda la música
+    tiene_simbolos = re.search(r'[#b]|/|dim|aug|sus|maj|add|[A-G]\d', linea)
+    
+    # Regla 1: Símbolos musicales explícitos
+    if tiene_simbolos: return True
+    # Regla 2: Doble espacio (alineación)
     if "  " in linea: return True
-    # Regla 3: Una sola palabra que es una nota (ej: "SOL")
+    
+    # Regla 3: Notas en MAYÚSCULAS
+    notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea) # Sin re.I (Case sensitive)
     palabras = re.findall(r'\w+', linea)
-    notas = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea, re.I)
-    if len(palabras) == 1 and len(notas) == 1: return True
-    # Regla 4: Al menos 2 notas diferentes
-    if len(set(n.upper() for n in notas)) >= 2: return True
+    
+    # Si es una sola palabra y está en mayúsculas
+    if len(palabras) == 1 and len(notas_mayus) == 1: return True
+    # Si hay 2 o más notas en mayúsculas
+    if len(set(notas_mayus)) >= 2: return True
+    
     return False
 
 def tiene_potencial_duda(linea):
-    notas = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea, re.I)
-    return len(notas) > 0
+    # Solo genera duda si la nota está en MAYÚSCULAS
+    # Si dice "la" o "mi" en minúsculas, ni siquiera entra aquí
+    notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea)
+    return len(notas_mayus) > 0
 
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
@@ -43,7 +54,8 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
 
     for i, linea in enumerate(lineas):
         if i in lineas_a_procesar:
-            nueva_linea = re.sub(patron_latino, traducir_acorde, linea, flags=re.IGNORECASE)
+            # Solo traducimos si detecta el patrón
+            nueva_linea = re.sub(patron_latino, traducir_acorde, linea) # Case sensitive
             linea_lista = list(nueva_linea)
             ajuste = 0
             for m in re.finditer(patron_final, nueva_linea):
@@ -72,17 +84,14 @@ if archivo:
     es_linea_musica_anterior = False
 
     for idx, linea in enumerate(lineas):
-        if idx < 0: continue # maneja desde que renglon empieza a escanear
+        if idx < 6: continue 
         
-        # APLICACIÓN DE CRITERIOS
-        es_musica = es_musica_obvia(linea)
-        
-        # Si la anterior fue música, esta es probablemente texto (Letra) -> No es duda
+        # Filtro de seguridad: Si la anterior fue música, esta es texto
         if es_linea_musica_anterior:
             es_linea_musica_anterior = False
-            continue 
+            continue
 
-        if es_musica:
+        if es_musica_obvia(linea):
             confirmados_auto.append(idx)
             es_linea_musica_anterior = True
         elif tiene_potencial_duda(linea):
@@ -91,34 +100,33 @@ if archivo:
         else:
             es_linea_musica_anterior = False
 
-    st.subheader("📊 Análisis Estructural")
-    st.write(f"✅ **{len(confirmados_auto)}** líneas de música detectadas.")
+    st.subheader("🔍 Informe de Escaneo")
+    st.success(f"Se detectaron {len(confirmados_auto)} líneas de acordes automáticamente.")
 
     seleccion_manual = []
     if indices_duda:
-        st.warning("⚠️ **Verificación manual:** ¿Estas líneas son música o letra?")
+        st.warning("Se encontraron notas en MAYÚSCULAS que podrían ser texto. ¿Son música?")
         for idx in indices_duda:
-            if st.checkbox(f"L{idx+1}: {lineas[idx].strip()}", value=False, key=f"d_{idx}"):
+            if st.checkbox(f"Renglón {idx+1}: {lineas[idx].strip()}", value=False, key=idx):
                 seleccion_manual.append(idx)
     
-    if st.button("🚀 Procesar Cancionero"):
+    if st.button("✨ Procesar y Convertir"):
         total_indices = confirmados_auto + seleccion_manual
         texto_final = procesar_texto_selectivo(contenido, total_indices)
         
-        st.subheader("Resultado:")
+        st.subheader("Resultado Final:")
         st.code(texto_final, language="text")
 
+        # JS Download
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
-            <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);">
-                <button id="dl" style="padding: 12px 25px; border-radius: 20px; border: none; background: #007AFF; color: white; font-weight: bold; cursor: pointer;">💾 Descargar</button>
-            </div>
             <script>
-                document.getElementById('dl').onclick = () => {{
-                    const b = new Blob([`{texto_js}`], {{type:'text/plain'}});
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(b); a.download = "PRO_{archivo.name}"; a.click();
-                }};
+                const b = new Blob([`{texto_js}`], {{type:'text/plain'}});
+                const a = document.createElement('a');
+                a.innerText = "💾 DESCARGAR ARCHIVO";
+                a.href = URL.createObjectURL(b);
+                a.download = "PRO_{archivo.name}";
+                a.style = "display: block; width: 200px; margin: 20px auto; padding: 15px; background: #34C759; color: white; text-align: center; border-radius: 10px; font-family: sans-serif; font-weight: bold; text-decoration: none;";
+                document.body.appendChild(a);
             </script>
-        """, height=80)
-
+        """, height=100)
