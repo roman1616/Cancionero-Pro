@@ -10,17 +10,28 @@ LATINO_A_AMERICANO = {
 }
 
 def es_musica_obvia(linea):
-    # Regla 1: Contiene símbolos que NO se usan en lenguaje normal
+    # Regla 1: Contiene símbolos musicales explícitos o números de acorde (G7, Mim, etc.)
     if re.search(r'[#b]|/|dim|aug|sus|maj|add|[A-G]\d', linea, re.I):
         return True
-    # Regla 2: Contiene 2 o más notas latinas diferentes (ej: "SOL" y "RE")
-    notas = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea, re.I)
-    if len(set(n.upper() for n in notas)) >= 2:
+    
+    # Regla 2: Contiene más de 2 espacios seguidos (típico de espaciado entre acordes)
+    if "  " in linea:
         return True
+
+    # Regla 3: Si la línea consiste ÚNICAMENTE en una nota (ej: "SOL")
+    notas_encontradas = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea, re.I)
+    palabras_totales = re.findall(r'\w+', linea)
+    if len(notas_encontradas) == 1 and len(palabras_totales) == 1:
+        return True
+
+    # Regla 4: Contiene 2 o más notas latinas diferentes
+    if len(set(n.upper() for n in notas_encontradas)) >= 2:
+        return True
+        
     return False
 
 def tiene_potencial_duda(linea):
-    # Si contiene una nota solitaria (como "LA" o "MI") sin otros indicadores
+    # Si contiene palabras que son notas pero están mezcladas con texto (ej: "La casa")
     notas = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea, re.I)
     return len(notas) > 0
 
@@ -42,9 +53,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
 
     for i, linea in enumerate(lineas):
         if i in lineas_a_procesar:
-            # Procesar acordes
             nueva_linea = re.sub(patron_latino, traducir_acorde, linea, flags=re.IGNORECASE)
-            # Agregar apóstrofes
             linea_lista = list(nueva_linea)
             ajuste = 0
             for m in re.finditer(patron_final, nueva_linea):
@@ -64,7 +73,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
 # --- INTERFAZ ---
 st.title("🎸 Cancionero Inteligente 2026")
 
-archivo = st.file_uploader("Sube tu .txt", type=["txt"])
+archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
 if archivo:
     contenido = archivo.getvalue().decode("utf-8")
@@ -74,36 +83,35 @@ if archivo:
     dudosos = []
     
     for idx, linea in enumerate(lineas):
-        if idx < 6: continue # Omitir encabezado
+        if idx < 6: continue 
         
         if es_musica_obvia(linea):
             confirmados_auto.append(idx)
         elif tiene_potencial_duda(linea):
             dudosos.append((idx, linea))
 
-    st.subheader("🔍 Verificación necesaria")
-    st.write(f"Se detectaron **{len(confirmados_auto)}** líneas de música automáticamente.")
+    st.subheader("📊 Resumen de Análisis")
+    st.write(f"✅ **{len(confirmados_auto)}** líneas detectadas como música automáticamente.")
     
     seleccion_manual = []
     if dudosos:
-        st.warning("Las siguientes líneas parecen texto, pero contienen palabras que podrían ser notas. Marca si son **MÚSICA**:")
+        st.warning("⚠️ **Dudas detectadas:** Las siguientes líneas contienen notas pero parecen ser parte de la letra. Marca las que sean **MÚSICA**:")
         for idx, texto in dudosos:
-            if st.checkbox(f"L{idx+1}: {texto.strip()}", value=False, key=idx):
+            if st.checkbox(f"L{idx+1}: {texto.strip()}", value=False, key=f"duda_{idx}"):
                 seleccion_manual.append(idx)
-    else:
-        st.success("No hay dudas detectadas en el resto del texto.")
-
-    if st.button("Generar Cancionero"):
+    
+    if st.button("🚀 Procesar Cancionero"):
         total_a_procesar = confirmados_auto + seleccion_manual
         texto_final = procesar_texto_selectivo(contenido, total_a_procesar)
         
+        st.subheader("Vista Previa:")
         st.code(texto_final, language="text")
-        
-        # Botones de Guardar/Compartir (JS)
+
+        # JS para Guardar
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
-            <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px;">
-                <button id="dl" style="padding: 10px 20px; border-radius: 15px; border: none; background: #007AFF; color: white; font-weight: bold; cursor: pointer;">💾 Guardar</button>
+            <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 999;">
+                <button id="dl" style="padding: 12px 25px; border-radius: 20px; border: none; background: #007AFF; color: white; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">💾 Descargar .txt</button>
             </div>
             <script>
                 document.getElementById('dl').onclick = () => {{
