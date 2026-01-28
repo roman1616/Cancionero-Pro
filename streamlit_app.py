@@ -9,17 +9,10 @@ LATINO_A_AMERICANO = {
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
 }
 
-def detectar_formato_previo(texto):
-    # Busca notas americanas típicas que NO suelen ser palabras en español (C#, Bb, F#m, etc)
-    patron_americano = r'\b[A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*\b'
-    hallazgos = re.findall(patron_americano, texto)
-    # Si hay más de 5 notas americanas, asumimos que ya está en ese formato
-    return len(hallazgos) > 5
-
 def es_musica_obvia(linea):
     if not linea.strip(): return False
-    # Regla: Símbolos musicales o notas americanas ya presentes
-    if re.search(r'[#b]|/|dim|aug|sus|maj|add|[A-G]\d', linea): return True
+    tiene_simbolos = re.search(r'[#b]|/|dim|aug|sus|maj|add|[A-G]\d', linea)
+    if tiene_simbolos: return True
     if "  " in linea: return True
     notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea)
     palabras = re.findall(r'\w+', linea)
@@ -33,6 +26,8 @@ def tiene_potencial_duda(linea):
 
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
+    
+    # 1. Patrón para capturar el acorde latino completo
     patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)(m|maj|min|aug|dim|sus|add|M)?([#b])?([0-9]*)'
     
     def traducir_acorde(match):
@@ -40,19 +35,20 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
         cualidad = match.group(2) or ""
         alteracion = match.group(3) or ""
         numero = match.group(4) or ""
+        # Colocamos la alteración (#/b) pegada a la raíz americana
         raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
         return f"{raiz_amer}{alteracion}{cualidad}{numero}"
 
     resultado_traduccion = []
     for i, linea in enumerate(lineas):
         if i in lineas_a_procesar:
-            # Traducir solo si hay algo que traducir (Case sensitive)
+            # Primero convertimos a Americano (Ej: LA# -> A#)
             linea_traducida = re.sub(patron_latino, traducir_acorde, linea)
             resultado_traduccion.append(linea_traducida)
         else:
             resultado_traduccion.append(linea)
 
-    # Paso final: Colocar apóstrofe al final del acorde americano (Ej: A#' o C#m')
+    # 2. Paso final: Colocar el apóstrofe al final del acorde americano (Ej: A# -> A#')
     resultado_final = []
     patron_americano = r'\b([A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
 
@@ -65,6 +61,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
         ajuste = 0
         for m in re.finditer(patron_americano, linea):
             fin = m.end() + ajuste
+            # Insertar apóstrofe solo si no hay uno ya
             if fin < len(linea_lista):
                 if linea_lista[fin] not in ["'", "*"]:
                     linea_lista.insert(fin, "'")
@@ -82,12 +79,6 @@ archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
 if archivo:
     contenido = archivo.getvalue().decode("utf-8")
-    
-    # NUEVA LÓGICA: Detección de formato
-    ya_es_americano = detectar_formato_previo(contenido)
-    if ya_es_americano:
-        st.info("ℹ️ **Aviso:** Se detectó que este archivo ya podría estar en **Cifrado Americano**. El sistema se enfocará en agregar los apóstrofes y validar líneas dudosas.")
-    
     lineas = contenido.split('\n')
     confirmados_auto = []
     indices_duda = []
@@ -106,17 +97,17 @@ if archivo:
         else:
             es_linea_musica_anterior = False
 
-    st.subheader("🔍 Análisis de Estructura")
-    st.success(f"Se detectaron {len(confirmados_auto)} líneas de acordes listas para procesar.")
+    st.subheader("🔍 Análisis")
+    st.success(f"Se detectaron {len(confirmados_auto)} líneas de acordes automáticamente.")
 
     seleccion_manual = []
     if indices_duda:
-        st.warning("Revisa estas líneas (¿Son acordes en MAYÚSCULAS?):")
+        st.warning("Confirma si estas líneas son música:")
         for idx in indices_duda:
             if st.checkbox(f"Renglón {idx+1}: {lineas[idx].strip()}", value=False, key=idx):
                 seleccion_manual.append(idx)
     
-    if st.button("✨ Procesar Cancionero"):
+    if st.button("✨ Procesar"):
         total_indices = confirmados_auto + seleccion_manual
         texto_final = procesar_texto_selectivo(contenido, total_indices)
         
@@ -126,7 +117,7 @@ if archivo:
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
             <div style="text-align: center; margin-top: 20px;">
-                <button id="actionBtn" style="padding: 15px 30px; background: #007AFF; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 GUARDAR / COMPARTIR</button>
+                <button id="actionBtn" style="padding: 15px 30px; background: #007AFF; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 FINALIZAR</button>
             </div>
             <script>
                 document.getElementById('actionBtn').onclick = async () => {{
@@ -151,4 +142,3 @@ if archivo:
                 }};
             </script>
         """, height=120)
-
