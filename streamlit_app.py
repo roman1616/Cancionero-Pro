@@ -84,7 +84,7 @@ if archivo:
     es_linea_musica_anterior = False
 
     for idx, linea in enumerate(lineas):
-        if idx < 6: continue 
+        if idx < 0: continue 
         
         # Filtro de seguridad: Si la anterior fue música, esta es texto
         if es_linea_musica_anterior:
