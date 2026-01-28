@@ -1,33 +1,27 @@
 import streamlit as st
 
-st.set_page_config(page_title="Clasificador Musical", layout="wide")
+st.markdown("<style>.alerta-naranja {background-color: #FFA500; padding: 10px; border-radius: 5px; color: black; font-weight: bold;}</style>", unsafe_allow_html=True)
+
 CONVERSION = {"DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A", "SI": "B"}
 
-if "texto_bruto" not in st.session_state:
-    st.session_state.texto_bruto = ""
+st.title("🎸 Validador Visual de Conflictos")
+texto_bruto = st.text_area("Editor:", height=200)
 
-st.title("🎸 Clasificador de Notas y Letras")
-st.session_state.texto_bruto = st.text_area("Pega el texto aquí:", value=st.session_state.texto_bruto, height=200)
-
-if st.session_state.texto_bruto:
-    st.subheader("Selecciona las líneas que son NOTAS:")
-    lineas = [l.strip() for l in st.session_state.texto_bruto.split('\n') if l.strip()]
-    decisiones = []
-
-    for i, oracion in enumerate(lineas):
+if texto_bruto:
+    lineas = texto_bruto.split('\n')
+    for i, linea in enumerate(lineas):
+        palabras = linea.upper().split()
+        notas_detectadas = [p for p in palabras if p in CONVERSION]
+        
+        # Lógica de conflicto
+        es_impar = (i + 1) % 2 != 0
+        hay_conflicto = (es_impar and not notas_detectadas) or (not es_impar and notas_detectadas)
+        
         col_check, col_texto = st.columns([0.1, 0.9])
         with col_check:
-            es_nota = st.checkbox("", value=((i+1)%2!=0), key=f"check_{i}")
+            es_nota = st.checkbox("", value=es_impar, key=f"v_{i}")
         with col_texto:
-            st.markdown(f"**{oracion}**")
-        decisiones.append((oracion, es_nota))
-
-    if st.button("⚙️ Procesar"):
-        resultado = []
-        for texto, marca_nota in decisiones:
-            if marca_nota:
-                conv = "   ".join([CONVERSION.get(p.upper(), p) for p in texto.split()])
-                resultado.append(conv)
+            if hay_conflicto:
+                st.markdown(f'<div class="alerta-naranja">⚠️ Revisar: {linea}</div>', unsafe_allow_html=True)
             else:
-                resultado.append(texto)
-        st.code("\n".join(resultado))
+                st.write(linea)
