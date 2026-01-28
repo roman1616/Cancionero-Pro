@@ -1,85 +1,107 @@
 import streamlit as st
 
-# 1. Configuración de página
-st.set_page_config(page_title="Validador Musical Pro 2026", layout="wide")
+# 1. Configuración Pro 2026
+st.set_page_config(page_title="Validador Musical Avanzado", layout="wide")
 
-# Diccionario de cifrado americano
+# Diccionario de cifrado
 CONVERSION = {
     "DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A", "SI": "B", 
     "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#",
     "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb"
 }
 
-# Palabras que suelen causar confusión (Ambiguas)
+# Notas que pueden confundirse con palabras comunes
 AMBIGUAS = ["SOL", "LA", "SI", "DO", "RE"]
 
-# --- ESTILO CSS ---
+# --- ESTILO DARK CON ALERTAS ---
 st.markdown("""
     <style>
     .stApp { background-color: #0E1117; color: white; }
-    .status-error { color: #FF4B4B; font-weight: bold; }
-    .status-warning { color: #FFA500; font-style: italic; }
+    .status-check { color: #00FF00; font-size: 0.9rem; } /* Verde: OK */
+    .status-ambiguous { color: #FFA500; font-size: 0.9rem; font-weight: bold; } /* Naranja: Duda */
+    .status-note { color: #FF4B4B; font-size: 0.9rem; } /* Rojo: Nota detectada */
     </style>
     """, unsafe_allow_html=True)
 
 if "texto_bruto" not in st.session_state:
     st.session_state.texto_bruto = ""
+if "fase_validacion" not in st.session_state:
+    st.session_state.fase_validacion = False
 
 # --- CARGA DE ARCHIVO ---
 def al_cargar():
     if st.session_state.uploader_key:
         st.session_state.texto_bruto = st.session_state.uploader_key.read().decode("utf-8")
+        st.session_state.fase_validacion = True
 
-st.title("🎸 Transpositor con Detector de Errores")
-st.file_uploader("📂 Cargar canción (.txt)", type=["txt"], key="uploader_key", on_change=al_subir)
+st.title("🎸 Transpositor con Detector de Ambigüedad")
+st.file_uploader("📂 Sube tu archivo .txt", type=["txt"], key="uploader_key", on_change=al_cargar)
 
-st.session_state.texto_bruto = st.text_area("Pega o edita el texto aquí:", value=st.session_state.texto_bruto, height=200)
+# Editor Inicial
+st.session_state.texto_bruto = st.text_area(
+    "1. Ingresa o edita el texto original:",
+    value=st.session_state.texto_bruto,
+    height=200,
+    key="editor_inicial"
+)
 
-if st.button("🔍 Analizar Coincidencias y Errores"):
-    if st.session_state.texto_bruto:
-        lineas = st.session_state.texto_bruto.split('\n')
-        resultado_final = []
+if st.button("🔍 Iniciar Análisis de Coincidencias"):
+    st.session_state.fase_validacion = True
+
+# --- FASE DE VALIDACIÓN INTELIGENTE ---
+if st.session_state.fase_validacion and st.session_state.texto_bruto:
+    st.divider()
+    st.subheader("2. Revisión de Coincidencias y Errores")
+    st.info("Revisa las alertas antes de procesar. Las notas sospechosas están marcadas en naranja.")
+    
+    lineas = [l.strip() for l in st.session_state.texto_bruto.split('\n') if l.strip()]
+    decisiones_usuario = []
+
+    for i, oracion in enumerate(lineas):
+        palabras = oracion.upper().split()
+        notas_reales = [p for p in palabras if p in CONVERSION and p not in AMBIGUAS]
+        notas_dudosas = [p for p in palabras if p in AMBIGUAS]
         
-        st.divider()
-        st.subheader("⚠️ Informe de Análisis por Renglón:")
-
-        for i, linea in enumerate(lineas):
-            palabras = linea.upper().split()
-            # Buscamos si hay notas musicales en el renglón
-            notas_encontradas = [p for p in palabras if p in CONVERSION]
-            # Buscamos si hay palabras ambiguas (como "SOL" o "LA")
-            notas_ambiguas = [p for p in palabras if p in AMBIGUAS]
-            
-            col_check, col_info, col_texto = st.columns([0.1, 0.4, 0.5])
-            
-            with col_check:
-                # Sugerencia inteligente: si hay notas y no son todas ambiguas, es música
-                es_nota_sugerido = len(notas_encontradas) > 0 and (i + 1) % 2 != 0
-                es_nota = st.checkbox("", value=es_nota_sugerido, key=f"c_{i}")
-            
-            with col_info:
-                if not notas_encontradas:
-                    st.write("✅ Texto puro")
-                elif len(notas_ambiguas) > 0 and len(notas_encontradas) == len(notas_ambiguas):
-                    st.markdown(f"<span class='status-warning'>❓ Ambigüedad: '{', '.join(notas_ambiguas)}'</span>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"<span class='status-error'>🎵 Notas detectadas: {', '.join(notas_encontradas)}</span>", unsafe_allow_html=True)
-            
-            with col_texto:
-                st.write(f"**{linea}**")
-            
-            # Guardamos decisión
-            if es_nota:
-                conv = "   ".join([CONVERSION.get(p.upper(), p) for p in linea.split()])
-                resultado_final.append(conv)
+        col_chk, col_stat, col_txt = st.columns([0.05, 0.25, 0.7])
+        
+        with col_chk:
+            # Sugerimos que es nota si hay notas claras o es impar
+            sugerencia = len(notas_reales) > 0 or (len(notas_dudosas) > 0 and (i+1)%2 != 0)
+            es_nota = st.checkbox("", value=sugerencia, key=f"v_{i}")
+        
+        with col_stat:
+            if notas_reales:
+                st.markdown(f"<span class='status-note'>🎵 Notas: {', '.join(notas_reales)}</span>", unsafe_allow_html=True)
+            elif notas_dudosas:
+                st.markdown(f"<span class='status-ambiguous'>❓ Ambiguo: {', '.join(notas_dudosas)}</span>", unsafe_allow_html=True)
             else:
-                resultado_final.append(linea)
+                st.markdown("<span class='status-check'>📝 Texto</span>", unsafe_allow_html=True)
+        
+        with col_txt:
+            st.write(oracion)
+        
+        decisiones_usuario.append((oracion, es_nota))
 
-        # --- GENERAR DESCARGA ---
-        st.divider()
-        st.download_button(
-            label="💾 Descargar Resultado Corregido",
-            data="\n".join(resultado_final),
-            file_name="cancion_validada.txt",
-            use_container_width=True
-        )
+    # --- PROCESO FINAL ---
+    st.divider()
+    if st.button("🚀 Generar Cifrado Validado"):
+        resultado = []
+        for txt, es_n in decisiones_usuario:
+            if es_n:
+                # Conversión aplicando diccionario
+                pals = txt.split()
+                linea_c = "   ".join([CONVERSION.get(p.upper().strip(".,!"), p) for p in pals])
+                resultado.append(linea_c)
+            else:
+                resultado.append(txt)
+        
+        final_txt = "\n".join(resultado)
+        st.success("¡Archivo procesado sin ambigüedades!")
+        st.code(final_txt, language=None)
+        
+        st.download_button("💾 Descargar Resultado Final", data=final_txt, file_name="musica_validada.txt")
+
+if st.button("🗑️ Reiniciar Editor"):
+    st.session_state.texto_bruto = ""
+    st.session_state.fase_validacion = False
+    st.rerun()
