@@ -1,17 +1,19 @@
 import streamlit as st
 import streamlit.components.v1 as components
-import re
 
 class Config:
-    """Ajustes de estilo y mapeo de notas."""
+    """Configuración Maestra."""
     LH = 32
-    COLOR_NOTAS = "#1E1E1E"
-    COLOR_LETRA = "#16213E"
+    COLOR_NOTAS = "#1E1E1E" # Gris
+    COLOR_LETRA = "#16213E" # Azul
     TEXTO = "#FFFFFF !important"
     ANCHO = "2500px"
+    # Diccionario de conversión directa
     MAPA = {
         "DO": "C", "RE": "D", "MI": "E", "FA": "F", "SOL": "G", "LA": "A", "SI": "B",
-        "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#"
+        "DO#": "C#", "RE#": "D#", "FA#": "F#", "SOL#": "G#", "LA#": "A#",
+        "REB": "Db", "MIB": "Eb", "SOLB": "Gb", "LAB": "Ab", "SIB": "Bb",
+        "C": "C", "D": "D", "E": "E", "F": "F", "G": "G", "A": "A", "B": "B"
     }
 
 class StyleEngine:
@@ -51,53 +53,49 @@ class MusicEditor:
         elif st.session_state.txt != "" and f is None:
             st.session_state.txt = ""; st.session_state.v += 1; st.rerun()
 
-    def convertir_cifrado(self):
-        """Procesa líneas impares desde la 9: Latino -> Am' o Am -> Am'"""
+    def procesar_notas(self):
+        """Lógica bruta: reemplaza notas latinas por americanas + apostrofe."""
         lineas = st.session_state.txt.split("\n")
         nuevas = []
         for i, linea in enumerate(lineas):
-            # Línea 9 en adelante (i >= 8) y líneas impares (1, 3, 5...)
+            # Línea 9 en adelante e impares
             if (i + 1) >= 9 and (i + 1) % 2 != 0:
-                # Separar manteniendo espacios para no romper alineación
-                partes = re.split(r'(\s+)', linea)
-                procesadas = []
-                for p in partes:
-                    p_up = p.upper().strip()
-                    # 1. Si es Latino
-                    if p_up in Config.MAPA:
-                        procesadas.append(Config.MAPA[p_up] + "'")
-                    # 2. Si ya es Americano (C, G, Am, etc.)
-                    elif p.strip() and re.match(r'^[A-G][#bM1-9]*$', p.strip().upper()):
-                        procesadas.append(p.strip() + "'")
+                palabras = linea.split(" ")
+                linea_procesada = []
+                for p in palabras:
+                    limpia = p.upper().replace("'", "").strip()
+                    if limpia in Config.MAPA:
+                        # Reemplaza por la americana y pone el apostrofe
+                        linea_procesada.append(Config.MAPA[limpia] + "'")
                     else:
-                        procesadas.append(p)
-                nuevas.append("".join(procesadas))
+                        linea_procesada.append(p)
+                nuevas.append(" ".join(linea_procesada))
             else:
                 nuevas.append(linea)
         
         st.session_state.txt = "\n".join(nuevas)
-        st.session_state.v += 1 # Forzamos nueva versión del widget para que se VEA el cambio
+        st.session_state.v += 1 # Cambia key para que Streamlit refresque el texto
         st.rerun()
 
-    def render_interfaz(self):
-        st.title("🎸 Editor Musical Pro")
-        if st.button("🔄 CONVERTIR NOTAS (L9+)"):
-            self.convertir_cifrado()
+    def render(self):
+        st.title("🎸 Editor Pro 2026")
+        if st.button("🔄 CONVERTIR CIFRADO (L9+)"):
+            self.procesar_notas()
 
         n = len(st.session_state.txt.split("\n"))
-        # El editor se guarda en session_state cada vez que cambia
-        st.session_state.txt = st.text_area(
-            "Editor", value=st.session_state.txt, height=(n*Config.LH)+40, 
-            key=f"ed_v{st.session_state.v}", label_visibility="collapsed"
-        )
+        # Captura lo que escribes para no perderlo antes de darle al botón
+        val = st.text_area("Ed", value=st.session_state.txt, height=(n*Config.LH)+40, 
+                          key=f"e_v{st.session_state.v}", label_visibility="collapsed")
+        if val != st.session_state.txt:
+            st.session_state.txt = val
 
-    def render_js_save(self):
+    def render_save(self):
         if st.session_state.txt:
             t_js = st.session_state.txt.replace("`", "\\`").replace("${", "\\${")
             nom = st.session_state.nom
             components.html(f"""
                 <div style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000;">
-                    <button id="sv" style="width: 180px; height: 50px; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; color: white; background: #007AFF; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">💾 GUARDAR</button>
+                    <button id="sv" style="width: 180px; height: 50px; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; color: white; background: #007AFF;">💾 GUARDAR</button>
                 </div>
                 <script>
                     document.getElementById('sv').onclick = async function() {{
@@ -115,8 +113,8 @@ class MusicEditor:
                 </script>
             """, height=80)
 
-# --- EJECUCIÓN ---
+# --- GO ---
 app = MusicEditor()
 app.gestionar_sync()
-app.render_interfaz()
-app.render_js_save()
+app.render()
+app.render_save()
