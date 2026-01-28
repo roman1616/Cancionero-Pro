@@ -72,7 +72,7 @@ if archivo:
     es_linea_musica_anterior = False
 
     for idx, linea in enumerate(lineas):
-        if idx < 1: continue 
+        if idx < 0: continue # maneja desde que renglon empieza a escanear
         
         # APLICACIÓN DE CRITERIOS
         es_musica = es_musica_obvia(linea)
