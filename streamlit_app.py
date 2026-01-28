@@ -35,39 +35,43 @@ def transformar_linea(linea):
                 linea_lista[inicio + i] = char
     return "".join(linea_lista)
 
-st.markdown("<h1 style='text-align: center;'>🎹 Cancionero Pro 🎹</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>Cancionero Pro</h1>", unsafe_allow_html=True)
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
 if archivo:
-    lineas_originales = archivo.getvalue().decode("utf-8").splitlines()
-    total = len(lineas_originales)
+    contenido = archivo.getvalue().decode("utf-8").split('\n')
     
-    st.divider()
-    # Selector numérico simple y directo
-    desde_renglon = st.number_input("Procesar desde el renglón número:", min_value=1, max_value=total, value=7)
+    # --- SELECTOR DE RENGONES ---
+    st.write("### Selecciona los renglones a procesar:")
+    opciones = [f"Línea {i+1}: {linea[:50]}..." for i, linea in enumerate(contenido)]
     
-    st.info(f"Se procesarán los renglones del **{desde_renglon} al {total}**. Los primeros {desde_renglon-1} quedarán intactos.")
+    # Pre-seleccionamos de la línea 5 hasta el final
+    seleccionadas = st.multiselect(
+        "Renglones activos:", 
+        options=range(len(contenido)), 
+        format_func=lambda x: opciones[x],
+        default=range(4, len(contenido))
+    )
 
-    if st.button("🚀 Procesar Canción"):
-        resultado = []
-        for i, linea in enumerate(lineas_originales):
-            # El índice de Python empieza en 0, por eso restamos 1
-            if i >= (desde_renglon - 1):
-                resultado.append(transformar_linea(linea))
+    if st.button("Procesar Selección"):
+        resultado_final = []
+        for i, linea in enumerate(contenido):
+            if i in seleccionadas:
+                resultado_final.append(transformar_linea(linea))
             else:
-                resultado.append(linea)
+                resultado_final.append(linea)
         
-        texto_final = "\n".join(resultado)
+        texto_final = "\n".join(resultado_final)
         st.subheader("Vista Previa:")
         st.code(texto_final, language="text")
 
-        # --- Bloque de Descarga/Compartir ---
+        # JavaScript para Guardar/Compartir
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
             <style>
-                .action-bar {{ position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 999; }}
-                .btn {{ width: 140px; height: 48px; border: none; border-radius: 24px; font-weight: bold; cursor: pointer; color: white; }}
+                .action-bar {{ position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; }}
+                .btn {{ width: 140px; height: 45px; border: none; border-radius: 20px; font-weight: bold; cursor: pointer; color: white; }}
                 .dl {{ background: #007AFF; }} .sh {{ background: #34C759; }}
             </style>
             <div class="action-bar">
@@ -77,13 +81,12 @@ if archivo:
             <script>
                 const content = `{texto_js}`;
                 document.getElementById('dl').onclick = () => {{
-                    const b = new Blob([content], {{type:'text/plain;charset=utf-8'}});
+                    const b = new Blob([content], {{type:'text/plain'}});
                     const a = document.createElement('a');
                     a.href = URL.createObjectURL(b); a.download = "PRO_{archivo.name}"; a.click();
                 }};
                 document.getElementById('sh').onclick = async () => {{
-                    const b = new Blob([content], {{type:'text/plain;charset=utf-8'}});
-                    const file = new File([b], "{archivo.name}", {{type:'text/plain'}});
+                    const file = new File([new Blob([content])], "{archivo.name}", {{type:'text/plain'}});
                     if(navigator.share) await navigator.share({{files: [file]}});
                 }};
             </script>
