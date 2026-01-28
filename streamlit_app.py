@@ -35,7 +35,7 @@ def transformar_linea(linea):
                 linea_lista[inicio + i] = char
     return "".join(linea_lista)
 
-st.markdown("<h1 style='text-align: center;'>🎹 Cancionero Pro</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>🎹 Cancionero Pro 🎹</h1>", unsafe_allow_html=True)
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
