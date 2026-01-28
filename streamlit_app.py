@@ -15,11 +15,11 @@ class StyleEngine:
     def aplicar():
         st.markdown(f"""
             <style>
-            /* 1. VISIBILIDAD: Forzamos transparencia en capas intermedias */
+            /* VISIBILIDAD: Forzamos transparencia en capas intermedias */
             [data-testid="stTextArea"] div, [data-baseweb="textarea"] > div {{
                 background-color: transparent !important;
             }}
-            /* 2. TEXTO: Blanco puro sobre fondo rayado */
+            /* TEXTO: Blanco puro sobre fondo rayado */
             textarea {{
                 color: {Config.TEXTO};
                 -webkit-text-fill-color: {Config.TEXTO};
@@ -49,7 +49,6 @@ class MusicEditorApp:
         StyleEngine.aplicar()
 
     def gestionar_sync(self):
-        """Limpia el editor al quitar el archivo usando cambio de clave."""
         f = st.file_uploader("Cargar", type=['txt'], key="u_f", label_visibility="collapsed")
         if f:
             st.session_state.nom = f.name
@@ -57,20 +56,17 @@ class MusicEditorApp:
             if st.session_state.txt != c:
                 st.session_state.txt = c; st.session_state.v += 1; st.rerun()
         elif st.session_state.txt != "" and f is None:
-            # SI SE QUITA EL ARCHIVO: Reset total
             st.session_state.txt = ""; st.session_state.v += 1; st.rerun()
 
     def render_editor(self):
         n = len(st.session_state.txt.split("\n"))
         h = (n * Config.LH) + 40
-        # El editor actualiza el estado al escribir
         st.session_state.txt = st.text_area("Ed", value=st.session_state.txt, height=h, 
                                            key=f"e_{st.session_state.v}", label_visibility="collapsed")
 
     def boton_save_file(self):
-        """Inyecta tu lógica JS corregida para entorno Streamlit."""
+        """Inyecta la lógica JS corregida con pregunta de descarga en PC."""
         if st.session_state.txt:
-            # Protegemos el texto para JavaScript
             t_js = st.session_state.txt.replace("`", "\\`").replace("${", "\\${")
             nom = st.session_state.nom
             
@@ -87,6 +83,7 @@ class MusicEditorApp:
                         
                         const esPC = /Windows|Macintosh|Linux/i.test(navigator.userAgent) && !/iPhone|iPad|Android/i.test(navigator.userAgent);
 
+                        // LÓGICA DE COMPARTIR (Móvil)
                         if (!esPC && navigator.canShare && navigator.canShare({{ files: [file] }})) {{
                             if (confirm("🎵 COMPARTIR 🎵\\n\\n¿Deseas compartir este archivo?")) {{
                                 try {{
@@ -95,9 +92,19 @@ class MusicEditorApp:
                                 }} catch (e) {{ console.log("Cancelado"); }}
                             }}
                         }}
-                        // Descarga si es PC o canceló compartir
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob); a.download = "PRO_" + currentFileName; a.click();
+                        
+                        // LÓGICA DE DESCARGA (PC o Cancelado en móvil)
+                        let procederDescarga = true;
+                        if (esPC) {{
+                            procederDescarga = confirm("💾 DESCARGAR 💾\\n\\n¿Deseas guardar el archivo localmente en tu PC?");
+                        }}
+
+                        if (procederDescarga) {{
+                            const a = document.createElement('a');
+                            a.href = URL.createObjectURL(blob); 
+                            a.download = "PRO_" + currentFileName; 
+                            a.click();
+                        }}
                     }};
                 </script>
             """, height=80)
