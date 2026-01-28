@@ -2,6 +2,33 @@ import streamlit as st  # Librería principal para la interfaz web interactiva
 import re  # Módulo de Expresiones Regulares para búsqueda y manipulación de texto
 import streamlit.components.v1 as components  # Permite inyectar código HTML/JS personalizado
 
+
+st.markdown("""
+    <style>
+    /* Cuadro de Información (st.info) */
+    .stAlert:has(div[aria-label="info"]) {
+        background-color: #e3f2fd;
+        color: #0d47a1;
+        border: 1px solid #bbdefb;
+    }
+    
+    /* Cuadro de Éxito (st.success) */
+    .stAlert:has(div[aria-label="success"]) {
+        background-color: #e8f5e9;
+        color: #1b5e20;
+        border: 1px solid #c8e6c9;
+    }
+
+    /* Cuadro de Advertencia (st.warning) */
+    .stAlert:has(div[aria-label="warning"]) {
+        background-color: #fff3e0;
+        color: #e65100;
+        border: 1px solid #ffe0b2;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
 # Configura la página: Título en la pestaña y ancho centrado del contenido
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
