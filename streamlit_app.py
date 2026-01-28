@@ -1,21 +1,21 @@
 import streamlit as st
 
 class EditorConfig:
-    """Configuración maestra para evitar errores de sincronización."""
+    """Valores constantes para garantizar la alineación y visibilidad."""
     LH = 32
     GRIS = "#1E1E1E"
     AZUL = "#252A34"
     TEXTO = "#FFFFFF !important"
     ANCHO = "2500px"
 
-class StyleEngine:
-    """Inyección de CSS para visibilidad absoluta y fondo sincronizado."""
+class StyleManager:
+    """Inyecta CSS con máxima prioridad para evitar cambios visuales inesperados."""
     @staticmethod
     def aplicar():
         st.markdown(f"""
             <style>
-            /* VISIBILIDAD TOTAL */
-            div[data-baseweb="textarea"] textarea {{
+            /* VISIBILIDAD: Forzamos el color blanco en el nivel más profundo */
+            [data-testid="stTextArea"] textarea {{
                 color: {EditorConfig.TEXTO};
                 -webkit-text-fill-color: {EditorConfig.TEXTO};
                 caret-color: white !important;
@@ -26,17 +26,20 @@ class StyleEngine:
                 white-space: pre !important;
                 overflow-wrap: normal !important;
                 background: transparent !important;
-                padding: 0 !important;
+                padding: 0px !important;
             }}
-            /* CONTENEDOR Y RAYADO */
+            /* FONDO: Sincronización milimétrica de las franjas */
             div[data-baseweb="textarea"] {{
                 background-color: {EditorConfig.GRIS} !important;
-                background-image: linear-gradient({EditorConfig.GRIS} 50%, {EditorConfig.AZUL} 50%) !important;
+                background-image: linear-gradient(
+                    {EditorConfig.GRIS} 50%, 
+                    {EditorConfig.AZUL} 50%
+                ) !important;
                 background-size: {EditorConfig.ANCHO} {EditorConfig.LH * 2}px !important;
                 background-attachment: local !important;
                 background-position: 0px 0px !important;
                 overflow-x: auto !important;
-                padding: 0 !important;
+                border: 1px solid #444 !important;
             }}
             [data-testid="stFileUploader"] label {{ display: none; }}
             </style>
@@ -44,45 +47,46 @@ class StyleEngine:
 
 class MusicEditorApp:
     def __init__(self):
-        # Estado maestro
+        # Inicializamos el texto y una versión para forzar el reset del widget
         if "texto_maestro" not in st.session_state:
             st.session_state.texto_maestro = ""
-        StyleEngine.aplicar()
+        if "editor_version" not in st.session_state:
+            st.session_state.editor_version = 0
+        StyleManager.aplicar()
 
-    def gestionar_entrada(self):
-        # 1. Cargador de archivos
+    def gestionar_archivo(self):
+        """Maneja la carga y limpieza total al quitar el archivo."""
         archivo = st.file_uploader("Subir", type=['txt'], key="u_file", label_visibility="collapsed")
         
-        # 2. Lógica de Sincronización Forzada
         if archivo is not None:
-            contenido_subido = archivo.read().decode("utf-8")
-            if st.session_state.texto_maestro != contenido_subido:
-                st.session_state.texto_maestro = contenido_subido
+            contenido = archivo.read().decode("utf-8")
+            if st.session_state.texto_maestro != contenido:
+                st.session_state.texto_maestro = contenido
+                st.session_state.editor_version += 1 # Cambia la identidad del editor
                 st.rerun()
         else:
-            # ANTICIPACIÓN: Si el uploader está vacío pero hay texto, LIMPIAMOS TODO
+            # Si se quita el archivo, reseteamos todo
             if st.session_state.texto_maestro != "":
                 st.session_state.texto_maestro = ""
-                # Borramos también la memoria interna del widget
-                if "main_editor" in st.session_state:
-                    del st.session_state["main_editor"]
+                st.session_state.editor_version += 1
                 st.rerun()
 
     def mostrar_editor(self):
+        """Dibuja el editor con una clave única para evitar que retenga basura."""
         n_lineas = len(st.session_state.texto_maestro.split("\n"))
         altura = (n_lineas * EditorConfig.LH) + 40
         
-        # El valor del editor siempre sigue al estado maestro
+        # Al añadir 'editor_version' a la key, el widget se destruye y recrea al limpiar
         st.session_state.texto_maestro = st.text_area(
             "Editor Musical",
             value=st.session_state.texto_maestro,
             height=altura,
-            key="main_editor",
+            key=f"editor_v{st.session_state.editor_version}",
             label_visibility="collapsed"
         )
 
 # --- EJECUCIÓN ---
-st.title("🎸 Editor Pro Sincronizado")
+st.title("🎸 Editor Blindado 2026")
 app = MusicEditorApp()
-app.gestionar_entrada()
+app.gestionar_archivo()
 app.mostrar_editor()
