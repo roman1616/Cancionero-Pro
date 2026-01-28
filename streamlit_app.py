@@ -1,28 +1,51 @@
 import streamlit as st
 
-class EditorConfig:
-    """Configuración Maestra."""
+class Config:
+    """Configuración Maestra de Sincronización."""
     LH = 32
     COLOR_NOTAS = "#1E1E1E" # Gris
-    COLOR_LETRA = "#16213E" # Azul Profundo
-    TEXTO = "#FFFFFF !important"
+    COLOR_LETRA = "#16213E" # Azul
+    BLANCO = "#FFFFFF !important"
     ANCHO = "2500px"
 
-class StyleManager:
-    """Fuerza el coloreado de renglones y la visibilidad del texto."""
+class StyleEngine:
+    """Anula capas de Streamlit y fuerza visibilidad de fondo y texto."""
     @staticmethod
-    def aplicar():
+    def inyectar():
         st.markdown(f"""
             <style>
-            /* 1. VISIBILIDAD DEL TEXTO: Forzamos el color blanco */
+            /* 1. LIMPIEZA DE CAPAS INTERNAS: Quitamos todos los fondos de Streamlit */
+            div[data-testid="stTextArea"], 
+            div[data-testid="stTextArea"] > div, 
+            div[data-baseweb="textarea"],
+            div[data-baseweb="textarea"] > div {{
+                background-color: transparent !important;
+                background-image: none !important;
+            }}
+
+            /* 2. APLICACIÓN DEL RAYADO: En el nivel más profundo para que nada lo tape */
+            div[data-baseweb="textarea"] {{
+                background-color: {Config.COLOR_NOTAS} !important;
+                background-image: linear-gradient(
+                    {Config.COLOR_NOTAS} 50%, 
+                    {Config.COLOR_LETRA} 50%
+                ) !important;
+                background-size: {Config.ANCHO} {Config.LH * 2}px !important;
+                background-attachment: local !important;
+                background-position: 0px 0px !important;
+                overflow-x: auto !important;
+                border: 1px solid #444 !important;
+            }}
+
+            /* 3. VISIBILIDAD DEL TEXTO: Forzamos color y alineación */
             textarea {{
-                color: {EditorConfig.TEXTO};
-                -webkit-text-fill-color: {EditorConfig.TEXTO};
+                color: {Config.BLANCO};
+                -webkit-text-fill-color: {Config.BLANCO};
                 caret-color: white !important;
-                font-family: 'Courier New', monospace !important;
+                font-family: 'Courier New', Courier, monospace !important;
                 font-size: 18px !important;
-                line-height: {EditorConfig.LH}px !important;
-                width: {EditorConfig.ANCHO} !important;
+                line-height: {Config.LH}px !important;
+                width: {Config.ANCHO} !important;
                 white-space: pre !important;
                 overflow-wrap: normal !important;
                 background: transparent !important;
@@ -30,66 +53,43 @@ class StyleManager:
                 border: none !important;
             }}
 
-            /* 2. FORZAR COLOREADO DE RENGLONES */
-            /* Atacamos el contenedor de control de Streamlit que suele tapar todo */
-            div[data-baseweb="textarea"], div[data-testid="stTextArea"] > div {{
-                background-color: {EditorConfig.COLOR_NOTAS} !important;
-                background-image: linear-gradient(
-                    {EditorConfig.COLOR_NOTAS} 50%, 
-                    {EditorConfig.COLOR_LETRA} 50%
-                ) !important;
-                background-size: {EditorConfig.ANCHO} {EditorConfig.LH * 2}px !important;
-                background-attachment: local !important;
-                background-position: 0px 0px !important;
-                overflow-x: auto !important;
-            }}
-
-            /* 3. LIMPIEZA DE BORDES Y SOMBRAS */
-            div[data-baseweb="textarea"] {{
-                border: 1px solid #444 !important;
-            }}
-            
+            /* Ocultar elementos del uploader */
             [data-testid="stFileUploader"] label {{ display: none; }}
             </style>
         """, unsafe_allow_html=True)
 
-class MusicEditorApp:
+class MusicEditor:
     def __init__(self):
-        if "texto" not in st.session_state:
-            st.session_state.texto = ""
-        if "ver" not in st.session_state:
-            st.session_state.ver = 0
-        StyleManager.aplicar()
+        if "txt" not in st.session_state: st.session_state.txt = ""
+        if "v" not in st.session_state: st.session_state.v = 0
+        StyleEngine.inyectar()
 
-    def sync(self):
-        """Sincroniza el cargador con el editor y limpia al cerrar."""
-        f = st.file_uploader("Subir", type=['txt'], key="u_file", label_visibility="collapsed")
+    def gestionar_archivo(self):
+        f = st.file_uploader("Cargar", type=['txt'], key="u_file", label_visibility="collapsed")
+        # Si se carga archivo nuevo
         if f:
             c = f.read().decode("utf-8")
-            if st.session_state.texto != c:
-                st.session_state.texto = c
-                st.session_state.ver += 1
+            if st.session_state.txt != c:
+                st.session_state.txt = c
+                st.session_state.v += 1
                 st.rerun()
-        elif st.session_state.texto != "" and f is None:
-            st.session_state.texto = ""
-            st.session_state.ver += 1
+        # ANTICIPACIÓN: Si se quita el archivo, limpieza total inmediata
+        elif st.session_state.txt != "" and f is None:
+            st.session_state.txt = ""
+            st.session_state.v += 1
             st.rerun()
 
     def render(self):
-        """Dibuja el editor con key dinámica."""
-        n = len(st.session_state.texto.split("\n"))
-        h = (n * EditorConfig.LH) + 40
-        
-        st.session_state.texto = st.text_area(
-            "Editor",
-            value=st.session_state.texto,
-            height=h,
-            key=f"ed_{st.session_state.ver}",
-            label_visibility="collapsed"
+        n = len(st.session_state.txt.split("\n"))
+        h = (n * Config.LH) + 40
+        # El widget usa una key dinámica para resetearse al limpiar
+        st.session_state.txt = st.text_area(
+            "Editor", value=st.session_state.txt, height=h,
+            key=f"ed_{st.session_state.v}", label_visibility="collapsed"
         )
 
-# --- APP ---
+# --- EJECUCIÓN ---
 st.title("🎸 Editor Pro Sincronizado")
-app = MusicEditorApp()
-app.sync()
+app = MusicEditor()
+app.gestionar_archivo()
 app.render()
