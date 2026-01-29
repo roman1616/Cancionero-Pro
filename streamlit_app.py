@@ -89,7 +89,7 @@ st.markdown(f"""
         <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)Título corto
+st.markdown("<p style='text-align: center;'>Convierte a cifrado Americano y coloca el apóstrofe al final del acorde.</p>", unsafe_allow_html=True)
 archivo = st.file_uploader("🎼 Sube tu cancion en formato .txt", type=["txt"])         # Selector estrecho
 
 if archivo:                                                     # Si hay archivo
