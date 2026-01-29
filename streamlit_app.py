@@ -4,6 +4,40 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
+# --- CONFIGURACIÓN DE COLORES PERSONALIZADOS ---
+# Modifica estos valores para cambiar el aspecto global
+COLOR_CONFIG = {
+    "--bg": "#ffffff",
+    "--text": "#111111",
+    "--bar": "#f1f5f9",
+    "--accent": "#007AFF"
+}
+
+# Inyección de estilos CSS
+st.markdown(f"""
+<style>
+    .stApp {{
+        background-color: {COLOR_CONFIG["--bg"]};
+        color: {COLOR_CONFIG["--text"]};
+    }}
+    [data-testid="stSidebar"] {{
+        background-color: {COLOR_CONFIG["--bar"]};
+    }}
+    h1, h2, h3, p, span, label, .stMarkdown {{
+        color: {COLOR_CONFIG["--text"]} !important;
+    }}
+    .stButton>button {{
+        background-color: {COLOR_CONFIG["--accent"]};
+        color: white;
+        border: none;
+    }}
+    code {{
+        background-color: {COLOR_CONFIG["--bar"]} !important;
+        color: {COLOR_CONFIG["--text"]} !important;
+    }}
+</style>
+""", unsafe_allow_html=True)
+
 LATINO_A_AMERICANO = {
     'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 
     'SOL': 'G', 'LA': 'A', 'SI': 'B'
@@ -12,7 +46,6 @@ LATINO_A_AMERICANO = {
 def es_musica_obvia(linea):
     linea_u = linea.upper()
     if not linea.strip(): return False
-    # Verificamos símbolos comunes de acordes
     tiene_simbolos = re.search(r'[#B]|/|DIM|AUG|SUS|MAJ|ADD|[A-G]\d', linea_u)
     if tiene_simbolos: return True
     if "  " in linea: return True
@@ -27,10 +60,7 @@ def tiene_potencial_duda(linea):
     return len(notas_mayus) > 0
 
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
-    # Estandarizamos todo a MAYÚSCULAS al inicio
     lineas = texto_bruto.upper().replace('\r\n', '\n').split('\n')
-    
-    # Patrón: Raíz + Alteración (#/B) + Cualidad (M/MAJ/etc) + Número
     patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#B])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
     
     def traducir_acorde(match):
@@ -38,13 +68,8 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
         alteracion = match.group(2) or ""
         cualidad = match.group(3) or ""
         numero = match.group(4) or ""
-        
         raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
-        
-        # Convertimos a 'm' minúscula si es menor
-        if cualidad in ["M", "MIN"]:
-            cualidad = "m"
-            
+        if cualidad in ["M", "MIN"]: cualidad = "m"
         return f"{raiz_amer}{alteracion}{cualidad}{numero}"
 
     resultado_traduccion = []
@@ -55,15 +80,12 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
         else:
             resultado_traduccion.append(linea)
 
-    # Paso final: Añadir apóstrofe al estilo americano
     resultado_final = []
     patron_americano = r'\b([A-G][#B]?(?:m|MAJ|MIN|AUG|DIM|SUS|ADD)?[0-9]*(?:/[A-G][#B]?)?)\b'
-
     for i, linea in enumerate(resultado_traduccion):
         if i not in lineas_a_procesar:
             resultado_final.append(linea)
             continue
-            
         linea_lista = list(linea)
         ajuste = 0
         for m in re.finditer(patron_americano, linea):
@@ -76,7 +98,6 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
                 linea_lista.append("'")
                 ajuste += 1
         resultado_final.append("".join(linea_lista))
-
     return '\n'.join(resultado_final)
 
 # --- INTERFAZ ---
@@ -123,7 +144,7 @@ if archivo:
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
             <div style="text-align: center; margin-top: 20px;">
-                <button id="actionBtn" style="padding: 15px 30px; background: #007AFF; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 FINALIZAR</button>
+                <button id="actionBtn" style="padding: 15px 30px; background: {COLOR_CONFIG["--accent"]}; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 FINALIZAR</button>
             </div>
             <script>
                 document.getElementById('actionBtn').onclick = async () => {{
@@ -131,7 +152,6 @@ if archivo:
                     const fileName = "PRO_{archivo.name}";
                     const blob = new Blob([contenido], {{ type: 'text/plain' }});
                     const file = new File([blob], fileName, {{ type: 'text/plain' }});
-                    
                     if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
                         if (navigator.share) {{
                             try {{ await navigator.share({{ files: [file] }}); return; }} 
