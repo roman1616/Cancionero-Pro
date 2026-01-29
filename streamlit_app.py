@@ -113,36 +113,47 @@ if archivo:
             if st.checkbox(f"Renglón {idx+1}: {lineas_orig[idx].strip()}", value=False, key=idx):
                 seleccion_manual.append(idx)
     
-    if st.button("✨ Procesar"):
-        total_indices = confirmados_auto + seleccion_manual
-        texto_final = procesar_texto_selectivo(contenido, total_indices)
+    if st.button("✨ Procesar"):                                # Botón procesar
+        txt_fin = procesar_texto_selectivo(cont, conf + sel)    # Procesa
+        st.code(txt_fin, language="text")                       # Muestra código
+        js = txt_fin.replace("`", "\\`").replace("$", "\\$")    # Escapa JS
         
-        st.subheader("Resultado:")
-        st.code(texto_final, language="text")
-
-        texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
+        # Botón final SIN RECUADRO, ESTRECHO Y CENTRADO
         components.html(f"""
-            <div style="text-align: center; margin-top: 20px;">
-                <button id="actionBtn" style="padding: 15px 30px; background: #007AFF; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 FINALIZAR</button>
-            </div>
-            <script>
+        <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+            <button id="btn" style="
+                padding: 12px 20px; 
+                background: {COLOR_PRIMARIO}; 
+                color: white; 
+                border: none; 
+                border-radius: 10px; 
+                cursor: pointer; 
+                font-weight: bold; 
+                width: 250px; 
+                font-family: sans-serif;
+                box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+            ">💾 GUARDAR / COMPARTIR</button>
+        </div>
+        <script>
                 document.getElementById('actionBtn').onclick = async () => {{
                     const contenido = `{texto_js}`;
                     const fileName = "PRO_{archivo.name}";
                     const blob = new Blob([contenido], {{ type: 'text/plain' }});
                     const file = new File([blob], fileName, {{ type: 'text/plain' }});
                     
-                    if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
+                    if (confirm("🎵 ¿Deseas COMPARTIR el archivo? 🎵")) {{
                         if (navigator.share) {{
                             try {{ await navigator.share({{ files: [file] }}); return; }} 
                             catch(e) {{}}
                         }}
                     }}
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = fileName;
-                    a.click();
+
+                    if (confirm("💾 ¿Deseas DESCARGAR el archivo? 💾")) {{
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = fileName;
+                        a.click();
+                    }}
                 }};
             </script>
-        """, height=120)
-
+        """, height=80)                 
