@@ -1,165 +1,139 @@
-import streamlit as st
-import re
-import streamlit.components.v1 as components
+import streamlit as st                                          # Framework de interfaz
+import re                                                       # Expresiones regulares
+import streamlit.components.v1 as components                     # Componentes HTML/JS
 
-st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
+# --- CONFIGURACIÓN DE COLORES ---
+COLOR_FONDO = "#0E1117"                                         # Fondo de la aplicación
+COLOR_TEXTO = "#FFFFFF"                                         # Texto general
+COLOR_PRIMARIO = "#FF4B4B"                                      # Botones y acentos
+COLOR_BLOQUE_CODIGO = "#000000"                                 # Fondo del resultado
+COLOR_TEXTO_CODIGO = "#00FF00"                                  # Texto del resultado
+COLOR_SELECTOR = "#1E1E1E"                                      # Fondo del selector
 
-# --- CONTROL TOTAL DE COLORES ---
-# Fondo negro, texto blanco, botones naranja
-COLOR_CONFIG = {
-    "--bg": "#000000",
-    "--text": "#FFFFFF",
-    "--accent": "#FF4B2B"  # Naranja
-}
+st.set_page_config(page_title="Cancionero Pro 2026", layout="centered") # Configura la página
 
+# --- MUESTRA VISUAL DE COLORES (Cuadraditos) ---
+st.write("### 🎨 Paleta Activa")                                 # Título de paleta
+cols = st.columns(6)                                            # Crea 6 columnas
+col_data = [                                                    # Datos para los cuadritos
+    ("Fondo", COLOR_FONDO), ("Texto", COLOR_TEXTO), 
+    ("Prim.", COLOR_PRIMARIO), ("Cód.", COLOR_BLOQUE_CODIGO),
+    ("T.Cód", COLOR_TEXTO_CODIGO), ("Sel.", COLOR_SELECTOR)
+]
+for i, (name, color) in enumerate(col_data):                    # Itera y dibuja
+    cols[i].markdown(f"**{name}**")                             # Nombre del color
+    cols[i].markdown(f'<div style="background:{color};height:20px;border-radius:4px;border:1px solid grey"></div>', unsafe_allow_html=True)
+
+# Inyección de CSS para diseño centrado y sin fondos innecesarios
 st.markdown(f"""
-<style>
-    /* Fondo y texto general */
-    .stApp {{
-        background-color: {COLOR_CONFIG["--bg"]};
-        color: {COLOR_CONFIG["--text"]};
-    }}
-    h1, h2, h3, p, span, label, div {{
-        color: {COLOR_CONFIG["--text"]} !important;
-    }}
-    /* Botones específicos en naranja */
-    .stButton>button {{
-        background-color: {COLOR_CONFIG["--accent"]} !important;
-        color: white !important;
-        border: none !important;
-    }}
-    /* Quitar bordes y estilos por defecto de Streamlit que no encajen */
-    .stCodeBlock, code {{
-        background-color: #111111 !important;
-        color: {COLOR_CONFIG["--text"]} !important;
-    }}
-</style>
-""", unsafe_allow_html=True)
+    <style>
+        .stApp {{ background-color: {COLOR_FONDO}; color: {COLOR_TEXTO}; }} # Fondo app
+        h1, h2, h3, p, span, label {{ color: {COLOR_TEXTO} !important; text-align: center; }}  # Centra textos
+        
+        /* Contenedor del Selector de Archivos (SIN FONDO, ESTRECHO Y CENTRADO) */
+        [data-testid="stFileUploader"] {{
+            background-color: transparent !important;           # Quita fondo gris
+            border: 1px dashed {COLOR_PRIMARIO};                # Borde primario
+            border-radius: 10px;                                # Redondeado
+            max-width: 250px;                                   # Estrecho
+            margin: 0 auto;                                     # Centrado
+            padding: 5px;                                       # Espaciado
+        }}
+        [data-testid="stFileUploader"] section {{ background-color: transparent !important; }} # Quita fondo interno
+        [data-testid="stFileUploader"] section > div {{ display: none; }} # Oculta textos largos
+        
+        /* Botón PROCESAR (ESTRECHO Y CENTRADO) */
+        div.stButton {{ text-align: center; }}                  # Centra contenedor
+        div.stButton > button {{
+            background-color: {COLOR_PRIMARIO} !important;      # Color primario
+            color: white !important;                            # Texto blanco
+            width: 250px !important;                            # Mismo ancho que selector
+            margin: 0 auto;                                     # Centrado
+        }}
 
-LATINO_A_AMERICANO = {
-    'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 
-    'SOL': 'G', 'LA': 'A', 'SI': 'B'
-}
+        iframe {{ border: none !important; }}                     # Quita borde del componente JS
+        code {{ background-color: {COLOR_BLOQUE_CODIGO} !important; color: {COLOR_TEXTO_CODIGO} !important; }} # Estilo código
+    </style>
+""", unsafe_allow_html=True)                                    # Aplica el CSS
 
-def es_musica_obvia(linea):
-    linea_u = linea.upper()
-    if not linea.strip(): return False
-    tiene_simbolos = re.search(r'[#B]|/|DIM|AUG|SUS|MAJ|ADD|[A-G]\d', linea_u)
-    if tiene_simbolos: return True
-    if "  " in linea: return True
-    notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea_u)
-    palabras = re.findall(r'\w+', linea)
-    if len(palabras) == 1 and len(notas_mayus) == 1: return True
-    if len(set(notas_mayus)) >= 2: return True
-    return False
+LATINO_A_AMERICANO = {'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 'SOL': 'G', 'LA': 'A', 'SI': 'B'} # Mapa notas
 
-def tiene_potencial_duda(linea):
-    notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea.upper())
-    return len(notas_mayus) > 0
+def es_musica_obvia(linea):                                     # Detecta acordes claros
+    linea_u = linea.upper()                                     # Normaliza
+    if not linea.strip(): return False                          # Vacía no
+    tiene_sim = re.search(r'[#B]|/|DIM|AUG|SUS|MAJ|ADD|[A-G]\d', linea_u) # Busca símbolos
+    if tiene_sim: return True                                   # Es música
+    if "  " in linea: return True                               # Espacios largos = música
+    notas = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea_u) # Busca notas
+    pals = re.findall(r'\w+', linea)                            # Palabras
+    return (len(pals) == 1 and len(notas) == 1) or len(set(notas)) >= 2 # Lógica detección
 
-def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
-    lineas = texto_bruto.upper().replace('\r\n', '\n').split('\n')
-    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#B])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
+def tiene_potencial_duda(linea):                                # Detecta dudas
+    return len(re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea.upper())) > 0 # Notas latinas
+
+def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):   # Función principal
+    lineas = texto_bruto.upper().replace('\r\n', '\n').split('\n') # Mayúsculas
+    pat_lat = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#B])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)' # Regex
     
-    def traducir_acorde(match):
-        raiz_lat = match.group(1)
-        alteracion = match.group(2) or ""
-        cualidad = match.group(3) or ""
-        numero = match.group(4) or ""
-        raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
-        if cualidad in ["M", "MIN"]: cualidad = "m"
-        return f"{raiz_amer}{alteracion}{cualidad}{numero}"
+    def traducir_acorde(m):                                     # Traduce cada acorde
+        raiz = LATINO_A_AMERICANO.get(m.group(1), m.group(1))   # Raíz americana
+        alt = m.group(2) or ""; cual = m.group(3) or ""; n = m.group(4) or "" # Partes
+        if cual in ["M", "MIN"]: cual = "m"                     # Estandariza m minúscula
+        return f"{raiz}{alt}{cual}{n}"                          # Reconstruye
 
-    resultado_traduccion = []
-    for i, linea in enumerate(lineas):
-        if i in lineas_a_procesar:
-            linea_traducida = re.sub(patron_latino, traducir_acorde, linea)
-            resultado_traduccion.append(linea_traducida)
-        else:
-            resultado_traduccion.append(linea)
+    trad = [re.sub(pat_lat, traducir_acorde, L) if i in lineas_a_procesar else L for i, L in enumerate(lineas)] # Mapea
 
-    resultado_final = []
-    patron_americano = r'\b([A-G][#B]?(?:m|MAJ|MIN|AUG|DIM|SUS|ADD)?[0-9]*(?:/[A-G][#B]?)?)\b'
-    for i, linea in enumerate(resultado_traduccion):
-        if i not in lineas_a_procesar:
-            resultado_final.append(linea)
-            continue
-        linea_lista = list(linea)
-        ajuste = 0
-        for m in re.finditer(patron_americano, linea):
-            fin = m.end() + ajuste
-            if fin < len(linea_lista):
-                if linea_lista[fin] not in ["'", "*"]:
-                    linea_lista.insert(fin, "'")
-                    ajuste += 1
-            else:
-                linea_lista.append("'")
-                ajuste += 1
-        resultado_final.append("".join(linea_lista))
-    return '\n'.join(resultado_final)
+    res = []                                                    # Paso apóstrofes
+    pat_am = r'\b([A-G][#B]?(?:m|MAJ|MIN|AUG|DIM|SUS|ADD)?[0-9]*(?:/[A-G][#B]?)?)\b' # Regex americano
+    for i, linea in enumerate(trad):                            # Recorre
+        if i not in lineas_a_procesar: res.append(linea); continue # Salta letra
+        lis = list(linea); aju = 0                              # Procesa caracteres
+        for m in re.finditer(pat_am, linea):                    # Busca acordes
+            fin = m.end() + aju                                 # Posición final
+            if fin < len(lis) and lis[fin] not in ["'", "*"]: lis.insert(fin, "'"); aju += 1 # Inserta '
+            elif fin >= len(lis): lis.append("'"); aju += 1     # Fin de línea
+        res.append("".join(lis))                                # Une
+    return '\n'.join(res)                                       # Retorna todo
 
 # --- INTERFAZ ---
-st.title("🎸 Cancionero Inteligente 2026")
-archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
+st.title("🎸 Cancionero 2026")                                  # Título
+archivo = st.file_uploader("Archivo .txt", type=["txt"])         # Selector transparente y pequeño
 
-if archivo:
-    contenido = archivo.getvalue().decode("utf-8")
-    lineas_orig = contenido.split('\n')
-    confirmados_auto = []
-    indices_duda = []
-    es_linea_musica_anterior = False
-
-    for idx, linea in enumerate(lineas_orig):
-        if es_linea_musica_anterior:
-            es_linea_musica_anterior = False
-            continue
-        if es_musica_obvia(linea):
-            confirmados_auto.append(idx)
-            es_linea_musica_anterior = True
-        elif tiene_potencial_duda(linea):
-            indices_duda.append(idx)
-            es_linea_musica_anterior = False
-        else:
-            es_linea_musica_anterior = False
-
-    st.subheader("🔍 Análisis")
-    st.success(f"Se detectaron {len(confirmados_auto)} líneas automáticamente.")
-
-    seleccion_manual = []
-    if indices_duda:
-        st.warning("Confirma si estas líneas son música:")
-        for idx in indices_duda:
-            if st.checkbox(f"Renglón {idx+1}: {lineas_orig[idx].strip()}", value=False, key=idx):
-                seleccion_manual.append(idx)
+if archivo:                                                     # Si hay archivo
+    cont = archivo.getvalue().decode("utf-8"); l_orig = cont.split('\n') # Lee
+    conf, duda = [], []; es_mus = False                         # Listas control
+    for idx, lin in enumerate(l_orig):                          # Escanea
+        if es_mus: es_mus = False; continue                     # Salta letra tras música
+        if es_musica_obvia(lin): conf.append(idx); es_mus = True # Música
+        elif tiene_potencial_duda(lin): duda.append(idx)        # Duda
     
-    if st.button("✨ Procesar"):
-        total_indices = confirmados_auto + seleccion_manual
-        texto_final = procesar_texto_selectivo(contenido, total_indices)
+    if duda:                                                    # Si hay dudas
+        st.warning("¿Son música?")                              # Aviso centrado
+        sel = [idx for idx in duda if st.checkbox(f"L{idx+1}: {l_orig[idx].strip()}", key=idx)] # Checks
+    else: sel = []                                              # Sin selección
+    
+    if st.button("✨ Procesar"):                                # Botón procesar centrado
+        txt_fin = procesar_texto_selectivo(cont, conf + sel)    # Ejecuta proceso
+        st.code(txt_fin, language="text")                       # Muestra resultado
+        js = txt_fin.replace("`", "\\`").replace("$", "\\$")    # Escapa para JS
         
-        st.subheader("Resultado:")
-        st.code(texto_final, language="text")
-
-        texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
-            <div style="text-align: center; margin-top: 20px;">
-                <button id="actionBtn" style="padding: 15px 30px; background: {COLOR_CONFIG["--accent"]}; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 FINALIZAR</button>
-            </div>
-            <script>
-                document.getElementById('actionBtn').onclick = async () => {{
-                    const contenido = `{texto_js}`;
-                    const fileName = "PRO_{archivo.name}";
-                    const blob = new Blob([contenido], {{ type: 'text/plain' }});
-                    const file = new File([blob], fileName, {{ type: 'text/plain' }});
-                    if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
-                        if (navigator.share) {{
-                            try {{ await navigator.share({{ files: [file] }}); return; }} 
-                            catch(e) {{}}
-                        }}
-                    }}
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = fileName;
-                    a.click();
-                }};
-            </script>
-        """, height=120)
+        <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+            <button id="btn" style="
+                padding: 12px 20px; background: {COLOR_PRIMARIO}; color: white; border: none; 
+                border-radius: 10px; cursor: pointer; font-weight: bold; width: 250px; font-family: sans-serif;
+            ">💾 GUARDAR / COMPARTIR</button>
+        </div>
+        <script>
+            document.getElementById('btn').onclick = async () => {{
+                const b = new Blob([`{js}`], {{type: 'text/plain'}});
+                const f = new File([b], "PRO_{archivo.name}", {{type: 'text/plain'}});
+                if (navigator.share && confirm("¿Compartir?")) {{
+                    try {{ await navigator.share({{files: [f]}}); return; }} catch(e) {{}}
+                }}
+                const a = document.createElement('a'); a.href = URL.createObjectURL(b);
+                a.download = "PRO_{archivo.name}"; a.click();
+            }};
+        </script>
+        """, height=80)                                         # Botón final centrado y sin recuadro
+ht=120)
