@@ -1,4 +1,4 @@
-import streamlit as st                                          # Framework de interfaz
+mport streamlit as st                                          # Framework de interfaz
 import re                                                       # Expresiones regulares
 import streamlit.components.v1 as components                     # Componentes HTML/JS
 
@@ -84,8 +84,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):   # Función princ
     return '\n'.join(res_final)                                 # Une todo
 
 # --- INTERFAZ ---
-st.title("<img src="https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/40.png" 
-    alt="Icono de música" style="width: 40px; height: 40px; vertical-align: middle;">")                                  # Título corto
+st.title("🎸 Cancionero 2026")                                  # Título corto
 archivo = st.file_uploader("🎼 Sube tu cancion en formato .txt", type=["txt"])         # Selector estrecho
 
 if archivo:                                                     # Si hay archivo
