@@ -113,14 +113,22 @@ if archivo:
             if st.checkbox(f"Renglón {idx+1}: {lineas_orig[idx].strip()}", value=False, key=idx):
                 seleccion_manual.append(idx)
     
-    if st.button("✨ Procesar"):                                # Botón procesar
-        txt_fin = procesar_texto_selectivo(cont, conf + sel)    # Procesa
-        st.code(txt_fin, language="text")                       # Muestra código
-        js = txt_fin.replace("`", "\\`").replace("$", "\\$")    # Escapa JS
+        if st.button("✨ Procesar"):
+        total_indices = confirmados_auto + seleccion_manual
+        texto_final = procesar_texto_selectivo(contenido, total_indices)
         
-        # Botón final SIN RECUADRO, ESTRECHO Y CENTRADO
+        st.subheader("Resultado:")
+        st.code(texto_final, language="text")
+
+        # Escapamos el texto para JavaScript
+        texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
+        
+        # Color primario (puedes cambiarlo por un hex como #007AFF)
+        COLOR_PRIMARIO = "#007AFF"
+
+        # Botón final ESTRECHO Y CENTRADO
         components.html(f"""
-        <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
             <button id="btn" style="
                 padding: 12px 20px; 
                 background: {COLOR_PRIMARIO}; 
@@ -135,25 +143,31 @@ if archivo:
             ">💾 GUARDAR / COMPARTIR</button>
         </div>
         <script>
-                document.getElementById('actionBtn').onclick = async () => {{
-                    const contenido = `{texto_js}`;
-                    const fileName = "PRO_{archivo.name}";
-                    const blob = new Blob([contenido], {{ type: 'text/plain' }});
-                    const file = new File([blob], fileName, {{ type: 'text/plain' }});
-                    
-                    if (confirm("🎵 ¿Deseas COMPARTIR el archivo? 🎵")) {{
-                        if (navigator.share) {{
-                            try {{ await navigator.share({{ files: [file] }}); return; }} 
-                            catch(e) {{}}
+            document.getElementById('btn').onclick = async () => {{
+                const contenido = `{texto_js}`;
+                const fileName = "PRO_{archivo.name}";
+                const blob = new Blob([contenido], {{ type: 'text/plain' }});
+                const file = new File([blob], fileName, {{ type: 'text/plain' }});
+                
+                if (confirm("🎵 ¿Deseas COMPARTIR el archivo? 🎵")) {{
+                    if (navigator.share) {{
+                        try {{ 
+                            await navigator.share({{ files: [file] }}); 
+                            return; 
+                        }} catch(e) {{ 
+                            console.log("Error al compartir:", e); 
                         }}
+                    }} else {{
+                        alert("Tu navegador no soporta la función de compartir.");
                     }}
+                }}
 
-                    if (confirm("💾 ¿Deseas DESCARGAR el archivo? 💾")) {{
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = fileName;
-                        a.click();
-                    }}
-                }};
-            </script>
-        """, height=80)                 
+                if (confirm("💾 ¿Deseas DESCARGAR el archivo? 💾")) {{
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = fileName;
+                    a.click();
+                }}
+            }};
+        </script>
+        """, height=80)
