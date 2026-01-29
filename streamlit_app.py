@@ -28,7 +28,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
     
     # 1. Patrón para capturar el acorde latino completo
-    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)(m|maj|min|aug|dim|sus|add|M)?([#b])?([0-9]*)'
+    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#b])?(m|maj|min|aug|dim|sus|add|M)?([0-9]*)'
     
     def traducir_acorde(match):
         raiz_lat = match.group(1).upper()
@@ -50,7 +50,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
 
     # 2. Paso final: Colocar el apóstrofe al final del acorde americano (Ej: A# -> A#')
     resultado_final = []
-    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#b])?(m|maj|min|aug|dim|sus|add|M)?([0-9]*)'
+    patron_americano = r'\b([A-G][#b]?(?:m|maj|min|aug|dim|sus|add|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
 
     for i, linea in enumerate(resultado_traduccion):
         if i not in lineas_a_procesar:
