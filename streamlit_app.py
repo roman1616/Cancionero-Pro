@@ -5,10 +5,10 @@ import streamlit.components.v1 as components                     # Componentes H
 # --- CONFIGURACIÓN DE COLORES ---
 COLOR_FONDO = "#0E1117"                                         # Fondo de la aplicación
 COLOR_TEXTO = "#FFFFFF"                                         # Texto general
-COLOR_PRIMARIO = "#FF4B4B"                                      # Color de botones
+COLOR_PRIMARIO = "#FF4B4B"                                      # Botones y acentos
 COLOR_BLOQUE_CODIGO = "#000000"                                 # Fondo del resultado
 COLOR_TEXTO_CODIGO = "#00FF00"                                  # Texto del resultado
-
+COLOR_SELECTOR = "#1E1E1E"                                      # Fondo del selector
 
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered") # Configura la página
 
