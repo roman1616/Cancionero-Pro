@@ -4,16 +4,15 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
-# --- CONFIGURACIÓN DE COLORES PERSONALIZADOS ---
-# Modifica estos valores para cambiar el aspecto global
+# --- CONFIGURACIÓN DE COLORES (TEMA NEGRO Y NARANJA) ---
 COLOR_CONFIG = {
-    "--bg": "#ffffff",
-    "--text": "#111111",
-    "--bar": "#f1f5f9",
-    "--accent": "#007AFF"
+    "--bg": "#000000",       # Fondo Negro
+    "--text": "#FFFFFF",     # Texto Blanco
+    "--bar": "#1E1E1E",      # Sidebar/Barras Gris Muy Oscuro
+    "--accent": "#FF4B2B"    # Naranja Vibrante
 }
 
-# Inyección de estilos CSS
+# Inyección de estilos CSS Globales
 st.markdown(f"""
 <style>
     .stApp {{
@@ -23,17 +22,29 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{
         background-color: {COLOR_CONFIG["--bar"]};
     }}
-    h1, h2, h3, p, span, label, .stMarkdown {{
+    /* Forzar color de texto en todos los elementos */
+    h1, h2, h3, p, span, label, .stMarkdown, .stCheckbox {{
         color: {COLOR_CONFIG["--text"]} !important;
     }}
+    /* Botones de Streamlit en Naranja */
     .stButton>button {{
         background-color: {COLOR_CONFIG["--accent"]};
-        color: white;
+        color: white !important;
+        border: none;
+        border-radius: 8px;
+        transition: 0.3s;
+    }}
+    .stButton>button:hover {{
+        background-color: #E64120;
         border: none;
     }}
+    /* Bloques de código y áreas de texto */
     code {{
         background-color: {COLOR_CONFIG["--bar"]} !important;
-        color: {COLOR_CONFIG["--text"]} !important;
+        color: {COLOR_CONFIG["--accent"]} !important;
+    }}
+    .stCodeBlock {{
+        border: 1px solid {COLOR_CONFIG["--bar"]};
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -144,7 +155,7 @@ if archivo:
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
             <div style="text-align: center; margin-top: 20px;">
-                <button id="actionBtn" style="padding: 15px 30px; background: {COLOR_CONFIG["--accent"]}; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 FINALIZAR</button>
+                <button id="actionBtn" style="padding: 15px 30px; background: {COLOR_CONFIG["--accent"]}; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">💾 FINALIZAR</button>
             </div>
             <script>
                 document.getElementById('actionBtn').onclick = async () => {{
