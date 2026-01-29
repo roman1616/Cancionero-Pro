@@ -4,47 +4,34 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
-# --- CONFIGURACIÓN DE COLORES (TEMA NEGRO Y NARANJA) ---
+# --- CONTROL TOTAL DE COLORES ---
+# Fondo negro, texto blanco, botones naranja
 COLOR_CONFIG = {
-    "--bg": "#000000",       # Fondo Negro
-    "--text": "#FFFFFF",     # Texto Blanco
-    "--bar": "#1E1E1E",      # Sidebar/Barras Gris Muy Oscuro
-    "--accent": "#FF4B2B"    # Naranja Vibrante
+    "--bg": "#000000",
+    "--text": "#FFFFFF",
+    "--accent": "#FF4B2B"  # Naranja
 }
 
-# Inyección de estilos CSS Globales
 st.markdown(f"""
 <style>
+    /* Fondo y texto general */
     .stApp {{
         background-color: {COLOR_CONFIG["--bg"]};
         color: {COLOR_CONFIG["--text"]};
     }}
-    [data-testid="stSidebar"] {{
-        background-color: {COLOR_CONFIG["--bar"]};
-    }}
-    /* Forzar color de texto en todos los elementos */
-    h1, h2, h3, p, span, label, .stMarkdown, .stCheckbox {{
+    h1, h2, h3, p, span, label, div {{
         color: {COLOR_CONFIG["--text"]} !important;
     }}
-    /* Botones de Streamlit en Naranja */
+    /* Botones específicos en naranja */
     .stButton>button {{
-        background-color: {COLOR_CONFIG["--accent"]};
+        background-color: {COLOR_CONFIG["--accent"]} !important;
         color: white !important;
-        border: none;
-        border-radius: 8px;
-        transition: 0.3s;
+        border: none !important;
     }}
-    .stButton>button:hover {{
-        background-color: #E64120;
-        border: none;
-    }}
-    /* Bloques de código y áreas de texto */
-    code {{
-        background-color: {COLOR_CONFIG["--bar"]} !important;
-        color: {COLOR_CONFIG["--accent"]} !important;
-    }}
-    .stCodeBlock {{
-        border: 1px solid {COLOR_CONFIG["--bar"]};
+    /* Quitar bordes y estilos por defecto de Streamlit que no encajen */
+    .stCodeBlock, code {{
+        background-color: #111111 !important;
+        color: {COLOR_CONFIG["--text"]} !important;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -155,7 +142,7 @@ if archivo:
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
             <div style="text-align: center; margin-top: 20px;">
-                <button id="actionBtn" style="padding: 15px 30px; background: {COLOR_CONFIG["--accent"]}; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">💾 FINALIZAR</button>
+                <button id="actionBtn" style="padding: 15px 30px; background: {COLOR_CONFIG["--accent"]}; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 FINALIZAR</button>
             </div>
             <script>
                 document.getElementById('actionBtn').onclick = async () => {{
