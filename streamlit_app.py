@@ -44,51 +44,42 @@ def tiene_potencial_duda(linea):                                # Función para 
 
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):   # Función principal de transformación
     lineas = texto_bruto.upper().replace('\r\n', '\n').split('\n') # Normaliza texto a mayúsculas y separa líneas
+    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#B])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)' # Regex para acordes latinos
     
-    # 1. Traducir de Latino a Americano
-    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([#B])?([0-9]*)' 
-    
-    def traducir_acorde(match):
-        raiz_lat = match.group(1)
-        cualidad = match.group(2) or ""
-        alter = match.group(3) or ""
-        num = match.group(4) or ""
-        raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
-        if cualidad in ["M", "MIN"]: cualidad = "m"
-        return f"{raiz_amer}{alter}{cualidad}{num}"
+    def traducir_acorde(match):                                 # Sub-función para traducir cada hallazgo
+        raiz_lat = match.group(1)                               # Captura nota (Ej: SOL)
+        alter = match.group(2) or ""                            # Captura alteración (Ej: #)
+        cualidad = match.group(3) or ""                         # Captura cualidad (Ej: MIN)
+        num = match.group(4) or ""                              # Captura número (Ej: 7)
+        raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)  # Traduce a americano (Ej: G)
+        if cualidad in ["M", "MIN"]: cualidad = "m"             # Convierte específicamente la m a minúscula
+        return f"{raiz_amer}{alter}{cualidad}{num}"             # Retorna el acorde reconstruido
 
-    resultado_traduccion = []
-    for i, linea in enumerate(lineas):
-        if i in lineas_a_procesar:
-            resultado_traduccion.append(re.sub(patron_latino, traducir_acorde, linea))
-        else:
-            resultado_traduccion.append(linea)
+    resultado_traduccion = []                                   # Lista para almacenar líneas traducidas
+    for i, linea in enumerate(lineas):                          # Recorre todas las líneas del texto
+        if i in lineas_a_procesar:                              # Si la línea fue marcada como música
+            resultado_traduccion.append(re.sub(patron_latino, traducir_acorde, linea)) # Traduce notas
+        else:                                                   # Si es texto normal (letra)
+            resultado_traduccion.append(linea)                  # La deja igual pero en mayúsculas
 
-    # 2. Agregar apóstrofes (Corregido para evitar G#'m)
-    resultado_final = []
-    # AJUSTE: El patrón ahora es más "ambicioso" para capturar el acorde completo con su alteración y modo
-    patron_americano = r'\b[A-G][#B]?(?:m|MAJ|MIN|AUG|DIM|SUS|ADD)?[0-9]*(?:/[A-G][#B]?)?\b'
+    resultado_final = []                                        # Lista para el paso final (apóstrofes)
+    patron_americano = r'\b([A-G][#B]?(?:m|MAJ|MIN|AUG|DIM|SUS|ADD)?[0-9]*(?:/[A-G][#B]?)?)\b' # Regex acorde americano
 
-    for i, linea in enumerate(resultado_traduccion):
-        if i not in lineas_a_procesar:
-            resultado_final.append(linea)
-            continue
-            
-        linea_lista = list(linea)
-        ajuste = 0
-        for m in re.finditer(patron_americano, linea):
-            fin = m.end() + ajuste
-            if fin < len(linea_lista):
-                if linea_lista[fin] not in ["'", "*"]:
-                    linea_lista.insert(fin, "'")
-                    ajuste += 1
-            else:
-                linea_lista.append("'")
-                ajuste += 1
-        resultado_final.append("".join(linea_lista))
-        
-    return '\n'.join(resultado_final)
-
+    for i, linea in enumerate(resultado_traduccion):            # Recorre las líneas ya traducidas
+        if i not in lineas_a_procesar:                          # Si no es música
+            resultado_final.append(linea)                       # Añade la línea tal cual
+            continue                                            # Salta a la siguiente
+        linea_lista = list(linea)                               # Convierte línea en lista de caracteres
+        ajuste = 0                                              # Contador para no perder la posición al insertar
+        for m in re.finditer(patron_americano, linea):          # Busca cada acorde americano
+            fin = m.end() + ajuste                              # Encuentra el final del acorde
+            if fin < len(linea_lista):                          # Si no es el final de la línea
+                if linea_lista[fin] not in ["'", "*"]:          # Si no tiene ya un apóstrofe
+                    linea_lista.insert(fin, "'"); ajuste += 1   # Inserta el apóstrofe decorativo
+            else:                                               # Si es el final de la línea
+                linea_lista.append("'"); ajuste += 1            # Añade el apóstrofe al final
+        resultado_final.append("".join(linea_lista))            # Une los caracteres de nuevo
+    return '\n'.join(resultado_final)                           # Une todas las líneas en un solo texto
 
 # --- INTERFAZ DE USUARIO ---
 st.title("🎸 Cancionero Inteligente 2026")                      # Muestra el título principal
