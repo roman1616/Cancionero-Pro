@@ -25,10 +25,13 @@ def tiene_potencial_duda(linea):
     return len(notas_mayus) > 0
 
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):
+    # --- LÍNEA AÑADIDA: Convertimos todo a mayúsculas para normalizar ---
+    texto_bruto = texto_bruto.upper() 
+    
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
     
     # 1. Patrón para capturar el acorde latino completo
-    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)(m|maj|min|aug|dim|sus|add|M)?([#b])?([0-9]*)'
+    patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([#B])?([0-9]*)'
     
     def traducir_acorde(match):
         raiz_lat = match.group(1).upper()
