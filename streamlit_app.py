@@ -11,7 +11,6 @@ LATINO_A_AMERICANO = {
 
 def es_musica_obvia(linea):
     if not linea.strip(): return False
-    # Detecta símbolos típicos de acordes (tanto latinos como americanos)
     tiene_simbolos = re.search(r'[#b]|/|dim|aug|sus|maj|add|[A-G]\d', linea)
     if tiene_simbolos: return True
     if "  " in linea: return True
@@ -23,42 +22,40 @@ def es_musica_obvia(linea):
 
 def tiene_potencial_duda(linea):
     notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea)
-    # También dudamos si vemos letras sueltas A-G que podrían ser notas americanas
-    notas_amer = re.findall(r'\b([A-G])\b', linea)
+    # Consideramos también letras solas A-G como potencial música americana
+    notas_amer = re.findall(r'\b[A-G][#b]?\b', linea)
     return len(notas_mayus) > 0 or len(notas_amer) > 0
 
-def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, formato_origen):
+def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
-    
+    resultado_intermedio = []
+
     # 1. TRADUCCIÓN (Solo si es Latino)
-    if formato_origen == "Latino":
-        # Convertimos temporalmente a upper para la búsqueda, manteniendo estructura
-        lineas_temp = [l.upper() if i in lineas_a_procesar else l for i, l in enumerate(lineas)]
+    if modo == "Latino":
         patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#B])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
         
         def traducir_acorde(match):
-            raiz_lat = match.group(1)
+            raiz_lat = match.group(1).upper()
             alteracion = match.group(2) or ""
             cualidad = match.group(3) or ""
             numero = match.group(4) or ""
             raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
-            if cualidad == "M" or cualidad == "MIN": cualidad = "m"
+            if cualidad.upper() in ["M", "MIN"]: cualidad = "m"
             return f"{raiz_amer}{alteracion}{cualidad}{numero}"
 
-        resultado_intermedio = []
-        for i, linea in enumerate(lineas_temp):
+        for i, linea in enumerate(lineas):
             if i in lineas_a_procesar:
-                resultado_intermedio.append(re.sub(patron_latino, traducir_acorde, linea))
+                linea_traducida = re.sub(patron_latino, traducir_acorde, linea.upper())
+                resultado_intermedio.append(linea_traducida)
             else:
-                resultado_intermedio.append(lineas[i]) # Mantener original (letras min/may)
+                resultado_intermedio.append(linea)
     else:
-        # Si ya es Americano, no traducimos nada
+        # Si es Americano, mantenemos el texto tal cual para solo poner apóstrofes
         resultado_intermedio = lineas
 
-    # 2. COLOCACIÓN DE APÓSTROFE (Para ambos casos)
+    # 2. COLOCACIÓN DE APÓSTROFE
     resultado_final = []
-    # El patrón reconoce acordes americanos estándar
-    patron_americano = r'\b([A-G][#B]?(?:m|MAJ|MIN|AUG|DIM|SUS|ADD|M)?[0-9]*(?:/[A-G][#B]?)?)\b'
+    patron_americano = r'\b([A-G][#b]?(?:m|MAJ|MIN|AUG|DIM|SUS|ADD|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
 
     for i, linea in enumerate(resultado_intermedio):
         if i not in lineas_a_procesar:
@@ -67,7 +64,8 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, formato_origen):
             
         linea_lista = list(linea)
         ajuste = 0
-        for m in re.finditer(patron_americano, linea, re.IGNORECASE if formato_origen == "Americano" else 0):
+        # En modo americano usamos IGNORECASE para detectar "c", "d", etc. si estuvieran en minúscula
+        for m in re.finditer(patron_americano, linea, re.IGNORECASE if modo == "Americano" else 0):
             fin = m.end() + ajuste
             if fin < len(linea_lista):
                 if linea_lista[fin] not in ["'", "*"]:
@@ -83,8 +81,8 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, formato_origen):
 # --- INTERFAZ ---
 st.title("🎸 Cancionero Inteligente 2026")
 
-# Pregunta clave antes de subir
-formato = st.radio("¿En qué formato está el cifrado original?", ["Latino (DO, RE, MI...)", "Americano (C, D, E...)"])
+# Pregunta modo de cifrado
+tipo_cifrado = st.radio("Elige el formato de origen:", ["Latino (DO, RE, MI...)", "Americano (C, D, E...)"])
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
@@ -94,7 +92,6 @@ if archivo:
     confirmados_auto = []
     indices_duda = []
 
-    # Lógica de detección simplificada para evitar saltos erróneos
     for idx, linea in enumerate(lineas):
         if es_musica_obvia(linea):
             confirmados_auto.append(idx)
@@ -102,27 +99,27 @@ if archivo:
             indices_duda.append(idx)
 
     st.subheader("🔍 Análisis")
-    st.info(f"Formato seleccionado: **{formato}**")
-    
+    st.success(f"Detección automática: {len(confirmados_auto)} líneas.")
+
     seleccion_manual = []
     if indices_duda:
-        st.warning("Confirma si estas líneas contienen música:")
+        st.warning("Confirma si estas líneas son música:")
         for idx in indices_duda:
-            if st.checkbox(f"Fila {idx+1}: {lineas[idx].strip()}", value=False, key=idx):
+            if st.checkbox(f"Renglón {idx+1}: {lineas[idx].strip()}", value=False, key=idx):
                 seleccion_manual.append(idx)
     
-    if st.button("✨ Procesar y Finalizar"):
-        total_indices = list(set(confirmados_auto + seleccion_manual))
-        texto_final = procesar_texto_selectivo(contenido, total_indices, formato.split()[0])
+    if st.button("✨ Procesar"):
+        modo_final = "Latino" if "Latino" in tipo_cifrado else "Americano"
+        total_indices = confirmados_auto + seleccion_manual
+        texto_final = procesar_texto_selectivo(contenido, total_indices, modo_final)
         
         st.subheader("Resultado:")
         st.code(texto_final, language="text")
 
-        # JS para compartir/descargar
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
             <div style="text-align: center; margin-top: 20px;">
-                <button id="actionBtn" style="padding: 15px 30px; background: #007AFF; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 GUARDAR ARCHIVO</button>
+                <button id="actionBtn" style="padding: 15px 30px; background: #007AFF; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 FINALIZAR</button>
             </div>
             <script>
                 document.getElementById('actionBtn').onclick = async () => {{
@@ -131,15 +128,25 @@ if archivo:
                     const blob = new Blob([contenido], {{ type: 'text/plain' }});
                     const file = new File([blob], fileName, {{ type: 'text/plain' }});
                     
-                    if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) {{
-                        try {{ await navigator.share({{ files: [file] }}); return; }} 
-                        catch(e) {{}}
+                    if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
+                        if (navigator.share) {{
+                            try {{ 
+                                await navigator.share({{ files: [file] }}); 
+                                return; 
+                            }} catch(e) {{
+                                alert("Error al compartir: " + e.message);
+                            }}
+                        }} else {{
+                            alert("Tu navegador no soporta la función de compartir.");
+                        }}
                     }}
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = fileName;
-                    a.click();
+
+                    if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = fileName;
+                        a.click();
+                    }}
                 }};
             </script>
         """, height=120)
-
