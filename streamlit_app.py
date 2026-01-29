@@ -18,22 +18,19 @@ st.markdown(f"""
         .stApp {{ background-color: {COLOR_FONDO}; color: {COLOR_TEXTO}; }} # Color de fondo app
         h1, h2, h3, p, span, label {{ color: {COLOR_TEXTO} !important; }}  # Color de textos
         
-        /* Estilo para el contenedor del Selector de Archivos (MÁS PEQUEÑO) */
+        /* Estilo para el contenedor del Selector de Archivos */
         [data-testid="stFileUploader"] {{
             background-color: {COLOR_SELECTOR};                 # Color de fondo del selector
-            border: 1px dashed {COLOR_PRIMARIO};                # Borde más fino
-            border-radius: 12px;                                # Bordes redondeados
-            padding: 5px;                                       # Menos espaciado interno
-            max-width: 400px;                                   # LIMITA EL ANCHO DEL SELECTOR
-            margin: 0 auto;                                     # CENTRA EL SELECTOR
+            border: 2px dashed {COLOR_PRIMARIO};                # Borde punteado del color primario
+            border-radius: 15px;                                # Bordes redondeados
+            padding: 10px;                                      # Espaciado interno
         }}
         
-        /* Ajuste del botón interno del selector */
+        /* Cambia el color del botón "Browse files" dentro del selector */
         [data-testid="stFileUploader"] button {{
             background-color: {COLOR_PRIMARIO} !important;      # Color del botón interno
             color: white !important;                            # Color texto botón interno
             border: none !important;                            # Quita borde
-            font-size: 12px;                                    # Fuente más pequeña
         }}
 
         .stButton>button {{ background-color: {COLOR_PRIMARIO}; color: white; border-radius: 8px; width: 100%; }} # Botón procesar
@@ -84,7 +81,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar):   # Función proce
 
 # --- INTERFAZ ---
 st.title("🎸 Cancionero Inteligente 2026")                      # Título
-archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"]) # El selector PEQUEÑO
+archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"]) # El selector con estilo nuevo
 
 if archivo:                                                     # Si hay archivo
     cont = archivo.getvalue().decode("utf-8"); l_orig = cont.split('\n') # Lee contenido
