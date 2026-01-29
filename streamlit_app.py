@@ -106,25 +106,24 @@ if archivo:
     st.subheader("🔍 Análisis")
     st.success(f"Se detectaron {len(confirmados_auto)} líneas automáticamente.")
 
-    seleccion_manual = []
+        seleccion_manual = []
     if indices_duda:
         st.warning("Confirma si estas líneas son música:")
         for idx in indices_duda:
             if st.checkbox(f"Renglón {idx+1}: {lineas_orig[idx].strip()}", value=False, key=idx):
                 seleccion_manual.append(idx)
     
-            if st.button("✨ Procesar"):
+    # El botón debe ir FUERA del for anterior
+    if st.button("✨ Procesar"):
         total_indices = confirmados_auto + seleccion_manual
-        texto_final = procesar_texto_selectivo(contenido, total_indices) # Tu lógica original
+        texto_final = procesar_texto_selectivo(contenido, total_indices) 
         
         st.subheader("Resultado:")
         st.code(texto_final, language="text")
 
-        # Escapamos caracteres para JS
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
-        COLOR_PRIMARIO = "#007AFF" # Azul estándar
+        COLOR_PRIMARIO = "#007AFF"
 
-        # Componente corregido: IDs coincidentes y centrado real
         components.html(f"""
         <div style="display: flex; justify-content: center; align-items: center; height: 80px;">
             <button id="mainBtn" style="
@@ -148,7 +147,7 @@ if archivo:
                 const file = new File([blob], fileName, {{ type: 'text/plain' }});
                 
                 if (confirm("🎵 ¿Deseas COMPARTIR el archivo? 🎵")) {{
-                    if (navigator.share) {{
+                    if (navigator && navigator.share) {{
                         try {{ 
                             await navigator.share({{ files: [file] }}); 
                             return; 
@@ -156,7 +155,7 @@ if archivo:
                             console.error(e); 
                         }}
                     }} else {{
-                        alert("El navegador no soporta compartir. Se procederá a la descarga.");
+                        alert("Compartir no disponible en este navegador.");
                     }}
                 }}
 
