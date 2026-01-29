@@ -1,4 +1,4 @@
-mport streamlit as st                                          # Framework de interfaz
+import streamlit as st                                          # Framework de interfaz
 import re                                                       # Expresiones regulares
 import streamlit.components.v1 as components                     # Componentes HTML/JS
 
