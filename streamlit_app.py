@@ -12,7 +12,7 @@ COLOR_SELECTOR = "#1E1E1E"                                      # Fondo del sele
 
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered") # Configura la página
 
-# Inyección de CSS para un selector MUY ESTRECHO
+# Inyección de CSS para un selector MUY ESTRECHO y limpieza de interfaz
 st.markdown(f"""
     <style>
         .stApp {{ background-color: {COLOR_FONDO}; color: {COLOR_TEXTO}; }} # Fondo app
@@ -23,19 +23,20 @@ st.markdown(f"""
             background-color: {COLOR_SELECTOR};                 # Fondo selector
             border: 1px dashed {COLOR_PRIMARIO};                # Borde fino
             border-radius: 10px;                                # Bordes redondeados
-            max-width: 250px;                                   # ANCHO MUY ESTRECHO (250px)
+            max-width: 250px;                                   # ANCHO MUY ESTRECHO
             margin: 0 auto;                                     # Centrado
             padding: 2px;                                       # Padding mínimo
         }}
         
-        /* Ocultar textos largos del selector nativo para ahorrar espacio */
+        /* Ocultar textos nativos y bordes de componentes de Streamlit */
         [data-testid="stFileUploader"] section > div {{ display: none; }} # Oculta "Drag and drop"
+        iframe {{ border: none !important; }}                     # QUITA RECUADRO EXTERIOR DEL BOTÓN FINAL
         
         [data-testid="stFileUploader"] button {{
             background-color: {COLOR_PRIMARIO} !important;      # Botón selector
             color: white !important;                            # Texto botón
-            width: 100%;                                        # Botón al ancho total del div
-            font-size: 11px !important;                         # Letra muy pequeña
+            width: 100%;                                        # Botón al ancho total
+            font-size: 11px !important;                         # Letra pequeña
         }}
 
         .stButton>button {{ background-color: {COLOR_PRIMARIO}; color: white; border-radius: 8px; width: 100%; }} # Botón procesar
@@ -104,10 +105,34 @@ if archivo:                                                     # Si hay archivo
         txt_fin = procesar_texto_selectivo(cont, conf + sel)    # Procesa
         st.code(txt_fin, language="text")                       # Muestra código
         js = txt_fin.replace("`", "\\`").replace("$", "\\$")    # Escapa JS
-        components.html(f"""<div style="text-align: center;"><button id="btn" style="padding: 15px; background: {COLOR_PRIMARIO}; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; width: 100%;">💾 GUARDAR / COMPARTIR</button></div>
-        <script>document.getElementById('btn').onclick = async () => {{
-            const blob = new Blob([`{js}`], {{type: 'text/plain'}});
-            const file = new File([blob], "PRO_{archivo.name}", {{type: 'text/plain'}});
-            if (navigator.share && confirm("¿Compartir?")) await navigator.share({{files: [file]}});
-            else {{ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "PRO_{archivo.name}"; a.click(); }}
-        }};</script>""", height=100)                             # Descarga/Compartir
+        
+        # Botón final SIN RECUADRO, ESTRECHO Y CENTRADO
+        components.html(f"""
+        <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+            <button id="btn" style="
+                padding: 12px 20px; 
+                background: {COLOR_PRIMARIO}; 
+                color: white; 
+                border: none; 
+                border-radius: 10px; 
+                cursor: pointer; 
+                font-weight: bold; 
+                width: 250px; 
+                font-family: sans-serif;
+                box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+            ">💾 GUARDAR / COMPARTIR</button>
+        </div>
+        <script>
+            document.getElementById('btn').onclick = async () => {{
+                const blob = new Blob([`{js}`], {{type: 'text/plain'}});
+                const file = new File([blob], "PRO_{archivo.name}", {{type: 'text/plain'}});
+                if (navigator.share && confirm("¿Compartir?")) {{
+                    try {{ await navigator.share({{files: [file]}}); return; }} catch(e) {{}}
+                }}
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = "PRO_{archivo.name}";
+                a.click();
+            }};
+        </script>
+        """, height=80)                                         # Componente JS de descarga
