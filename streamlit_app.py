@@ -24,7 +24,7 @@ st.markdown(f"""
             max-width: 250px;                                   # Ancho estrecho
             margin: 0 auto;                                     # CENTRADO
         }}
-        [data-testid="stFileUploader"] section {{ padding: 0; }} # Quita espacio interno
+        [data-testid="stFileUploader"] section {{ padding: 0; background-color: transparent; }} # Fondo sección transparente
         [data-testid="stFileUploader"] section > div {{ display: none; }} # Oculta textos largos
         
         /* Botón Procesar PEQUEÑO y CENTRADO */
@@ -37,7 +37,7 @@ st.markdown(f"""
             border-radius: 10px;                                # Bordes redondeados
         }}
 
-        /* Quitar bordes de los iframes de componentes */
+        /* Quitar bordes y fondos de los iframes de componentes */
         iframe {{ border: none !important; background: transparent !important; }} 
 
         code {{ background-color: {COLOR_BLOQUE_CODIGO} !important; color: {COLOR_TEXTO_CODIGO} !important; }} # Resultado
@@ -123,4 +123,4 @@ if archivo:                                                     # Si hay archivo
                 a.download = "PRO_{archivo.name}"; a.click();
             }};
         </script>
-        """, height=60)                                         # Componente JS limpio
+        """, height=60)                                         # Botón final sin recuadro
