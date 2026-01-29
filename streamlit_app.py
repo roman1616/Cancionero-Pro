@@ -113,23 +113,21 @@ if archivo:
             if st.checkbox(f"Renglón {idx+1}: {lineas_orig[idx].strip()}", value=False, key=idx):
                 seleccion_manual.append(idx)
     
-        if st.button("✨ Procesar"):
+            if st.button("✨ Procesar"):
         total_indices = confirmados_auto + seleccion_manual
-        texto_final = procesar_texto_selectivo(contenido, total_indices)
+        texto_final = procesar_texto_selectivo(contenido, total_indices) # Tu lógica original
         
         st.subheader("Resultado:")
         st.code(texto_final, language="text")
 
-        # Escapamos el texto para JavaScript
+        # Escapamos caracteres para JS
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
-        
-        # Color primario (puedes cambiarlo por un hex como #007AFF)
-        COLOR_PRIMARIO = "#007AFF"
+        COLOR_PRIMARIO = "#007AFF" # Azul estándar
 
-        # Botón final ESTRECHO Y CENTRADO
+        # Componente corregido: IDs coincidentes y centrado real
         components.html(f"""
-        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-            <button id="btn" style="
+        <div style="display: flex; justify-content: center; align-items: center; height: 80px;">
+            <button id="mainBtn" style="
                 padding: 12px 20px; 
                 background: {COLOR_PRIMARIO}; 
                 color: white; 
@@ -143,7 +141,7 @@ if archivo:
             ">💾 GUARDAR / COMPARTIR</button>
         </div>
         <script>
-            document.getElementById('btn').onclick = async () => {{
+            document.getElementById('mainBtn').onclick = async () => {{
                 const contenido = `{texto_js}`;
                 const fileName = "PRO_{archivo.name}";
                 const blob = new Blob([contenido], {{ type: 'text/plain' }});
@@ -155,10 +153,10 @@ if archivo:
                             await navigator.share({{ files: [file] }}); 
                             return; 
                         }} catch(e) {{ 
-                            console.log("Error al compartir:", e); 
+                            console.error(e); 
                         }}
                     }} else {{
-                        alert("Tu navegador no soporta la función de compartir.");
+                        alert("El navegador no soporta compartir. Se procederá a la descarga.");
                     }}
                 }}
 
@@ -170,4 +168,4 @@ if archivo:
                 }}
             }};
         </script>
-        """, height=80)
+        """, height=100)
