@@ -125,23 +125,7 @@ if archivo:
         components.html(f"""
             <body style="margin: 0; padding: 0; width: 30%;">
                 <button id="actionBtn" style="
-                    width: 100%;
-                    background-color: #FF4B4B;
-                    color: white;
-                    border-radius: 8px;
-                    border: none;
-                    padding: 10px 20px;
-                    font-weight: bold;
-                    height: 45px;
-                    font-size: 14px;
-                    transition: 0.3s;
-                    cursor: pointer;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-                    box-sizing: border-box;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                ">💾 GUARDAR Y COMPARTIR</button>
+                    style="width:100%; padding:10px; background:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family: sans-serif; font-size: 14px;">💾 GUARDAR Y COMPARTIR</button>
                     document.getElementById('actionBtn').onclick = async () => {{
                         const contenido = `{texto_js}`;
                         const fileName = "PRO_{archivo.name}";
