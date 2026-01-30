@@ -91,8 +91,8 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
 
 # --- INTERFAZ ---
 st.markdown(f"""
-    <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 100px; height: 50px;'>
+    <div style='display: flex; align-items: center; justify-content: center; gap: 15px;'>
+        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 50px; height: 50px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
 
