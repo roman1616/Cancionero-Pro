@@ -126,7 +126,7 @@ if archivo:
         components.html(f"""
             <body style="margin: 0; padding: 0;">
                 <button id="actionBtn" style="
-                    width: 30%;
+                    width: 50%;
                     height: 45px;
                     background-color: #FF4B4B;
                     color: white;
