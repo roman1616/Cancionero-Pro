@@ -125,11 +125,12 @@ if archivo:
         components.html(f"""
             <body style="margin: 0; padding: 0;">
                 <button id="actionBtn"  style="width:100%;
-                
+                height:45px; 
                 background:#FF4B4B; 
                 color:white; 
                 border:none; 
                 border-radius:8px; 
+                 padding: 10px 20px !important;
                 cursor:pointer; 
                 font-weight:bold; 
                 font-family:sans-serif; 
