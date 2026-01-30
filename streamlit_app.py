@@ -134,6 +134,7 @@ if archivo:
                     border-radius: 8px;
                     cursor: pointer;
                     font-weight: normal;
+                    height: 45px
                     font-size: 14px;
                     font-family: sans-serif;
                     transition: 0.3s;
