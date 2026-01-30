@@ -127,6 +127,7 @@ if archivo:
         color: white !important;
         border-radius: 8px !important;
         border: none !important;
+        padding: 10px 20px !important;
         font-weight: bold !important;
         height: 45px !important;
         transition: 0.3s;">💾 GUARDAR Y COMPARTIR</button>
