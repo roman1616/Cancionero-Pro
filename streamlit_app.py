@@ -92,17 +92,17 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
 # --- INTERFAZ ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px;'>
-        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 45px; height: 45px;'>
+        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' alt='Icono' style='width: 50px; height: 50px;'>
         <h1>Cancionero Pro</h1>   
     </div>""", unsafe_allow_html=True)
 
-st.markdown("### 1. Configuración de Estilo")
-opt_posicion = st.radio("Posición de Símbolos:", ["Activada (FA#M)", "Sin cambios"], horizontal=True)
+st.markdown("### Configuración de Estilo")
+opt_posicion = st.radio("Posición de Símbolos:", ["Activada (FA#M)"], horizontal=True)
 opt_origen = st.radio("Cifrado de entrada:", ["Latino", "Americano"], horizontal=True)
 opt_salida = st.radio("Formato de salida:", ["Apostrofado", "Original"], horizontal=True)
 
 st.markdown("---")
-archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
+archivo = st.file_uploader("Sube tu canción .txt", type=["txt"])
 
 if archivo:
     contenido = archivo.getvalue().decode("utf-8")
@@ -131,7 +131,7 @@ if archivo:
                         const blob = new Blob([contenido], {{ type: 'text/plain' }});
                         const file = new File([blob], fileName, {{ type: 'text/plain' }});
                         
-                        if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
+                        if (confirm("🎵 ¿Deseas COMPARTIR el archivo? 🎵")) {{
                             if (navigator.share) {{
                                 try {{ 
                                     await navigator.share({{ files: [file] }}); 
@@ -144,7 +144,7 @@ if archivo:
                             }}
                         }}
 
-                        if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
+                        if (confirm("💾 ¿Deseas DESCARGAR el archivo? 💾")) {{
                             const a = document.createElement('a');
                             a.href = URL.createObjectURL(blob);
                             a.download = fileName;
