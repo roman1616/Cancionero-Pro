@@ -22,15 +22,22 @@ def es_musica_obvia(linea):
 
 def tiene_potencial_duda(linea):
     notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea)
-    # Consideramos también letras solas A-G como potencial música americana
     notas_amer = re.findall(r'\b[A-G][#b]?\b', linea)
     return len(notas_mayus) > 0 or len(notas_amer) > 0
 
-def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo):
+def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo, corregir_sostenido):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
     resultado_intermedio = []
 
-    # 1. TRADUCCIÓN (Solo si es Latino)
+    # 1. CORRECCIÓN DE POSICIÓN (Ej: FAM# -> FA#M)
+    if corregir_sostenido:
+        # Busca Notas (DO-SI) seguidas de letras (M/m/maj...) y LUEGO el sostenido
+        patron_correccion = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|m|MAJ|MIN|maj|min|aug|dim|sus|add)([#])'
+        for i in range(len(lineas)):
+            if i in lineas_a_procesar:
+                lineas[i] = re.sub(patron_correccion, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
+
+    # 2. TRADUCCIÓN (Si es Latino)
     if modo == "Latino":
         patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#B])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
         
@@ -50,10 +57,9 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo):
             else:
                 resultado_intermedio.append(linea)
     else:
-        # Si es Americano, mantenemos el texto tal cual para solo poner apóstrofes
         resultado_intermedio = lineas
 
-    # 2. COLOCACIÓN DE APÓSTROFE
+    # 3. COLOCACIÓN DE APÓSTROFE
     resultado_final = []
     patron_americano = r'\b([A-G][#b]?(?:m|MAJ|MIN|AUG|DIM|SUS|ADD|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
 
@@ -64,7 +70,6 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo):
             
         linea_lista = list(linea)
         ajuste = 0
-        # En modo americano usamos IGNORECASE para detectar "c", "d", etc. si estuvieran en minúscula
         for m in re.finditer(patron_americano, linea, re.IGNORECASE if modo == "Americano" else 0):
             fin = m.end() + ajuste
             if fin < len(linea_lista):
@@ -81,7 +86,9 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo):
 # --- INTERFAZ ---
 st.title("🎸 Cancionero Inteligente 2026")
 
-# Pregunta modo de cifrado
+# NUEVA OPCIÓN: Corregir formato de sostenido
+corregir_sostenido = st.checkbox("🔄 Corregir posición de sostenido (Ej: FAM# ➔ FA#M)", value=False)
+
 tipo_cifrado = st.radio("Elige el formato de origen:", ["Latino (DO, RE, MI...)", "Americano (C, D, E...)"])
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
@@ -111,7 +118,8 @@ if archivo:
     if st.button("✨ Procesar"):
         modo_final = "Latino" if "Latino" in tipo_cifrado else "Americano"
         total_indices = confirmados_auto + seleccion_manual
-        texto_final = procesar_texto_selectivo(contenido, total_indices, modo_final)
+        # Pasar el nuevo parámetro a la función
+        texto_final = procesar_texto_selectivo(contenido, total_indices, modo_final, corregir_sostenido)
         
         st.subheader("Resultado:")
         st.code(texto_final, language="text")
