@@ -7,12 +7,12 @@ st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 # --- ESTILO UNIFICADO NARANJA ---
 st.markdown("""
     <style>
-    /* Color de los Radio Buttons (Check seleccionables) */
+    /* Color de los Radio Buttons */
     div[data-baseweb="radio"] div[aria-checked="true"] > div {
         background-color: #FF4B4B !important;
     }
     
-    /* Estilo del botón Procesar (Streamlit) */
+    /* Botón Procesar (Streamlit) */
     div.stButton > button {
         width: 100% !important;
         background-color: #FF4B4B !important;
@@ -25,13 +25,11 @@ st.markdown("""
         font-size: 14px !important;
         transition: 0.3s;
     }
-    div.stButton > button:hover {
-        background-color: #E03E3E !important;
-        color: white !important;
+    
+    /* Eliminar márgenes del contenedor de componentes para que el botón de abajo sea igual de ancho */
+    iframe {
+        width: 100% !important;
     }
-
-    /* Ajuste de etiquetas */
-    .stRadio [data-testid="stWidgetLabel"] { font-size: 0.9rem !important; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -60,7 +58,6 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
             raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
             if cualidad.upper() in ["M", "MIN"]: cualidad = "m"
             return f"{raiz_amer}{alteracion}{cualidad}{numero}"
-
         for i, linea in enumerate(lineas):
             if i in lineas_a_procesar:
                 resultado_intermedio.append(re.sub(patron_latino, traducir_acorde, linea, flags=re.IGNORECASE))
@@ -86,7 +83,6 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
                 linea_lista.append("'")
                 ajuste += 1
         resultado_final.append("".join(linea_lista))
-
     return '\n'.join(resultado_final)
 
 # --- INTERFAZ ---
@@ -120,22 +116,24 @@ if archivo:
         st.code(texto_final, language="text")
         
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
+        # Ajustamos el padding de la etiqueta <body> dentro del componente HTML
         components.html(f"""
-            <button id="btn" style="width:100%; height:45px; background:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family: sans-serif; font-size: 14px;">💾 GUARDAR Y COMPARTIR</button>
-            <script>
-                document.getElementById('btn').onclick = async () => {{
-                    const blob = new Blob([`{texto_js}`], {{type:'text/plain'}});
-                    const file = new File([blob], "PRO_{archivo.name}", {{type:'text/plain'}});
-                    
-                    if (navigator.share && confirm("¿Deseas compartir directamente?")) {{
-                        try {{ await navigator.share({{ files: [file] }}); return; }} 
-                        catch(e) {{ console.log(e); }}
-                    }}
-                    
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = "PRO_{archivo.name}";
-                    a.click();
-                }};
-            </script>
-        """, height=60)
+            <body style="margin: 0; padding: 0;">
+                <button id="btn" style="width:100%; height:45px; background:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family: sans-serif; font-size: 14px;">💾 GUARDAR Y COMPARTIR</button>
+                <script>
+                    document.getElementById('btn').onclick = async () => {{
+                        const blob = new Blob([`{texto_js}`], {{type:'text/plain'}});
+                        const file = new File([blob], "PRO_{archivo.name}", {{type:'text/plain'}});
+                        if (navigator.share && confirm("¿Deseas compartir directamente?")) {{
+                            try {{ await navigator.share({{ files: [file] }}); return; }} 
+                            catch(e) {{ console.log(e); }}
+                        }}
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = "PRO_{archivo.name}";
+                        a.click();
+                    }};
+                </script>
+            </body>
+        """, height=50)
+
