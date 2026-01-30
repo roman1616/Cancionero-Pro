@@ -122,24 +122,22 @@ if archivo:
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         
         # Componente HTML con la nueva lógica JS y el mismo estilo que el botón de Streamlit
-        components.html(f"""
-            <body style="margin: 0; padding: 0; overflow: hidden;">
+       components.html(f"""
+            <body style="margin: 0; padding: 0; display: flex; justify-content: center;">
                 <button id="actionBtn" style="
-                    width: 100% !important;
-                    background-color: #FF4B4B !important;
-                    color: white !important;
-                    border-radius: 8px !important;
-                    border: none !important;
-                    padding: 10px 20px !important;
-                    font-weight: bold !important;
-                    height: 45px !important;
-                    font-size: 14px !important;
+                    width: 100%;
+                    max-width: 704px; /* Ancho estándar del layout centered de Streamlit */
+                    background-color: #FF4B4B;
+                    color: white;
+                    border-radius: 8px;
+                    border: none;
+                    padding: 10px 20px;
+                    font-weight: bold;
+                    height: 45px;
+                    font-size: 14px;
                     transition: 0.3s;
                     cursor: pointer;
                     font-family: sans-serif;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
                     box-sizing: border-box;
                 ">💾 GUARDAR Y COMPARTIR</button>
                 <script>
