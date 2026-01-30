@@ -122,7 +122,7 @@ if archivo:
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         
         # Componente HTML con la nueva lógica JS y el mismo estilo que el botón de Streamlit
-       components.html(f"""
+        components.html(f"""
             <body style="margin: 0; padding: 0; width: 100%;">
                 <button id="actionBtn" style="
                     width: 100%;
