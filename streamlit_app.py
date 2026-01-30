@@ -4,13 +4,18 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
-# --- ESTILO UNIFICADO (CSS) ---
+# --- ESTILO UNIFICADO NARANJA ---
 st.markdown("""
     <style>
+    /* Color de los Radio Buttons (Check seleccionables) */
+    div[data-baseweb="radio"] div[aria-checked="true"] > div {
+        background-color: #FF4B4B !important;
+    }
+    
     /* Estilo del botón Procesar (Streamlit) */
     div.stButton > button {
         width: 100% !important;
-        background-color: #007AFF !important;
+        background-color: #FF4B4B !important;
         color: white !important;
         border-radius: 8px !important;
         border: none !important;
@@ -21,11 +26,12 @@ st.markdown("""
         transition: 0.3s;
     }
     div.stButton > button:hover {
-        background-color: #005BB5 !important;
+        background-color: #E03E3E !important;
         color: white !important;
     }
-    /* Ajuste de tamaño de Radio Buttons */
-    .stRadio [data-testid="stWidgetLabel"] { font-size: 0.9rem !important; }
+
+    /* Ajuste de etiquetas */
+    .stRadio [data-testid="stWidgetLabel"] { font-size: 0.9rem !important; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -115,16 +121,7 @@ if archivo:
         
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
-            <button id="btn" style="width: 100% !important;
-        background-color: #007AFF !important;
-        color: white !important;
-        border-radius: 8px !important;
-        border: none !important;
-        padding: 10px 20px !important;
-        font-weight: bold !important;
-        height: 45px !important;
-        font-size: 14px !important;
-        transition: 0.3s;">💾 GUARDAR Y COMPARTIR</button>
+            <button id="btn" style="width:100%; height:45px; background:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family: sans-serif; font-size: 14px;">💾 GUARDAR Y COMPARTIR</button>
             <script>
                 document.getElementById('btn').onclick = async () => {{
                     const blob = new Blob([`{texto_js}`], {{type:'text/plain'}});
@@ -142,4 +139,3 @@ if archivo:
                 }};
             </script>
         """, height=60)
-
