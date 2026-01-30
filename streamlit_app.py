@@ -122,10 +122,35 @@ if archivo:
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         
         # Componente HTML con la nueva lógica JS y el mismo estilo que el botón de Streamlit
+                # Componente HTML corregido y unificado
         components.html(f"""
-            <body style="margin: 0; padding: 0; width: 30%;">
-                <button id="btn" style="width:100%; height:45px; background:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; height: 45px; font-size: 14px;">💾 GUARDAR Y COMPARTIR</button>
-                    document.getElementById('actionBtn').onclick = async () => {{
+            <body style="margin: 0; padding: 0;">
+                <button id="actionBtn" style="
+                    width: 30%;
+                    height: 45px;
+                    background-color: #FF4B4B;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-weight: bold;
+                    font-size: 14px;
+                    font-family: sans-serif;
+                    transition: 0.3s;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-sizing: border-box;
+                ">💾 GUARDAR Y COMPARTIR</button>
+
+                <script>
+                    const btn = document.getElementById('actionBtn');
+                    
+                    // Efecto hover para igualar a Streamlit
+                    btn.onmouseover = () => btn.style.backgroundColor = '#E03E3E';
+                    btn.onmouseout = () => btn.style.backgroundColor = '#FF4B4B';
+
+                    btn.onclick = async () => {{
                         const contenido = `{texto_js}`;
                         const fileName = "PRO_{archivo.name}";
                         const blob = new Blob([contenido], {{ type: 'text/plain' }});
@@ -153,5 +178,4 @@ if archivo:
                     }};
                 </script>
             </body>
-        """, height=50)
-
+        """, height=45)
