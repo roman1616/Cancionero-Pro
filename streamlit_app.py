@@ -2,6 +2,7 @@ import streamlit as st
 import re
 import streamlit.components.v1 as components
 
+# Configuración de página con tema oscuro/limpio
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
 LATINO_A_AMERICANO = {
@@ -14,32 +15,33 @@ def es_musica_obvia(linea):
     tiene_simbolos = re.search(r'[#b]|/|dim|aug|sus|maj|add|[A-G]\d', linea)
     if tiene_simbolos: return True
     if "  " in linea: return True
-    notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea)
+    notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea, re.IGNORECASE)
     palabras = re.findall(r'\w+', linea)
     if len(palabras) == 1 and len(notas_mayus) == 1: return True
     if len(set(notas_mayus)) >= 2: return True
     return False
 
 def tiene_potencial_duda(linea):
-    notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea)
+    notas_mayus = re.findall(r'\b(DO|RE|MI|FA|SOL|LA|SI)\b', linea, re.IGNORECASE)
     notas_amer = re.findall(r'\b[A-G][#b]?\b', linea)
     return len(notas_mayus) > 0 or len(notas_amer) > 0
 
-def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo, corregir_sostenido):
+def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo, corregir_posicion):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
     resultado_intermedio = []
 
-    # 1. CORRECCIÓN DE POSICIÓN (Ej: FAM# -> FA#M)
-    if corregir_sostenido:
-        # Busca Notas (DO-SI) seguidas de letras (M/m/maj...) y LUEGO el sostenido
-        patron_correccion = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|m|MAJ|MIN|maj|min|aug|dim|sus|add)([#])'
+    # 1. CORRECCIÓN DE POSICIÓN (Soporta FAM#, fam#, REMb, remb, etc.)
+    if corregir_posicion:
+        # Regex captura: Nota + (M/m/etc opcional) + (# o b)
+        # La nota y el símbolo se mueven, la cualidad queda al final
+        patron_pos = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|m|MAJ|MIN|maj|min|aug|dim|sus|add)?([#b])'
         for i in range(len(lineas)):
             if i in lineas_a_procesar:
-                lineas[i] = re.sub(patron_correccion, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
+                lineas[i] = re.sub(patron_pos, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
 
     # 2. TRADUCCIÓN (Si es Latino)
     if modo == "Latino":
-        patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#B])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
+        patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#b])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
         
         def traducir_acorde(match):
             raiz_lat = match.group(1).upper()
@@ -52,7 +54,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo, corregir_sost
 
         for i, linea in enumerate(lineas):
             if i in lineas_a_procesar:
-                linea_traducida = re.sub(patron_latino, traducir_acorde, linea.upper())
+                linea_traducida = re.sub(patron_latino, traducir_acorde, linea, flags=re.IGNORECASE)
                 resultado_intermedio.append(linea_traducida)
             else:
                 resultado_intermedio.append(linea)
@@ -70,7 +72,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo, corregir_sost
             
         linea_lista = list(linea)
         ajuste = 0
-        for m in re.finditer(patron_americano, linea, re.IGNORECASE if modo == "Americano" else 0):
+        for m in re.finditer(patron_americano, linea, re.IGNORECASE):
             fin = m.end() + ajuste
             if fin < len(linea_lista):
                 if linea_lista[fin] not in ["'", "*"]:
@@ -86,10 +88,13 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo, corregir_sost
 # --- INTERFAZ ---
 st.title("🎸 Cancionero Inteligente 2026")
 
-# NUEVA OPCIÓN: Corregir formato de sostenido
-corregir_sostenido = st.checkbox("🔄 Corregir posición de sostenido (Ej: FAM# ➔ FA#M)", value=False)
-
-tipo_cifrado = st.radio("Elige el formato de origen:", ["Latino (DO, RE, MI...)", "Americano (C, D, E...)"])
+# Contenedor de configuración para coherencia visual
+with st.expander("⚙️ Configuración de Formato", expanded=True):
+    # Checkbox y Radio con estilo coherente
+    corregir_pos = st.checkbox("Corregir posición de símbolos (Ej: FAM# ➔ FA#M)", value=True)
+    tipo_cifrado = st.radio("Formato de origen:", 
+                            ["Latino (DO, RE...)", "Americano (C, D...)"],
+                            horizontal=True)
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
@@ -105,29 +110,32 @@ if archivo:
         elif tiene_potencial_duda(linea):
             indices_duda.append(idx)
 
-    st.subheader("🔍 Análisis")
-    st.success(f"Detección automática: {len(confirmados_auto)} líneas.")
+    st.subheader("🔍 Análisis de Líneas")
+    col1, col2 = st.columns(2)
+    col1.metric("Automáticas", len(confirmados_auto))
+    col2.metric("En duda", len(indices_duda))
 
     seleccion_manual = []
     if indices_duda:
-        st.warning("Confirma si estas líneas son música:")
-        for idx in indices_duda:
-            if st.checkbox(f"Renglón {idx+1}: {lineas[idx].strip()}", value=False, key=idx):
-                seleccion_manual.append(idx)
+        with st.container():
+            st.info("Por favor, confirma las líneas dudosas:")
+            for idx in indices_duda:
+                if st.checkbox(f"L{idx+1}: {lineas[idx].strip()[:50]}", key=f"check_{idx}"):
+                    seleccion_manual.append(idx)
     
-    if st.button("✨ Procesar"):
+    if st.button("✨ PROCESAR CANCIONERO", use_container_width=True):
         modo_final = "Latino" if "Latino" in tipo_cifrado else "Americano"
         total_indices = confirmados_auto + seleccion_manual
-        # Pasar el nuevo parámetro a la función
-        texto_final = procesar_texto_selectivo(contenido, total_indices, modo_final, corregir_sostenido)
+        texto_final = procesar_texto_selectivo(contenido, total_indices, modo_final, corregir_pos)
         
-        st.subheader("Resultado:")
+        st.subheader("📝 Vista Previa:")
         st.code(texto_final, language="text")
 
+        # Botón de Guardado/Compartir con JS
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
-            <div style="text-align: center; margin-top: 20px;">
-                <button id="actionBtn" style="padding: 15px 30px; background: #007AFF; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 FINALIZAR</button>
+            <div style="text-align: center; margin-top: 10px;">
+                <button id="actionBtn" style="width: 100%; padding: 15px; background: #007AFF; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; font-family: sans-serif;">💾 FINALIZAR Y GUARDAR</button>
             </div>
             <script>
                 document.getElementById('actionBtn').onclick = async () => {{
@@ -138,23 +146,14 @@ if archivo:
                     
                     if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
                         if (navigator.share) {{
-                            try {{ 
-                                await navigator.share({{ files: [file] }}); 
-                                return; 
-                            }} catch(e) {{
-                                alert("Error al compartir: " + e.message);
-                            }}
-                        }} else {{
-                            alert("Tu navegador no soporta la función de compartir.");
+                            try {{ await navigator.share({{ files: [file] }}); return; }} 
+                            catch(e) {{ alert("Error al compartir: " + e.message); }}
                         }}
                     }}
-
-                    if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = fileName;
-                        a.click();
-                    }}
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = fileName;
+                    a.click();
                 }};
             </script>
-        """, height=120)
+        """, height=100)
