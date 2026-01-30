@@ -4,23 +4,28 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
-# --- ESTILO CSS PARA COHERENCIA TOTAL ---
+# --- ESTILO UNIFICADO (CSS) ---
 st.markdown("""
     <style>
-    /* Reducir tamaño de etiquetas de radio y botones */
-    .stRadio [data-testid="stWidgetLabel"] { font-size: 0.9rem !important; font-weight: bold; }
-    div[role="radiogroup"] { gap: 10px; }
-    
-    /* Estilo para el botón nativo de Streamlit */
+    /* Estilo del botón Procesar (Streamlit) */
     div.stButton > button {
-        width: 100%;
+        width: 100% !important;
         background-color: #007AFF !important;
         color: white !important;
         border-radius: 8px !important;
         border: none !important;
-        padding: 0.5rem 1rem !important;
+        padding: 10px 20px !important;
         font-weight: bold !important;
+        height: 45px !important;
+        font-size: 14px !important;
+        transition: 0.3s;
     }
+    div.stButton > button:hover {
+        background-color: #005BB5 !important;
+        color: white !important;
+    }
+    /* Ajuste de tamaño de Radio Buttons */
+    .stRadio [data-testid="stWidgetLabel"] { font-size: 0.9rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -81,19 +86,17 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
 # --- INTERFAZ ---
 st.markdown(f"""
     <div style='display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px;'>
-        <img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/192-192.png' style='width: 40px; height: 40px;'>
+        <img src='https://raw.githubusercontent.com' style='width: 40px; height: 40px;'>
         <h2 style='margin: 0;'>Cancionero Pro</h2>   
     </div>""", unsafe_allow_html=True)
 
-# Sección de controles con tamaño reducido
-col_opt = st.container()
-with col_opt:
-    opt_posicion = st.radio("Símbolos:", ["Activada (FA#M)", "Sin cambios"], horizontal=True)
-    opt_origen = st.radio("Entrada:", ["Latino", "Americano"], horizontal=True)
-    opt_salida = st.radio("Salida:", ["Apostrofado", "Original"], horizontal=True)
+st.markdown("### 1. Configuración de Estilo")
+opt_posicion = st.radio("Posición de Símbolos:", ["Activada (FA#M)", "Sin cambios"], horizontal=True)
+opt_origen = st.radio("Cifrado de entrada:", ["Latino", "Americano"], horizontal=True)
+opt_salida = st.radio("Formato de salida:", ["Apostrofado", "Original"], horizontal=True)
 
 st.markdown("---")
-archivo = st.file_uploader("Archivo .txt", type=["txt"])
+archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
 if archivo:
     contenido = archivo.getvalue().decode("utf-8")
@@ -112,10 +115,17 @@ if archivo:
         
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
-            <button id="btn" style="width:100%; padding:10px; background:#007AFF; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family: sans-serif; font-size: 14px;">💾 FINALIZAR Y DESCARGAR</button>
+            <button id="btn" style="width:100%; height:45px; background:#007AFF; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family: sans-serif; font-size: 14px;">💾 GUARDAR Y COMPARTIR</button>
             <script>
-                document.getElementById('btn').onclick = () => {{
+                document.getElementById('btn').onclick = async () => {{
                     const blob = new Blob([`{texto_js}`], {{type:'text/plain'}});
+                    const file = new File([blob], "PRO_{archivo.name}", {{type:'text/plain'}});
+                    
+                    if (navigator.share && confirm("¿Deseas compartir directamente?")) {{
+                        try {{ await navigator.share({{ files: [file] }}); return; }} 
+                        catch(e) {{ console.log(e); }}
+                    }}
+                    
                     const a = document.createElement('a');
                     a.href = URL.createObjectURL(blob);
                     a.download = "PRO_{archivo.name}";
