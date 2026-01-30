@@ -123,18 +123,25 @@ if archivo:
         
         # Componente HTML con la nueva lógica JS y el mismo estilo que el botón de Streamlit
         components.html(f"""
-            <body style="margin: 0; padding: 0;">
-                <button id="actionBtn"  style="width:100%;
-                height:45px; 
-                background:#FF4B4B; 
-                color:white; 
-                border:none; 
-                border-radius:8px; 
-                 padding: 10px 20px !important;
-                cursor:pointer; 
-                font-weight:bold; 
-                font-family:sans-serif; 
-                font-size:14px;">💾 GUARDAR Y COMPARTIR</button>
+            <body style="margin: 0; padding: 0; overflow: hidden;">
+                <button id="actionBtn" style="
+                    width: 100% !important;
+                    background-color: #FF4B4B !important;
+                    color: white !important;
+                    border-radius: 8px !important;
+                    border: none !important;
+                    padding: 10px 20px !important;
+                    font-weight: bold !important;
+                    height: 45px !important;
+                    font-size: 14px !important;
+                    transition: 0.3s;
+                    cursor: pointer;
+                    font-family: sans-serif;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-sizing: border-box;
+                ">💾 GUARDAR Y COMPARTIR</button>
                 <script>
                     document.getElementById('actionBtn').onclick = async () => {{
                         const contenido = `{texto_js}`;
