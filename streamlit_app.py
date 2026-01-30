@@ -121,16 +121,13 @@ if archivo:
         
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
-            <button id="btn" width: 100% !important;
-        background-color: #FF4B4B !important;
-        color: white !important;
-        border-radius: 8px !important;
-        border: none !important;
-        padding: 10px 20px !important;
-        font-weight: bold !important;
-        height: 45px !important;
-        font-size: 14px !important;
-        transition: 0.3s;">💾 GUARDAR Y COMPARTIR</button>
+            <button id="btn"
+        width: 150px; height: 50px; border: none; border-radius: 25px;
+                    font-family: -apple-system, system-ui, sans-serif;
+                    font-size: 16px; font-weight: 700; cursor: pointer;
+                    display: flex; align-items: center; justify-content: center;
+                    gap: 8px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                    transition: transform 0.1s;">💾 GUARDAR Y COMPARTIR</button>
             <script>
                 document.getElementById('btn').onclick = async () => {{
                     const blob = new Blob([`{texto_js}`], {{type:'text/plain'}});
