@@ -124,7 +124,7 @@ if archivo:
         # Componente HTML con la nueva lógica JS y el mismo estilo que el botón de Streamlit
         components.html(f"""
             <body style="margin: 0; padding: 0; width: 30%;">
-                <button id="btn" style="width:100%; height:45px; background:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size: 14px;">💾 GUARDAR Y COMPARTIR</button>
+                <button id="btn" style="width:100%; height:45px; background:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; height: 45px; font-size: 14px;">💾 GUARDAR Y COMPARTIR</button>
                     document.getElementById('actionBtn').onclick = async () => {{
                         const contenido = `{texto_js}`;
                         const fileName = "PRO_{archivo.name}";
