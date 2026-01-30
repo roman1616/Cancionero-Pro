@@ -122,7 +122,7 @@ if archivo:
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
             <button id="btn"
-        style="padding: 15px 30px; background: #007AFF; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 GUARDAR Y COMPARTIR</button>
+        style="padding: 10px 20px !important; background: #FF4B4B; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px;">💾 GUARDAR Y COMPARTIR</button>
             <script>
                 document.getElementById('btn').onclick = async () => {{
                     const blob = new Blob([`{texto_js}`], {{type:'text/plain'}});
