@@ -123,10 +123,9 @@ if archivo:
         
         # Componente HTML con la nueva lógica JS y el mismo estilo que el botón de Streamlit
        components.html(f"""
-            <body style="margin: 0; padding: 0; display: flex; justify-content: center;">
+            <body style="margin: 0; padding: 0; width: 100%;">
                 <button id="actionBtn" style="
                     width: 100%;
-                    max-width: 704px; /* Ancho estándar del layout centered de Streamlit */
                     background-color: #FF4B4B;
                     color: white;
                     border-radius: 8px;
@@ -137,10 +136,12 @@ if archivo:
                     font-size: 14px;
                     transition: 0.3s;
                     cursor: pointer;
-                    font-family: sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
                     box-sizing: border-box;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 ">💾 GUARDAR Y COMPARTIR</button>
-                <script>
                     document.getElementById('actionBtn').onclick = async () => {{
                         const contenido = `{texto_js}`;
                         const fileName = "PRO_{archivo.name}";
