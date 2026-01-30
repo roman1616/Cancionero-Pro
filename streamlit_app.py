@@ -122,6 +122,7 @@ if archivo:
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         components.html(f"""
             <button id="btn"
+            width: 100% !important;
         background-color: #FF4B4B !important;
         color: white !important;
         border-radius: 8px !important;
