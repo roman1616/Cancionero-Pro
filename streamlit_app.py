@@ -124,8 +124,8 @@ if archivo:
         # Componente HTML con la nueva lógica JS y el mismo estilo que el botón de Streamlit
         components.html(f"""
             <body style="margin: 0; padding: 0;">
-                <button id="actionBtn"  
-                height:45px; 
+                <button id="actionBtn"  style="width:100%;
+                
                 background:#FF4B4B; 
                 color:white; 
                 border:none; 
