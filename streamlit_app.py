@@ -130,6 +130,7 @@ if archivo:
         padding: 10px 20px !important;
         font-weight: bold !important;
         height: 45px !important;
+         font-size: 14px !important;
         transition: 0.3s;">💾 GUARDAR Y COMPARTIR</button>
             <script>
                 document.getElementById('btn').onclick = async () => {{
