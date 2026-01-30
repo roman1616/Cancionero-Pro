@@ -152,7 +152,7 @@ if archivo:
 
                     btn.onclick = async () => {{
                         const contenido = `{texto_js}`;
-                        const fileName = "PRO_{archivo.name}";
+                        const fileName = "{archivo.name}";
                         const blob = new Blob([contenido], {{ type: 'text/plain' }});
                         const file = new File([blob], fileName, {{ type: 'text/plain' }});
                         
