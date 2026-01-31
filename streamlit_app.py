@@ -101,8 +101,16 @@ opt_posicion = st.radio("Posición de Símbolos:", ["Activada (FA#M)"], horizont
 opt_origen = st.radio("Cifrado de entrada:", ["Latino", "Americano"], horizontal=True)
 opt_salida = st.radio("Formato de salida:", ["Apostrofado", "Original"], horizontal=True)
 
-st.markdown("---")
-archivo = st.file_uploader("Sube tu canción .txt", type=["txt"])
+#st.markdown("---")
+#archivo = st.file_uploader("Sube tu canción .txt", type=["txt"])
+
+# Cambia esta línea en tu código
+archivo = st.file_uploader(
+    "Sube tu canción .txt", 
+    type=["txt"], 
+    key="subidor_android"  # La key ayuda a mantener el estado en móviles
+)
+
 
 if archivo:
     contenido = archivo.getvalue().decode("utf-8")
