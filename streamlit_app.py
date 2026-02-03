@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Cancionero Pro 2026", layout="centered")
 
-# --- ESTILO UNIFICADO ---
+# --- ESTILO ---
 st.markdown("""
     <style>
     div[data-baseweb="radio"] div[aria-checked="true"] > div { background-color: #FF4B4B !important; }
@@ -24,12 +24,14 @@ LATINO_A_AMERICANO = {'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 'SOL': 'G', 'L
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, corregir_posicion, formato_salida):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
     
+    # 1. Corrección de Posición (FAM# -> FA#M)
     if corregir_posicion == "Activada":
         patron_pos = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|m|MAJ|MIN|maj|min|aug|dim|sus|add)?([#b])'
         for i in range(len(lineas)):
             if i in lineas_a_procesar:
                 lineas[i] = re.sub(patron_pos, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
 
+    # 2. Traducción
     resultado_intermedio = []
     if "Latino" in modo_origen:
         patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#b])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
@@ -54,8 +56,10 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
     if formato_salida == "Original":
         return '\n'.join(resultado_intermedio)
 
+    # 3. Apostrofado QUIRÚRGICO (Protege palabras como Alma, Cara, De)
     resultado_final = []
-    patron_chord = r'\b[A-G](?:[#b]|m|MAJ|MIN|AUG|DIM|SUS|ADD|M|[0-9]|/)*'
+    # Patrón: Busca A-G mayúscula. (?![a-z]) bloquea si sigue una letra minúscula de palabra.
+    patron_chord = r'\b[A-G](?:#|b|m|MAJ|MIN|AUG|DIM|SUS|ADD|[0-9]|/)*(?![a-z])'
     
     for i, linea in enumerate(resultado_intermedio):
         if i not in lineas_a_procesar:
@@ -63,12 +67,15 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
             continue
             
         linea_lista = list(linea)
-        coincidencias = list(re.finditer(patron_chord, linea, re.IGNORECASE))
+        # Sin flags=re.IGNORECASE para que solo detecte notas en Mayúsculas
+        coincidencias = list(re.finditer(patron_chord, linea)) 
         
         for m in reversed(coincidencias):
             fin = m.end()
-            # El apóstrofe se inserta al final del acorde detectado. 
-            # Si hay un paréntesis después, se queda fuera automáticamente: (D#')
+            # Si el acorde es una sola letra (ej: A), verificamos que no sea el inicio de una palabra
+            if fin < len(linea_lista) and re.match(r'[a-z]', linea_lista[fin]):
+                continue
+            
             if fin < len(linea_lista):
                 if linea_lista[fin] not in ["'", "*"]:
                     linea_lista.insert(fin, "'")
@@ -78,13 +85,13 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
         
     return '\n'.join(resultado_final)
 
-st.markdown(f"""<div style='display:flex;align-items:center;justify-content:center;gap:15px;'>
-<img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/40.png' style='width:70px;'><h1>Cancionero Pro</h1></div>""", unsafe_allow_html=True)
+# --- INTERFAZ ---
+st.markdown(f"""<div style='display:flex;align-items:center;justify-content:center;gap:15px;'><img src='https://raw.githubusercontent.com' style='width:50px;'><h1>Cancionero Pro</h1></div>""", unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns(3)
-with col1: opt_posicion = st.radio("Símbolos:", ["Activada (FA#M)","Desactivada"])
-with col2: opt_origen = st.radio("Entrada:", ["Latino", "Americano"])
-with col3: opt_salida = st.radio("Salida:", ["Apostrofado", "Original"])
+with col1: opt_posicion = st.radio("Posición Símbolos:", ["Activada (FA#M)","Desactivada"])
+with col2: opt_origen = st.radio("Cifrado Entrada:", ["Latino", "Americano"])
+with col3: opt_salida = st.radio("Formato Salida:", ["Apostrofado", "Original"])
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
@@ -108,14 +115,11 @@ if archivo:
                     if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
                         if (navigator.share) {{
                             try {{ await navigator.share({{ files: [file] }}); return; }} catch(e) {{}}
-                        }} else {{ alert("Usa Chrome o Safari en móvil para compartir."); }}
+                        }} else {{ alert("Usa móvil para compartir."); }}
                     }}
                     if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = "{archivo.name}";
-                        a.click();
-                        URL.revokeObjectURL(a.href);
+                        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                        a.download = "{archivo.name}"; a.click(); URL.revokeObjectURL(a.href);
                     }}
                 }};
             </script>
