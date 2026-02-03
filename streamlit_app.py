@@ -45,12 +45,13 @@ LATINO_A_AMERICANO = {
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, corregir_posicion):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
     
-    # 1. Corrección de Posición (Opcional)
-    # Si pasas "Activada", transforma "FAM#" en "FA#M" (o viceversa según tu lógica)
+    # 1. Corrección de Posición (SOLO SI ESTÁ ACTIVADA)
+    # Si eliges "Desactivada", este bloque se salta y el texto queda tal cual
     if corregir_posicion == "Activada":
         patron_pos = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|m|MAJ|MIN|maj|min|aug|dim|sus|add)?([#b])'
         for i in range(len(lineas)):
             if i in lineas_a_procesar:
+                # Intercambia el orden para que el sostenido/bemol vaya antes de la cualidad
                 lineas[i] = re.sub(patron_pos, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
 
     # 2. Traducción de Latino a Americano
@@ -76,7 +77,9 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
 
     # 3. Marcado de acordes con apóstrofe
     resultado_final = []
-    patron_chord = r'\b([A-G][#b]?(?:m|MAJ|MIN|AUG|DIM|SUS|ADD|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
+    # Este patrón detecta tanto el orden correcto (F#m) como el "incorrecto" (Fm#) para poner el apóstrofe
+    patron_chord = r'\b([A-G][#b]?(?:m|MAJ|MIN|AUG|DIM|SUS|ADD|M)?[0-9]*(?:/[A-G][#b]?)?|[A-G](?:m|MAJ|MIN|AUG|DIM|SUS|ADD|M)?[#b][0-9]*)\b'
+    
     for i, linea in enumerate(resultado_intermedio):
         if i not in lineas_a_procesar:
             resultado_final.append(linea)
@@ -94,6 +97,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
         resultado_final.append("".join(linea_lista))
         
     return '\n'.join(resultado_final)
+
 
 # --- INTERFAZ ---
 st.markdown(f"""
