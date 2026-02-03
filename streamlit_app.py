@@ -85,7 +85,8 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
     return '\n'.join(resultado_final)
 
 # --- INTERFAZ ---
-st.markdown(f"""<div style='display:flex;align-items:center;justify-content:center;gap:15px;'><img src='https://raw.githubusercontent.com' style='width:50px;'><h1>Cancionero Pro</h1></div>""", unsafe_allow_html=True)
+st.markdown(f"""<div style='display:flex;align-items:center;justify-content:center;gap:15px;'>
+<img src='https://raw.githubusercontent.com/roman1616/Cancionero-Pro/refs/heads/main/40.png' style='width:50px;'><h1>Cancionero Pro</h1></div>""", unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns(3)
 with col1: opt_posicion = st.radio("Posición Símbolos:", ["Activada (FA#M)","Desactivada"])
@@ -110,7 +111,7 @@ if archivo:
         texto_js = texto_final.replace("`", "\\`").replace("$", "\\$")
         
         components.html(f"""
-            <button id="actionBtn" style="width:100%; height:45px; background-color:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family:sans-serif;">💾 GUARDAR Y COMPARTIR</button>
+            <button id="actionBtn" style="width:30%; height:45px; background-color:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family:sans-serif;">💾 GUARDAR Y COMPARTIR</button>
             <script>
                 const btn = document.getElementById('actionBtn');
                 btn.onclick = async () => {{
