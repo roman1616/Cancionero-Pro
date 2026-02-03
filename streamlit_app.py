@@ -44,14 +44,17 @@ LATINO_A_AMERICANO = {
 
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, corregir_posicion):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
-    resultado_intermedio = []
-
+    
+    # 1. Corrección de Posición (Opcional)
+    # Si pasas "Activada", transforma "FAM#" en "FA#M" (o viceversa según tu lógica)
     if corregir_posicion == "Activada":
         patron_pos = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|m|MAJ|MIN|maj|min|aug|dim|sus|add)?([#b])'
         for i in range(len(lineas)):
             if i in lineas_a_procesar:
                 lineas[i] = re.sub(patron_pos, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
 
+    # 2. Traducción de Latino a Americano
+    resultado_intermedio = []
     if "Latino" in modo_origen:
         patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#b])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
         def traducir_acorde(match):
@@ -62,6 +65,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
             raiz_amer = LATINO_A_AMERICANO.get(raiz_lat, raiz_lat)
             if cualidad.upper() in ["M", "MIN"]: cualidad = "m"
             return f"{raiz_amer}{alteracion}{cualidad}{numero}"
+        
         for i, linea in enumerate(lineas):
             if i in lineas_a_procesar:
                 resultado_intermedio.append(re.sub(patron_latino, traducir_acorde, linea, flags=re.IGNORECASE))
@@ -70,6 +74,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
     else:
         resultado_intermedio = lineas
 
+    # 3. Marcado de acordes con apóstrofe
     resultado_final = []
     patron_chord = r'\b([A-G][#b]?(?:m|MAJ|MIN|AUG|DIM|SUS|ADD|M)?[0-9]*(?:/[A-G][#b]?)?)\b'
     for i, linea in enumerate(resultado_intermedio):
@@ -87,6 +92,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
                 linea_lista.append("'")
                 ajuste += 1
         resultado_final.append("".join(linea_lista))
+        
     return '\n'.join(resultado_final)
 
 # --- INTERFAZ ---
