@@ -103,7 +103,7 @@ st.markdown(f"""
     </div>""", unsafe_allow_html=True)
 
 st.markdown("### Configuración de Estilo")
-opt_posicion = st.radio("Posición de Símbolos:", ["Activada (FA#M)"], horizontal=True)
+opt_posicion = st.radio("Posición de Símbolos:", ["Activada (FA#M)","Desactivada"], horizontal=True)
 opt_origen = st.radio("Cifrado de entrada:", ["Latino", "Americano"], horizontal=True)
 opt_salida = st.radio("Formato de salida:", ["Apostrofado", "Original"], horizontal=True)
 
