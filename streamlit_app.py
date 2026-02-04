@@ -199,6 +199,89 @@ if archivo:
             default = st.session_state.decision_memoria.get(tipo, False)
 
             marcado = st.checkbox(
-                f"Línea {i+1}: {resaltar_nota_
+                f"Línea {i+1}: {resaltar_notas_conflictivas(lineas[i])}",
+                value=st.session_state.conflict_checks.get(i, default),
+                key=f"chk_{i}"
+            )
+            st.session_state.conflict_checks[i] = marcado
 
+    if st.button("✨ PROCESAR"):
+        # Guardar decisiones aprendidas (memoria global)
+        for i, v in st.session_state.conflict_checks.items():
+            tipo = tipo_linea_ambigua(lineas[i])
+            st.session_state.decision_memoria[tipo] = v
+
+        if procesar_todo:
+            lineas_finales = set(range(len(lineas)))
+        else:
+            lineas_finales = set(auto) | {
+                i for i, v in st.session_state.conflict_checks.items() if v
+            }
+
+        texto_final = procesar_texto_selectivo(
+            contenido,
+            lineas_finales,
+            opt_origen,
+            "Activada" if "Activada" in opt_posicion else "Desactivada",
+            opt_salida
+        )
+
+        # Mostrar resultado
+        st.code(texto_final, language="text")
+
+        # ───── BOTÓN GUARDAR / COMPARTIR ─────
+        texto_js = (
+            texto_final
+            .replace("\\", "\\\\")
+            .replace("`", "\\`")
+            .replace("$", "\\$")
+        )
+
+        components.html(
+            f"""
+            <button id="actionBtn"
+                style="
+                    width:100%;
+                    height:45px;
+                    background-color:#FF4B4B;
+                    color:white;
+                    border:none;
+                    border-radius:8px;
+                    cursor:pointer;
+                    font-weight:bold;
+                    font-family:sans-serif;
+                ">
+                💾 GUARDAR Y COMPARTIR
+            </button>
+
+            <script>
+                const btn = document.getElementById('actionBtn');
+
+                btn.onclick = async () => {{
+                    const blob = new Blob([`{texto_js}`], {{ type: 'text/plain' }});
+                    const file = new File([blob], "{archivo.name}", {{ type: 'text/plain' }});
+
+                    if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
+                        if (navigator.share) {{
+                            try {{
+                                await navigator.share({{ files: [file] }});
+                                return;
+                            }} catch (e) {{}}
+                        }} else {{
+                            alert("La opción compartir funciona mejor en móvil.");
+                        }}
+                    }}
+
+                    if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = "{archivo.name}";
+                        a.click();
+                        URL.revokeObjectURL(a.href);
+                    }}
+                }};
+            </script>
+            """,
+            height=60
+        )
 
