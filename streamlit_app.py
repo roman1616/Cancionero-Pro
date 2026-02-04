@@ -196,7 +196,7 @@ if archivo:
 
     if st.button("✨ PROCESAR"):
     # Guardar decisiones aprendidas (memoria global)
-    for i, v in st.session_state.conflict_checks.items():
+        for i, v in st.session_state.conflict_checks.items():
         tipo = tipo_linea_ambigua(lineas[i])
         st.session_state.decision_memoria[tipo] = v
 
