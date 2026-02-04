@@ -38,6 +38,9 @@ if "decision_memoria" not in st.session_state:
 if "conflict_checks" not in st.session_state:
     st.session_state.conflict_checks = {}
 
+if "archivo_actual" not in st.session_state:
+    st.session_state.archivo_actual = None
+
 # ──────────────────── FUNCIONES ────────────────────
 def es_linea_acordes(linea):
     tokens = linea.strip().split()
@@ -158,115 +161,24 @@ with st.sidebar:
     st.markdown("### Preferencias aprendidas")
     if st.button("🧹 Borrar lo recordado"):
         st.session_state.decision_memoria = {"nota_sola": None, "linea_multi": None}
+        st.session_state.conflict_checks = {}
         st.success("Preferencias reiniciadas")
 
 # ──────────────────── PROCESO ────────────────────
 if archivo:
+    # Reset si cambia el archivo
+    if st.session_state.archivo_actual != archivo.name:
+        st.session_state.archivo_actual = archivo.name
+        st.session_state.conflict_checks = {}
+
     contenido = archivo.getvalue().decode("utf-8")
     lineas = contenido.split("\n")
 
     auto = [i for i, l in enumerate(lineas) if es_linea_acordes(l)]
     conflictivas = [i for i, l in enumerate(lineas) if es_linea_conflictiva(l)]
 
+    procesar_todo = st.checkbox("⚙️ Procesar TODO (sin seleccionar líneas)", value=False)
+
     if conflictivas:
-        st.warning("⚠️ Líneas ambiguas detectadas. Decide si contienen acordes.")
+        st.warning("⚠️ Líneas
 
-        colA, colB = st.columns(2)
-        with colA:
-            if st.button("✅ Aceptar todas"):
-                for i in conflictivas:
-                    st.session_state.conflict_checks[i] = True
-        with colB:
-            if st.button("❌ Rechazar todas"):
-                for i in conflictivas:
-                    st.session_state.conflict_checks[i] = False
-
-        st.markdown("---")
-
-        for i in conflictivas:
-            tipo = tipo_linea_ambigua(lineas[i])
-            default = st.session_state.decision_memoria.get(tipo, False)
-
-            marcado = st.checkbox(
-                f"Línea {i+1}: {resaltar_notas_conflictivas(lineas[i])}",
-                value=st.session_state.conflict_checks.get(i, default),
-                key=f"chk_{i}"
-            )
-            st.session_state.conflict_checks[i] = marcado
-
-    if st.button("✨ PROCESAR"):
-        # Guardar decisiones aprendidas (memoria global)
-        for i, v in st.session_state.conflict_checks.items():
-            tipo = tipo_linea_ambigua(lineas[i])
-            st.session_state.decision_memoria[tipo] = v
-
-        lineas_finales = set(auto) | {
-            i for i, v in st.session_state.conflict_checks.items() if v
-        }
-
-        texto_final = procesar_texto_selectivo(
-            contenido,
-            lineas_finales,
-            opt_origen,
-            "Activada" if "Activada" in opt_posicion else "Desactivada",
-            opt_salida
-        )
-
-        # Mostrar resultado
-        st.code(texto_final, language="text")
-
-        # ───── BOTÓN GUARDAR / COMPARTIR ─────
-        texto_js = (
-            texto_final
-            .replace("\\", "\\\\")
-            .replace("`", "\\`")
-            .replace("$", "\\$")
-        )
-
-        components.html(
-            f"""
-            <button id="actionBtn"
-                style="
-                    width:100%;
-                    height:45px;
-                    background-color:#FF4B4B;
-                    color:white;
-                    border:none;
-                    border-radius:8px;
-                    cursor:pointer;
-                    font-weight:bold;
-                    font-family:sans-serif;
-                ">
-                💾 GUARDAR Y COMPARTIR
-            </button>
-
-            <script>
-                const btn = document.getElementById('actionBtn');
-
-                btn.onclick = async () => {{
-                    const blob = new Blob([`{texto_js}`], {{ type: 'text/plain' }});
-                    const file = new File([blob], "{archivo.name}", {{ type: 'text/plain' }});
-
-                    if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
-                        if (navigator.share) {{
-                            try {{
-                                await navigator.share({{ files: [file] }});
-                                return;
-                            }} catch (e) {{}}
-                        }} else {{
-                            alert("La opción compartir funciona mejor en móvil.");
-                        }}
-                    }}
-
-                    if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = "{archivo.name}";
-                        a.click();
-                        URL.revokeObjectURL(a.href);
-                    }}
-                }};
-            </script>
-            """,
-            height=60
-        )
