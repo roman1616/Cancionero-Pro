@@ -54,11 +54,8 @@ def es_linea_acordes(linea):
     return acordes >= 2
 
 def es_linea_conflictiva(linea):
-    # Si ya es linea de acordes, no es conflictiva
     if es_linea_acordes(linea):
         return False
-
-    # Solo si aparece una nota sola aislada (A, B, C...) y no forma parte de palabra
     return bool(re.search(r'\b[A-G]\b', linea))
 
 def tipo_linea_ambigua(linea):
