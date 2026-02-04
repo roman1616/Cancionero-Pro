@@ -180,5 +180,25 @@ if archivo:
     procesar_todo = st.checkbox("⚙️ Procesar TODO (sin seleccionar líneas)", value=False)
 
     if conflictivas:
-        st.warning("⚠️ Líneas
+        st.warning("⚠️ Líneas ambiguas detectadas. Decide si contienen acordes.")
+
+        colA, colB = st.columns(2)
+        with colA:
+            if st.button("✅ Aceptar todas"):
+                for i in conflictivas:
+                    st.session_state.conflict_checks[i] = True
+        with colB:
+            if st.button("❌ Rechazar todas"):
+                for i in conflictivas:
+                    st.session_state.conflict_checks[i] = False
+
+        st.markdown("---")
+
+        for i in conflictivas:
+            tipo = tipo_linea_ambigua(lineas[i])
+            default = st.session_state.decision_memoria.get(tipo, False)
+
+            marcado = st.checkbox(
+                f"Línea {i+1}: {resaltar_nota_
+
 
