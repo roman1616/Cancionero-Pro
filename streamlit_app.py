@@ -25,15 +25,13 @@ iframe { width: 100% !important; }
 # ──────────────────── CONSTANTES ────────────────────
 LATINO_A_AMERICANO = {
     'DO': 'C', 'RE': 'D', 'MI': 'E',
-    'FA': 'F', 'SOL': 'G', 'LA': 'A', 'SI': 'B'
+    'FA': 'F', 'SOL': 'G', 'LA': 'A', 'SI': 'B',
+    'SIB': 'Bb', 'MIB': 'Eb'  # Bb y Eb en Latino
 }
 
 # ──────────────────── MEMORIA GLOBAL ────────────────────
 if "decision_memoria" not in st.session_state:
-    st.session_state.decision_memoria = {
-        "nota_sola": None,
-        "linea_multi": None
-    }
+    st.session_state.decision_memoria = {}
 
 if "conflict_checks" not in st.session_state:
     st.session_state.conflict_checks = {}
@@ -42,6 +40,7 @@ if "archivo_actual" not in st.session_state:
     st.session_state.archivo_actual = None
 
 # ──────────────────── FUNCIONES ────────────────────
+
 def es_linea_acordes(linea):
     tokens = linea.strip().split()
     if len(tokens) < 2:
@@ -50,7 +49,7 @@ def es_linea_acordes(linea):
     acordes = 0
     for t in tokens:
         if re.fullmatch(
-            r'[A-G](#|b)?(m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](#|b)?)?',
+            r'[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](?:#|b)?)?',
             t,
             re.IGNORECASE
         ):
@@ -58,60 +57,47 @@ def es_linea_acordes(linea):
 
     return acordes >= 2
 
-
 def es_linea_conflictiva(linea):
+    # Si es claramente una línea de acordes, no es conflictiva
     if es_linea_acordes(linea):
         return False
 
-    return bool(
-        re.search(r'\b[A-G]\b', linea)
-        and not re.search(
-            r'\b[A-G](#|b|m|maj|min|dim|aug|sus|add|[0-9]|/)',
-            linea,
-            re.IGNORECASE
-        )
-    )
-
-
-def tipo_linea_ambigua(linea):
-    if re.fullmatch(r'\s*[A-G]\s*', linea):
-        return "nota_sola"
-    return "linea_multi"
-
-
-def resaltar_notas_conflictivas(linea):
-    return re.sub(r'\b([A-G])\b', r'**\1**', linea)
-
+    # Si contiene una nota sola A-G como palabra aislada
+    return bool(re.search(r'\b[A-G]\b', linea))
 
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, corregir_posicion, formato_salida):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
 
-    # 1. Corrección de posición
+    # 1. Corrección de posición (solo en líneas seleccionadas)
     if corregir_posicion == "Activada":
         patron_pos = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|m|MAJ|MIN|maj|min|aug|dim|sus|add)?([#b])'
         for i in range(len(lineas)):
             if i in lineas_a_procesar:
                 lineas[i] = re.sub(patron_pos, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
 
-    # 2. Traducción Latino → Americano
+    # 2. Traducción Latino → Americano (solo en MAYÚSCULAS, tokens completos)
     resultado_intermedio = []
     if "Latino" in modo_origen:
-        patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)([#b])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
+        patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI|SIB|MIB)([#b])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
 
         def traducir(match):
-            raiz = LATINO_A_AMERICANO[match.group(1).upper()]
+            raiz = match.group(1).upper()
             alt = match.group(2) or ""
             cual = match.group(3) or ""
             num = match.group(4) or ""
+
+            raiz_amer = LATINO_A_AMERICANO.get(raiz, raiz)
+
             if cual.upper() == "MIN":
                 cual = "m"
             elif cual.upper() in ["M", "MAJ"]:
                 cual = ""
-            return f"{raiz}{alt}{cual}{num}"
+
+            return f"{raiz_amer}{alt}{cual}{num}"
 
         for i, l in enumerate(lineas):
             if i in lineas_a_procesar:
-                resultado_intermedio.append(re.sub(patron_latino, traducir, l, flags=re.IGNORECASE))
+                resultado_intermedio.append(re.sub(patron_latino, traducir, l))
             else:
                 resultado_intermedio.append(l)
     else:
@@ -120,8 +106,8 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
     if formato_salida == "Original":
         return "\n".join(resultado_intermedio)
 
-    # 3. Apostrofado
-    patron_acorde = r'\b[A-G](#|b)?(m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](#|b)?)?\b'
+    # 3. Apostrofado (incluye # y b correctamente)
+    patron_acorde = r'\b[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?[0-9]*(?:/[A-G](?:#|b)?)?\b'
     resultado_final = []
 
     for i, linea in enumerate(resultado_intermedio):
@@ -144,6 +130,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
 
     return "\n".join(resultado_final)
 
+
 # ──────────────────── INTERFAZ ────────────────────
 st.markdown("<h1 style='text-align:center;'>🎵 Cancionero Pro</h1>", unsafe_allow_html=True)
 
@@ -160,7 +147,7 @@ archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 with st.sidebar:
     st.markdown("### Preferencias aprendidas")
     if st.button("🧹 Borrar lo recordado"):
-        st.session_state.decision_memoria = {"nota_sola": None, "linea_multi": None}
+        st.session_state.decision_memoria = {}
         st.session_state.conflict_checks = {}
         st.success("Preferencias reiniciadas")
 
@@ -177,59 +164,39 @@ if archivo:
     auto = [i for i, l in enumerate(lineas) if es_linea_acordes(l)]
     conflictivas = [i for i, l in enumerate(lineas) if es_linea_conflictiva(l)]
 
-    procesar_todo = st.checkbox("⚙️ Procesar TODO (sin seleccionar líneas)", value=False)
-
+    st.write("### Líneas detectadas como conflictivas (por confirmar)")
     if conflictivas:
-        st.warning("⚠️ Líneas ambiguas detectadas. Decide si contienen acordes.")
-
-        colA, colB = st.columns(2)
-        with colA:
-            if st.button("✅ Aceptar todas"):
-                for i in conflictivas:
-                    st.session_state.conflict_checks[i] = True
-        with colB:
-            if st.button("❌ Rechazar todas"):
-                for i in conflictivas:
-                    st.session_state.conflict_checks[i] = False
-
-        st.markdown("---")
-
         for i in conflictivas:
-            tipo = tipo_linea_ambigua(lineas[i])
-            default = st.session_state.decision_memoria.get(tipo, False)
-
+            default = st.session_state.decision_memoria.get(i, False)
             marcado = st.checkbox(
-                f"Línea {i+1}: {resaltar_notas_conflictivas(lineas[i])}",
+                f"Línea {i+1}: {lineas[i]}",
                 value=st.session_state.conflict_checks.get(i, default),
                 key=f"chk_{i}"
             )
             st.session_state.conflict_checks[i] = marcado
 
+    procesar_todo = st.checkbox("⚙️ Procesar TODO (sin seleccionar líneas)", value=False)
+
     if st.button("✨ PROCESAR"):
-        # Guardar decisiones aprendidas (memoria global)
+        # Guardar decisiones aprendidas
         for i, v in st.session_state.conflict_checks.items():
-            tipo = tipo_linea_ambigua(lineas[i])
-            st.session_state.decision_memoria[tipo] = v
+            st.session_state.decision_memoria[i] = v
 
         if procesar_todo:
             lineas_finales = set(range(len(lineas)))
         else:
-            lineas_finales = set(auto) | {
-                i for i, v in st.session_state.conflict_checks.items() if v
-            }
+            lineas_finales = set(auto) | {i for i, v in st.session_state.conflict_checks.items() if v}
 
         texto_final = procesar_texto_selectivo(
             contenido,
             lineas_finales,
             opt_origen,
-            "Activada" if "Activada" in opt_posicion else "Desactivada",
+            "Activada" if opt_posicion == "Activada" else "Desactivada",
             opt_salida
         )
 
-        # Mostrar resultado
         st.code(texto_final, language="text")
 
-        # ───── BOTÓN GUARDAR / COMPARTIR ─────
         texto_js = (
             texto_final
             .replace("\\", "\\\\")
@@ -240,23 +207,12 @@ if archivo:
         components.html(
             f"""
             <button id="actionBtn"
-                style="
-                    width:100%;
-                    height:45px;
-                    background-color:#FF4B4B;
-                    color:white;
-                    border:none;
-                    border-radius:8px;
-                    cursor:pointer;
-                    font-weight:bold;
-                    font-family:sans-serif;
-                ">
+                style="width:100%; height:45px; background-color:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family:sans-serif;">
                 💾 GUARDAR Y COMPARTIR
             </button>
 
             <script>
                 const btn = document.getElementById('actionBtn');
-
                 btn.onclick = async () => {{
                     const blob = new Blob([`{texto_js}`], {{ type: 'text/plain' }});
                     const file = new File([blob], "{archivo.name}", {{ type: 'text/plain' }});
