@@ -32,10 +32,7 @@ LATINO_A_AMERICANO = {
 
 # ──────────────────── MEMORIA GLOBAL ────────────────────
 if "decision_memoria" not in st.session_state:
-    st.session_state.decision_memoria = {
-        "nota_sola": None,
-        "linea_multi": None
-    }
+    st.session_state.decision_memoria = {"nota_sola": None, "linea_multi": None}
 
 if "conflict_checks" not in st.session_state:
     st.session_state.conflict_checks = {}
@@ -49,52 +46,42 @@ def es_linea_acordes(linea):
     acordes = 0
     for t in tokens:
         if re.fullmatch(
-            r'[A-G](#|b)?(m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](#|b)?)?',
+            r'[A-G](#|b)?(m|maj|min|dim|aug|sus|add)?[0-9]{0,2}(?:/[A-G](#|b)?)?',
             t,
             re.IGNORECASE
         ):
             acordes += 1
-
     return acordes >= 2
 
-
 def es_linea_conflictiva(linea):
+    # Si ya es linea de acordes, no es conflictiva
     if es_linea_acordes(linea):
         return False
 
-    return bool(
-        re.search(r'\b[A-G]\b', linea)
-        and not re.search(
-            r'\b[A-G](#|b|m|maj|min|dim|aug|sus|add|[0-9]|/)',
-            linea,
-            re.IGNORECASE
-        )
-    )
-
+    # Solo si aparece una nota sola aislada (A, B, C...) y no forma parte de palabra
+    return bool(re.search(r'\b[A-G]\b', linea))
 
 def tipo_linea_ambigua(linea):
     if re.fullmatch(r'\s*[A-G]\s*', linea):
         return "nota_sola"
     return "linea_multi"
 
-
 def resaltar_notas_conflictivas(linea):
     return re.sub(r'\b([A-G])\b', r'**\1**', linea)
-
 
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, corregir_posicion, formato_salida):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
 
-    # 1. Corrección de posición
+    # Corrección de posición
     if corregir_posicion == "Activada":
         patron_pos = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|m|MAJ|MIN|maj|min|aug|dim|sus|add)?([#b])'
         for i in range(len(lineas)):
             if i in lineas_a_procesar:
                 lineas[i] = re.sub(patron_pos, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
 
-    # 2. Traducción Latino → Americano (incluye bemoles)
+    # Traducción latino → americano (incluye bemoles)
     resultado_intermedio = []
-    if "Latino" in modo_origen:
+    if modo_origen == "Latino":
         patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI)(b|#)?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
 
         def traducir(match):
@@ -124,7 +111,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
     if formato_salida == "Original":
         return "\n".join(resultado_intermedio)
 
-    # 3. Apostrofado (solo tokens completos de acordes)
+    # Apostrofado (solo acordes completos)
     patron_acorde = r'\b[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?(?:[0-9]{0,2})?(?:/[A-G](?:#|b)?)?\b(?![a-z])'
     resultado_final = []
 
@@ -138,10 +125,8 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
 
         for m in reversed(matches):
             fin = m.end()
-
             if fin < len(chars) and chars[fin] == "'":
                 continue
-
             if fin < len(chars):
                 chars.insert(fin, "'")
             else:
@@ -150,7 +135,6 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
         resultado_final.append("".join(chars))
 
     return "\n".join(resultado_final)
-
 
 # ──────────────────── INTERFAZ ────────────────────
 st.markdown("<h1 style='text-align:center;'>🎵 Cancionero Pro</h1>", unsafe_allow_html=True)
@@ -206,15 +190,11 @@ if archivo:
             st.session_state.conflict_checks[i] = marcado
 
     if st.button("✨ PROCESAR"):
-
-        # Guardar decisiones aprendidas (memoria global)
         for i, v in st.session_state.conflict_checks.items():
             tipo = tipo_linea_ambigua(lineas[i])
             st.session_state.decision_memoria[tipo] = v
 
-        lineas_finales = set(auto) | {
-            i for i, v in st.session_state.conflict_checks.items() if v
-        }
+        lineas_finales = set(auto) | {i for i, v in st.session_state.conflict_checks.items() if v}
 
         texto_final = procesar_texto_selectivo(
             contenido,
@@ -224,10 +204,8 @@ if archivo:
             opt_salida
         )
 
-        # Mostrar resultado
         st.code(texto_final, language="text")
 
-        # ───── BOTÓN GUARDAR / COMPARTIR ─────
         texto_js = (
             texto_final
             .replace("\\", "\\\\")
@@ -282,4 +260,3 @@ if archivo:
             """,
             height=60
         )
-
