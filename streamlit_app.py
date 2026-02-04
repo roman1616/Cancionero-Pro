@@ -26,7 +26,7 @@ iframe { width: 100% !important; }
 LATINO_A_AMERICANO = {
     'DO': 'C', 'RE': 'D', 'MI': 'E',
     'FA': 'F', 'SOL': 'G', 'LA': 'A', 'SI': 'B',
-    'SIB': 'Bb', 'MIB': 'Eb'  # Bb y Eb en Latino
+    'SIB': 'Bb', 'MIB': 'Eb'  # Bb y Eb
 }
 
 # ──────────────────── MEMORIA GLOBAL ────────────────────
@@ -40,7 +40,6 @@ if "archivo_actual" not in st.session_state:
     st.session_state.archivo_actual = None
 
 # ──────────────────── FUNCIONES ────────────────────
-
 def es_linea_acordes(linea):
     tokens = linea.strip().split()
     if len(tokens) < 2:
@@ -50,32 +49,28 @@ def es_linea_acordes(linea):
     for t in tokens:
         if re.fullmatch(
             r'[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](?:#|b)?)?',
-            t,
-            re.IGNORECASE
+            t
         ):
             acordes += 1
 
     return acordes >= 2
 
 def es_linea_conflictiva(linea):
-    # Si es claramente una línea de acordes, no es conflictiva
     if es_linea_acordes(linea):
         return False
-
-    # Si contiene una nota sola A-G como palabra aislada
     return bool(re.search(r'\b[A-G]\b', linea))
 
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, corregir_posicion, formato_salida):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
 
-    # 1. Corrección de posición (solo en líneas seleccionadas)
+    # 1) Corrección de posición (solo en líneas seleccionadas)
     if corregir_posicion == "Activada":
         patron_pos = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|m|MAJ|MIN|maj|min|aug|dim|sus|add)?([#b])'
         for i in range(len(lineas)):
             if i in lineas_a_procesar:
                 lineas[i] = re.sub(patron_pos, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
 
-    # 2. Traducción Latino → Americano (solo en MAYÚSCULAS, tokens completos)
+    # 2) Traducción Latino → Americano (solo acordes en MAYÚSCULAS)
     resultado_intermedio = []
     if "Latino" in modo_origen:
         patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI|SIB|MIB)([#b])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
@@ -97,6 +92,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
 
         for i, l in enumerate(lineas):
             if i in lineas_a_procesar:
+                # SIN IGNORECASE para evitar cambiar palabras normales
                 resultado_intermedio.append(re.sub(patron_latino, traducir, l))
             else:
                 resultado_intermedio.append(l)
@@ -106,7 +102,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
     if formato_salida == "Original":
         return "\n".join(resultado_intermedio)
 
-    # 3. Apostrofado (incluye # y b correctamente)
+    # 3) Apostrofado correcto (incluye # y b)
     patron_acorde = r'\b[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?[0-9]*(?:/[A-G](?:#|b)?)?\b'
     resultado_final = []
 
@@ -115,8 +111,12 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
             resultado_final.append(linea)
             continue
 
+        # NORMALIZACIÓN: quitar apóstrofo antes de # o b
+        linea = re.sub(r"(?<=\b[A-G])'(?=[#b])", "", linea)
+        linea = re.sub(r"(?<=/[A-G])'(?=[#b])", "", linea)
+
         chars = list(linea)
-        matches = list(re.finditer(patron_acorde, linea, re.IGNORECASE))
+        matches = list(re.finditer(patron_acorde, linea))
 
         for m in reversed(matches):
             fin = m.end()
@@ -129,7 +129,6 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
         resultado_final.append("".join(chars))
 
     return "\n".join(resultado_final)
-
 
 # ──────────────────── INTERFAZ ────────────────────
 st.markdown("<h1 style='text-align:center;'>🎵 Cancionero Pro</h1>", unsafe_allow_html=True)
@@ -153,7 +152,6 @@ with st.sidebar:
 
 # ──────────────────── PROCESO ────────────────────
 if archivo:
-    # Reset si cambia el archivo
     if st.session_state.archivo_actual != archivo.name:
         st.session_state.archivo_actual = archivo.name
         st.session_state.conflict_checks = {}
@@ -178,7 +176,6 @@ if archivo:
     procesar_todo = st.checkbox("⚙️ Procesar TODO (sin seleccionar líneas)", value=False)
 
     if st.button("✨ PROCESAR"):
-        # Guardar decisiones aprendidas
         for i, v in st.session_state.conflict_checks.items():
             st.session_state.decision_memoria[i] = v
 
