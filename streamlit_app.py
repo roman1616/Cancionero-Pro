@@ -42,10 +42,9 @@ if "archivo_actual" not in st.session_state:
     st.session_state.archivo_actual = None
 
 # ──────────────────── FUNCIONES ────────────────────
-
 def es_acorde_token(token):
     return bool(re.fullmatch(
-        r'[A-G](#|b)?(m|maj|min|dim|aug|sus|add)?([0-9]{0,2})?(?:/[A-G](#|b)?)?',
+        r'[A-G](#|b)?(m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](#|b)?)?',
         token,
         re.IGNORECASE
     ))
@@ -54,8 +53,9 @@ def es_linea_acordes(linea):
     tokens = linea.strip().split()
     if not tokens:
         return False
+
     acordes = sum(1 for t in tokens if es_acorde_token(t))
-    return acordes >= 1  # 1 acorde ya cuenta
+    return acordes >= 1  # <-- CAMBIO CLAVE: 1 acorde basta
 
 def es_linea_conflictiva(linea):
     if es_linea_acordes(linea):
@@ -81,7 +81,7 @@ def resaltar_notas_conflictivas(linea):
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, corregir_posicion, formato_salida):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
 
-    # 1. Corrección de posición
+    # 1. Corrección de posición (FA#M -> FA#M)
     if corregir_posicion == "Activada":
         patron_pos = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|m|MAJ|MIN|maj|min|aug|dim|sus|add)?([#b])'
         for i in range(len(lineas)):
@@ -116,7 +116,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
         return "\n".join(resultado_intermedio)
 
     # 3. Apostrofado
-    patron_acorde = r'\b[A-G](#|b)?(m|maj|min|dim|aug|sus|add)?([0-9]{0,2})?(?:/[A-G](#|b)?)?\b'
+    patron_acorde = r'\b[A-G](#|b)?(m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](#|b)?)?\b'
     resultado_final = []
 
     for i, linea in enumerate(resultado_intermedio):
@@ -278,4 +278,3 @@ if archivo:
             """,
             height=60
         )
-
