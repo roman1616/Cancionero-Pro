@@ -42,22 +42,20 @@ if "archivo_actual" not in st.session_state:
     st.session_state.archivo_actual = None
 
 # ──────────────────── FUNCIONES ────────────────────
+
+def es_acorde_token(token):
+    return bool(re.fullmatch(
+        r'[A-G](#|b)?(m|maj|min|dim|aug|sus|add)?([0-9]{0,2})?(?:/[A-G](#|b)?)?',
+        token,
+        re.IGNORECASE
+    ))
+
 def es_linea_acordes(linea):
     tokens = linea.strip().split()
-    if len(tokens) < 2:
+    if not tokens:
         return False
-
-    acordes = 0
-    for t in tokens:
-        if re.fullmatch(
-            r'[A-G](#|b)?(m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](#|b)?)?',
-            t,
-            re.IGNORECASE
-        ):
-            acordes += 1
-
-    return acordes >= 2
-
+    acordes = sum(1 for t in tokens if es_acorde_token(t))
+    return acordes >= 1  # 1 acorde ya cuenta
 
 def es_linea_conflictiva(linea):
     if es_linea_acordes(linea):
@@ -72,16 +70,13 @@ def es_linea_conflictiva(linea):
         )
     )
 
-
 def tipo_linea_ambigua(linea):
     if re.fullmatch(r'\s*[A-G]\s*', linea):
         return "nota_sola"
     return "linea_multi"
 
-
 def resaltar_notas_conflictivas(linea):
     return re.sub(r'\b([A-G])\b', r'**\1**', linea)
-
 
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, corregir_posicion, formato_salida):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
@@ -121,7 +116,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
         return "\n".join(resultado_intermedio)
 
     # 3. Apostrofado
-    patron_acorde = r'\b[A-G](#|b)?(m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](#|b)?)?\b'
+    patron_acorde = r'\b[A-G](#|b)?(m|maj|min|dim|aug|sus|add)?([0-9]{0,2})?(?:/[A-G](#|b)?)?\b'
     resultado_final = []
 
     for i, linea in enumerate(resultado_intermedio):
@@ -166,7 +161,6 @@ with st.sidebar:
 
 # ──────────────────── PROCESO ────────────────────
 if archivo:
-    # Reset si cambia el archivo
     if st.session_state.archivo_actual != archivo.name:
         st.session_state.archivo_actual = archivo.name
         st.session_state.conflict_checks = {}
