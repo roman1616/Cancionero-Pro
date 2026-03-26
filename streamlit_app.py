@@ -194,6 +194,22 @@ if archivo:
 
         st.code(texto_final, language="text")
 
+        st.markdown("### 🔎 Buscar y Reemplazar")
+
+colb, colr = st.columns(2)
+with colb:
+    buscar = st.text_input("Buscar (Regex)", value="F'#|C'#")     
+with colr:
+    reemplazar = st.text_input("Reemplazar por", value="F#'|C#'")
+
+texto_original = st.text_area("Introduce tu texto:")
+
+if st.button("Procesar"):
+    # Usamos re.sub para que interprete el '|' como un operador lógico
+    resultado = re.sub(buscar, reemplazar, texto_original)
+    st.success("Resultado:")
+    st.code(resultado)
+
         texto_js = (
             texto_final
             .replace("\\", "\\\\")
