@@ -1,6 +1,50 @@
+# ──────────────────── PROCESO Y BUSCAR/REEMPLAZAR ────────────────────
+if archivo:
+    if st.session_state.archivo_actual != archivo.name:
+        st.session_state.archivo_actual = archivo.name
+        st.session_state.conflict_checks = {}
+        st.session_state.texto_reemplazado = None
+
+    contenido = archivo.getvalue().decode("utf-8")
+    lineas = contenido.split("\n")
+
+    auto = [i for i, l in enumerate(lineas) if es_linea_acordes(l)]
+    conflictivas = [i for i, l in enumerate(lineas) if es_linea_conflictiva(l)]
+
+    st.write("### Líneas detectadas como conflictivas (por confirmar)")
+    if conflictivas:
+        for i in conflictivas:
+            default = st.session_state.decision_memoria.get(i, False)
+            marcado = st.checkbox(
+                f"Línea {i+1}: {lineas[i]}",
+                value=st.session_state.conflict_checks.get(i, default),
+                key=f"chk_{i}"
+            )
+            st.session_state.conflict_checks[i] = marcado
+
+    procesar_todo = st.checkbox("⚙️ Procesar TODO (sin seleccionar líneas)", value=False)
+
+    if st.button("✨ PROCESAR"):
+        for i, v in st.session_state.conflict_checks.items():
+            st.session_state.decision_memoria[i] = v
+
+        if procesar_todo:
+            lineas_finales = set(range(len(lineas)))
+        else:
+            lineas_finales = set(auto) | {i for i, v in st.session_state.conflict_checks.items() if v}
+
+        texto_final = procesar_texto_selectivo(
+            contenido,
+            lineas_finales,
+            opt_origen,
+            "Activada" if opt_posicion == "Activada" else "Desactivada",
+            opt_salida
+        )
+
+        st.session_state.texto_reemplazado = texto_final
+
 # ───────── BUSCAR / REEMPLAZAR ─────────
 if st.session_state.texto_reemplazado:
-
     st.markdown("### 🔎 Buscar y Reemplazar")
 
     colb, colr = st.columns(2)
@@ -23,11 +67,11 @@ if st.session_state.texto_reemplazado:
                 st.session_state.texto_reemplazado
             )
 
-    # Mostrar el texto reemplazado
+    # Mostrar el texto actualizado
     texto_final = st.session_state.texto_reemplazado
     st.code(texto_final, language="text")
 
-    # Preparar texto para descarga/compartir
+    # Preparar el texto para compartir/descargar
     texto_js = (
         texto_final
         .replace("\\", "\\\\")
@@ -36,40 +80,39 @@ if st.session_state.texto_reemplazado:
     )
 
     # Botón de guardar/compartir
-    if archivo:
-        components.html(
-            f"""
-            <button id="actionBtn"
-                style="width:100%; height:45px; background-color:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family:sans-serif;">
-                💾 GUARDAR Y COMPARTIR
-            </button>
+    components.html(
+        f"""
+        <button id="actionBtn"
+            style="width:100%; height:45px; background-color:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family:sans-serif;">
+            💾 GUARDAR Y COMPARTIR
+        </button>
 
-            <script>
-                const btn = document.getElementById('actionBtn');
-                btn.onclick = async () => {{
-                    const blob = new Blob([`{texto_js}`], {{ type: 'text/plain' }});
-                    const file = new File([blob], "{archivo.name}", {{ type: 'text/plain' }});
+        <script>
+            const btn = document.getElementById('actionBtn');
+            btn.onclick = async () => {{
+                const blob = new Blob([`{texto_js}`], {{ type: 'text/plain' }});
+                const file = new File([blob], "{archivo.name}", {{ type: 'text/plain' }});
 
-                    if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
-                        if (navigator.share) {{
-                            try {{
-                                await navigator.share({{ files: [file] }});
-                                return;
-                            }} catch (e) {{}}
-                        }} else {{
-                            alert("La opción compartir funciona mejor en móvil.");
-                        }}
+                if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
+                    if (navigator.share) {{
+                        try {{
+                            await navigator.share({{ files: [file] }});
+                            return;
+                        }} catch (e) {{}}
+                    }} else {{
+                        alert("La opción compartir funciona mejor en móvil.");
                     }}
+                }}
 
-                    if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = "{archivo.name}";
-                        a.click();
-                        URL.revokeObjectURL(a.href);
-                    }}
-                }};
-            </script>
-            """,
-            height=60
-        )
+                if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = "{archivo.name}";
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                }}
+            }};
+        </script>
+        """,
+        height=60
+    )
