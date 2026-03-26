@@ -207,6 +207,7 @@ if st.session_state.texto_reemplazado:
 
     texto_js = (
         texto_final
+        .replace("F'#", "\\F#'")
         .replace("\\", "\\\\")
         .replace("`", "\\`")
         .replace("$", "\\$")
