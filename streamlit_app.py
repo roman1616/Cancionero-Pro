@@ -26,7 +26,7 @@ iframe { width: 100% !important; }
 LATINO_A_AMERICANO = {
     'DO': 'C', 'RE': 'D', 'MI': 'E',
     'FA': 'F', 'SOL': 'G', 'LA': 'A', 'SI': 'B',
-    'SIB': 'Bb', 'MIB': 'Eb'
+    'SIB': 'Bb', 'MIB': 'Eb'  # Bb y Eb
 }
 
 # ──────────────────── MEMORIA GLOBAL ────────────────────
@@ -38,9 +38,6 @@ if "conflict_checks" not in st.session_state:
 
 if "archivo_actual" not in st.session_state:
     st.session_state.archivo_actual = None
-
-if "texto_reemplazado" not in st.session_state:
-    st.session_state.texto_reemplazado = None
 
 # ──────────────────── FUNCIONES ────────────────────
 def es_linea_acordes(linea):
@@ -66,12 +63,14 @@ def es_linea_conflictiva(linea):
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, corregir_posicion, formato_salida):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
 
+    # 1) Corrección de posición (solo en líneas seleccionadas)
     if corregir_posicion == "Activada":
         patron_pos = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|m|MAJ|MIN|maj|min|aug|dim|sus|add)?([#b])'
         for i in range(len(lineas)):
             if i in lineas_a_procesar:
                 lineas[i] = re.sub(patron_pos, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
 
+    # 2) Traducción Latino → Americano (solo acordes en MAYÚSCULAS)
     resultado_intermedio = []
     if "Latino" in modo_origen:
         patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI|SIB|MIB)([#b])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
@@ -93,6 +92,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
 
         for i, l in enumerate(lineas):
             if i in lineas_a_procesar:
+                # SIN IGNORECASE para evitar cambiar palabras normales
                 resultado_intermedio.append(re.sub(patron_latino, traducir, l))
             else:
                 resultado_intermedio.append(l)
@@ -102,6 +102,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
     if formato_salida == "Original":
         return "\n".join(resultado_intermedio)
 
+    # 3) Apostrofado correcto (incluye # y b)
     patron_acorde = r'\b[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?[0-9]*(?:/[A-G](?:#|b)?)?\b'
     resultado_final = []
 
@@ -110,6 +111,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
             resultado_final.append(linea)
             continue
 
+        # NORMALIZACIÓN: quitar apóstrofo antes de # o b
         linea = re.sub(r"(?<=\b[A-G])'(?=[#b])", "", linea)
         linea = re.sub(r"(?<=/[A-G])'(?=[#b])", "", linea)
 
@@ -141,12 +143,18 @@ with col3:
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
+with st.sidebar:
+    st.markdown("### Preferencias aprendidas")
+    if st.button("🧹 Borrar lo recordado"):
+        st.session_state.decision_memoria = {}
+        st.session_state.conflict_checks = {}
+        st.success("Preferencias reiniciadas")
+
 # ──────────────────── PROCESO ────────────────────
 if archivo:
     if st.session_state.archivo_actual != archivo.name:
         st.session_state.archivo_actual = archivo.name
         st.session_state.conflict_checks = {}
-        st.session_state.texto_reemplazado = None
 
     contenido = archivo.getvalue().decode("utf-8")
     lineas = contenido.split("\n")
@@ -184,46 +192,48 @@ if archivo:
             opt_salida
         )
 
-        st.session_state.texto_reemplazado = texto_final
+        st.code(texto_final, language="text")
 
-# ───────── BUSCAR / REEMPLAZAR ─────────
-if st.session_state.texto_reemplazado:
+        texto_js = (
+            texto_final
+            .replace("\\", "\\\\")
+            .replace("`", "\\`")
+            .replace("$", "\\$")
+        )
 
-    
+        components.html(
+            f"""
+            <button id="actionBtn"
+                style="width:100%; height:45px; background-color:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family:sans-serif;">
+                💾 GUARDAR Y COMPARTIR
+            </button>
 
-    components.html(
-        f"""
-        <button id="actionBtn"
-            style="width:100%; height:45px; background-color:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family:sans-serif;">
-            💾 GUARDAR Y COMPARTIR
-        </button>
+            <script>
+                const btn = document.getElementById('actionBtn');
+                btn.onclick = async () => {{
+                    const blob = new Blob([`{texto_js}`], {{ type: 'text/plain' }});
+                    const file = new File([blob], "{archivo.name}", {{ type: 'text/plain' }});
 
-        <script>
-            const btn = document.getElementById('actionBtn');
-            btn.onclick = async () => {{
-                const blob = new Blob([`{texto_js}`], {{ type: 'text/plain' }});
-                const file = new File([blob], "{archivo.name}", {{ type: 'text/plain' }});
-
-                if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
-                    if (navigator.share) {{
-                        try {{
-                            await navigator.share({{ files: [file] }});
-                            return;
-                        }} catch (e) {{}}
-                    }} else {{
-                        alert("La opción compartir funciona mejor en móvil.");
+                    if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
+                        if (navigator.share) {{
+                            try {{
+                                await navigator.share({{ files: [file] }});
+                                return;
+                            }} catch (e) {{}}
+                        }} else {{
+                            alert("La opción compartir funciona mejor en móvil.");
+                        }}
                     }}
-                }}
 
-                if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = "{archivo.name}";
-                    a.click();
-                    URL.revokeObjectURL(a.href);
-                }}
-            }};
-        </script>
-        """,
-        height=60
-    )
+                    if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = "{archivo.name}";
+                        a.click();
+                        URL.revokeObjectURL(a.href);
+                    }}
+                }};
+            </script>
+            """,
+            height=60
+        )
