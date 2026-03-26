@@ -210,7 +210,7 @@ if st.session_state.texto_reemplazado:
                 reemplazar,
                 st.session_state.texto_reemplazado
             )
-        )
+        #)
     #colb, colr = st.columns(2)
     #with colb:
     #   buscar = st.text_input("Buscar (Regex)", value="C'#";"D'#";"F'#";"G'#";"A'#";"B'#")
