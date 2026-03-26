@@ -39,27 +39,18 @@ if "conflict_checks" not in st.session_state:
 if "archivo_actual" not in st.session_state:
     st.session_state.archivo_actual = None
 
-# NUEVO: memoria buscar reemplazar
-if "buscar" not in st.session_state:
-    st.session_state.buscar = ""
-
-if "reemplazar" not in st.session_state:
-    st.session_state.reemplazar = ""
+if "texto_final" not in st.session_state:
+    st.session_state.texto_final = ""
 
 # ──────────────────── FUNCIONES ────────────────────
 def es_linea_acordes(linea):
     tokens = linea.strip().split()
     if len(tokens) < 2:
         return False
-
     acordes = 0
     for t in tokens:
-        if re.fullmatch(
-            r'[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](?:#|b)?)?',
-            t
-        ):
+        if re.fullmatch(r'[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](?:#|b)?)?', t):
             acordes += 1
-
     return acordes >= 2
 
 def es_linea_conflictiva(linea):
@@ -76,32 +67,7 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
             if i in lineas_a_procesar:
                 lineas[i] = re.sub(patron_pos, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
 
-    resultado_intermedio = []
-    if "Latino" in modo_origen:
-        patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI|SIB|MIB)([#b])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
-
-        def traducir(match):
-            raiz = match.group(1).upper()
-            alt = match.group(2) or ""
-            cual = match.group(3) or ""
-            num = match.group(4) or ""
-
-            raiz_amer = LATINO_A_AMERICANO.get(raiz, raiz)
-
-            if cual.upper() == "MIN":
-                cual = "m"
-            elif cual.upper() in ["M", "MAJ"]:
-                cual = ""
-
-            return f"{raiz_amer}{alt}{cual}{num}"
-
-        for i, l in enumerate(lineas):
-            if i in lineas_a_procesar:
-                resultado_intermedio.append(re.sub(patron_latino, traducir, l))
-            else:
-                resultado_intermedio.append(l)
-    else:
-        resultado_intermedio = lineas
+    resultado_intermedio = lineas
 
     if formato_salida == "Original":
         return "\n".join(resultado_intermedio)
@@ -114,16 +80,13 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
             resultado_final.append(linea)
             continue
 
-        linea = re.sub(r"(?<=\b[A-G])'(?=[#b])", "", linea)
-        linea = re.sub(r"(?<=/[A-G])'(?=[#b])", "", linea)
-
         chars = list(linea)
         matches = list(re.finditer(patron_acorde, linea))
 
         for m in reversed(matches):
             fin = m.end()
             if fin < len(chars):
-                if chars[fin] not in ["'", "*"]:
+                if chars[fin] != "'":
                     chars.insert(fin, "'")
             else:
                 chars.append("'")
@@ -145,109 +108,85 @@ with col3:
 
 archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
-with st.sidebar:
-    st.markdown("### Preferencias aprendidas")
-    if st.button("🧹 Borrar lo recordado"):
-        st.session_state.decision_memoria = {}
-        st.session_state.conflict_checks = {}
-        st.success("Preferencias reiniciadas")
-
 # ──────────────────── PROCESO ────────────────────
 if archivo:
-    if st.session_state.archivo_actual != archivo.name:
-        st.session_state.archivo_actual = archivo.name
-        st.session_state.conflict_checks = {}
-
     contenido = archivo.getvalue().decode("utf-8")
     lineas = contenido.split("\n")
 
     auto = [i for i, l in enumerate(lineas) if es_linea_acordes(l)]
-    conflictivas = [i for i, l in enumerate(lineas) if es_linea_conflictiva(l)]
-
-    st.write("### Líneas detectadas como conflictivas (por confirmar)")
-    if conflictivas:
-        for i in conflictivas:
-            default = st.session_state.decision_memoria.get(i, False)
-            marcado = st.checkbox(
-                f"Línea {i+1}: {lineas[i]}",
-                value=st.session_state.conflict_checks.get(i, default),
-                key=f"chk_{i}"
-            )
-            st.session_state.conflict_checks[i] = marcado
-
-    procesar_todo = st.checkbox("⚙️ Procesar TODO (sin seleccionar líneas)", value=False)
+    procesar_todo = st.checkbox("⚙️ Procesar TODO", value=True)
 
     if st.button("✨ PROCESAR"):
-        for i, v in st.session_state.conflict_checks.items():
-            st.session_state.decision_memoria[i] = v
-
         if procesar_todo:
             lineas_finales = set(range(len(lineas)))
         else:
-            lineas_finales = set(auto) | {i for i, v in st.session_state.conflict_checks.items() if v}
+            lineas_finales = set(auto)
 
-        texto_final = procesar_texto_selectivo(
+        st.session_state.texto_final = procesar_texto_selectivo(
             contenido,
             lineas_finales,
             opt_origen,
-            "Activada" if opt_posicion == "Activada" else "Desactivada",
+            opt_posicion,
             opt_salida
         )
 
-        # ───── BUSCAR Y REEMPLAZAR ─────
-        st.markdown("### 🔎 Buscar y Reemplazar")
-        colb, colr = st.columns(2)
-        with colb:
-            buscar = st.text_input("Buscar", value=st.session_state.buscar)
-        with colr:
-            reemplazar = st.text_input("Reemplazar", value=st.session_state.reemplazar)
+# ──────────────────── BUSCAR Y REEMPLAZAR ────────────────────
+if st.session_state.texto_final:
 
-        if st.button("Aplicar reemplazo"):
-            st.session_state.buscar = buscar
-            st.session_state.reemplazar = reemplazar
-            if buscar:
-                texto_final = texto_final.replace(buscar, reemplazar)
+    st.markdown("### 🔎 Buscar y Reemplazar")
 
-        st.code(texto_final, language="text")
+    colb, colr = st.columns(2)
+    with colb:
+        buscar = st.text_input("Buscar")
+    with colr:
+        reemplazar = st.text_input("Reemplazar")
 
-        texto_js = (
-            texto_final
-            .replace("\\", "\\\\")
-            .replace("`", "\\`")
-            .replace("$", "\\$")
-        )
+    if st.button("Aplicar reemplazo"):
+        if buscar:
+            st.session_state.texto_final = st.session_state.texto_final.replace(buscar, reemplazar)
 
-        components.html(
-            f"""
-            <button id="actionBtn"
-                style="width:100%; height:45px; background-color:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family:sans-serif;">
-                💾 GUARDAR Y COMPARTIR
-            </button>
+    texto_final = st.session_state.texto_final
 
-            <script>
-                const btn = document.getElementById('actionBtn');
-                btn.onclick = async () => {{
-                    const blob = new Blob([`{texto_js}`], {{ type: 'text/plain' }});
-                    const file = new File([blob], "{archivo.name}", {{ type: 'text/plain' }});
+    st.code(texto_final, language="text")
 
-                    if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
-                        if (navigator.share) {{
-                            try {{
-                                await navigator.share({{ files: [file] }});
-                                return;
-                            }} catch (e) {{}}
-                        }}
+    texto_js = (
+        texto_final
+        .replace("\\", "\\\\")
+        .replace("`", "\\`")
+        .replace("$", "\\$")
+    )
+
+    components.html(
+        f"""
+        <button id="actionBtn"
+            style="width:100%; height:45px; background-color:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+            💾 GUARDAR Y COMPARTIR
+        </button>
+
+        <script>
+            const btn = document.getElementById('actionBtn');
+            btn.onclick = async () => {{
+                const blob = new Blob([`{texto_js}`], {{ type: 'text/plain' }});
+                const file = new File([blob], "{archivo.name}", {{ type: 'text/plain' }});
+
+                if (confirm("🎵 ¿Deseas COMPARTIR el archivo?")) {{
+                    if (navigator.share) {{
+                        try {{
+                            await navigator.share({{ files: [file] }});
+                            return;
+                        }} catch (e) {{}}
                     }}
+                }}
 
-                    if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
-                        const a = document.createElement('a');
-                        a.href = URL.createObjectURL(blob);
-                        a.download = "{archivo.name}";
-                        a.click();
-                        URL.revokeObjectURL(a.href);
-                    }}
-                }};
-            </script>
-            """,
-            height=60
-        )
+                if (confirm("💾 ¿Deseas DESCARGAR el archivo?")) {{
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = "{archivo.name}";
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                }}
+            }};
+        </script>
+        """,
+        height=60
+    )
