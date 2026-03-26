@@ -202,25 +202,34 @@ if st.session_state.texto_reemplazado:
             "Reemplazar por",
             value="\\1#'"
         )
+
+    if st.button("Aplicar reemplazo", key="btn_replace"):
+        if buscar:
+            st.session_state.texto_reemplazado = re.sub(
+                buscar,
+                reemplazar,
+                st.session_state.texto_reemplazado
+            )
+        )
     #colb, colr = st.columns(2)
     #with colb:
     #   buscar = st.text_input("Buscar (Regex)", value="C'#";"D'#";"F'#";"G'#";"A'#";"B'#")
     #with colr:
      #   reemplazar = st.text_input("Reemplazar por", value="C#'";"D#'";"F#'";"G#'";"A#'";"B#'")    
-    if st.button("Aplicar reemplazo", key="btn_replace"):
-        if buscar:
-            st.session_state.texto_reemplazado = st.session_state.texto_reemplazado.replace(buscar, reemplazar)
+    #if st.button("Aplicar reemplazo", key="btn_replace"):
+     #   if buscar:
+      #      st.session_state.texto_reemplazado = st.session_state.texto_reemplazado.replace(buscar, reemplazar)
+#
+ #   texto_final = st.session_state.texto_reemplazado
 
-    texto_final = st.session_state.texto_reemplazado
+  #  st.code(texto_final, language="text")
 
-    st.code(texto_final, language="text")
-
-    texto_js = (
-        texto_final
-        .replace("\\", "\\\\")
-        .replace("`", "\\`")
-        .replace("$", "\\$")
-    )
+   # texto_js = (
+    #    texto_final
+     #   .replace("\\", "\\\\")
+      #  .replace("`", "\\`")
+       # .replace("$", "\\$")
+    #)
 
     components.html(
         f"""
