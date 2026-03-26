@@ -39,18 +39,23 @@ if "conflict_checks" not in st.session_state:
 if "archivo_actual" not in st.session_state:
     st.session_state.archivo_actual = None
 
-if "texto_final" not in st.session_state:
-    st.session_state.texto_final = ""
+if "texto_reemplazado" not in st.session_state:
+    st.session_state.texto_reemplazado = None
 
 # ──────────────────── FUNCIONES ────────────────────
 def es_linea_acordes(linea):
     tokens = linea.strip().split()
     if len(tokens) < 2:
         return False
+
     acordes = 0
     for t in tokens:
-        if re.fullmatch(r'[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](?:#|b)?)?', t):
+        if re.fullmatch(
+            r'[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?[0-9]?(?:/[A-G](?:#|b)?)?',
+            t
+        ):
             acordes += 1
+
     return acordes >= 2
 
 def es_linea_conflictiva(linea):
@@ -67,7 +72,32 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
             if i in lineas_a_procesar:
                 lineas[i] = re.sub(patron_pos, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
 
-    resultado_intermedio = lineas
+    resultado_intermedio = []
+    if "Latino" in modo_origen:
+        patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI|SIB|MIB)([#b])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
+
+        def traducir(match):
+            raiz = match.group(1).upper()
+            alt = match.group(2) or ""
+            cual = match.group(3) or ""
+            num = match.group(4) or ""
+
+            raiz_amer = LATINO_A_AMERICANO.get(raiz, raiz)
+
+            if cual.upper() == "MIN":
+                cual = "m"
+            elif cual.upper() in ["M", "MAJ"]:
+                cual = ""
+
+            return f"{raiz_amer}{alt}{cual}{num}"
+
+        for i, l in enumerate(lineas):
+            if i in lineas_a_procesar:
+                resultado_intermedio.append(re.sub(patron_latino, traducir, l))
+            else:
+                resultado_intermedio.append(l)
+    else:
+        resultado_intermedio = lineas
 
     if formato_salida == "Original":
         return "\n".join(resultado_intermedio)
@@ -80,13 +110,16 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
             resultado_final.append(linea)
             continue
 
+        linea = re.sub(r"(?<=\b[A-G])'(?=[#b])", "", linea)
+        linea = re.sub(r"(?<=/[A-G])'(?=[#b])", "", linea)
+
         chars = list(linea)
         matches = list(re.finditer(patron_acorde, linea))
 
         for m in reversed(matches):
             fin = m.end()
             if fin < len(chars):
-                if chars[fin] != "'":
+                if chars[fin] not in ["'", "*"]:
                     chars.insert(fin, "'")
             else:
                 chars.append("'")
@@ -110,42 +143,65 @@ archivo = st.file_uploader("Sube tu archivo .txt", type=["txt"])
 
 # ──────────────────── PROCESO ────────────────────
 if archivo:
+    if st.session_state.archivo_actual != archivo.name:
+        st.session_state.archivo_actual = archivo.name
+        st.session_state.conflict_checks = {}
+        st.session_state.texto_reemplazado = None
+
     contenido = archivo.getvalue().decode("utf-8")
     lineas = contenido.split("\n")
 
     auto = [i for i, l in enumerate(lineas) if es_linea_acordes(l)]
-    procesar_todo = st.checkbox("⚙️ Procesar TODO", value=True)
+    conflictivas = [i for i, l in enumerate(lineas) if es_linea_conflictiva(l)]
+
+    st.write("### Líneas detectadas como conflictivas (por confirmar)")
+    if conflictivas:
+        for i in conflictivas:
+            default = st.session_state.decision_memoria.get(i, False)
+            marcado = st.checkbox(
+                f"Línea {i+1}: {lineas[i]}",
+                value=st.session_state.conflict_checks.get(i, default),
+                key=f"chk_{i}"
+            )
+            st.session_state.conflict_checks[i] = marcado
+
+    procesar_todo = st.checkbox("⚙️ Procesar TODO (sin seleccionar líneas)", value=False)
 
     if st.button("✨ PROCESAR"):
+        for i, v in st.session_state.conflict_checks.items():
+            st.session_state.decision_memoria[i] = v
+
         if procesar_todo:
             lineas_finales = set(range(len(lineas)))
         else:
-            lineas_finales = set(auto)
+            lineas_finales = set(auto) | {i for i, v in st.session_state.conflict_checks.items() if v}
 
-        st.session_state.texto_final = procesar_texto_selectivo(
+        texto_final = procesar_texto_selectivo(
             contenido,
             lineas_finales,
             opt_origen,
-            opt_posicion,
+            "Activada" if opt_posicion == "Activada" else "Desactivada",
             opt_salida
         )
 
-# ──────────────────── BUSCAR Y REEMPLAZAR ────────────────────
-if st.session_state.texto_final:
+        st.session_state.texto_reemplazado = texto_final
+
+# ───────── BUSCAR / REEMPLAZAR ─────────
+if st.session_state.texto_reemplazado:
 
     st.markdown("### 🔎 Buscar y Reemplazar")
 
     colb, colr = st.columns(2)
     with colb:
-        buscar = st.text_input("Buscar")
+        buscar = st.text_input("Buscar", key="buscar_txt")
     with colr:
-        reemplazar = st.text_input("Reemplazar")
+        reemplazar = st.text_input("Reemplazar", key="reemplazar_txt")
 
-    if st.button("Aplicar reemplazo"):
+    if st.button("Aplicar reemplazo", key="btn_replace"):
         if buscar:
-            st.session_state.texto_final = st.session_state.texto_final.replace(buscar, reemplazar)
+            st.session_state.texto_reemplazado = st.session_state.texto_reemplazado.replace(buscar, reemplazar)
 
-    texto_final = st.session_state.texto_final
+    texto_final = st.session_state.texto_reemplazado
 
     st.code(texto_final, language="text")
 
@@ -159,7 +215,7 @@ if st.session_state.texto_final:
     components.html(
         f"""
         <button id="actionBtn"
-            style="width:100%; height:45px; background-color:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+            style="width:100%; height:45px; background-color:#FF4B4B; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-family:sans-serif;">
             💾 GUARDAR Y COMPARTIR
         </button>
 
@@ -175,6 +231,8 @@ if st.session_state.texto_final:
                             await navigator.share({{ files: [file] }});
                             return;
                         }} catch (e) {{}}
+                    }} else {{
+                        alert("La opción compartir funciona mejor en móvil.");
                     }}
                 }}
 
