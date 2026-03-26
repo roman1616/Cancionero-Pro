@@ -189,26 +189,21 @@ if archivo:
 # ───────── BUSCAR / REEMPLAZAR ─────────
 if st.session_state.texto_reemplazado:
 
-    st.markdown("### 🔎 Buscar y Reemplazar todos los Acordes")
+    st.markdown("### 🔎 Buscar y Reemplazar")
 
-# Lista de todas las notas musicales
-notas = ["A", "B", "C", "D", "E", "F", "G"]
+colb, colr = st.columns(2)
+with colb:
+    buscar = st.text_input("Buscar (Regex)", value="F'#|C'#")     
+with colr:
+    reemplazar = st.text_input("Reemplazar por", value="F#'|C#'")
 
-texto_input = st.text_area("Pega tu texto aquí:")
+texto_original = st.text_area("Introduce tu texto:")
 
-if st.button("Procesar todos"):
-    if texto_input:
-        resultado = texto_input
-        # El bucle recorre cada nota y aplica el reemplazo automáticamente
-        for nota in notas:
-            buscar = f"{nota}'#"
-            reemplazar = f"{nota}#'"
-            resultado = resultado.replace(buscar, reemplazar)
-        
-        st.success("¡Reemplazo completado!")
-        st.code(resultado)
-    else:
-        st.warning("Introduce texto para procesar.")
+if st.button("Procesar"):
+    # Usamos re.sub para que interprete el '|' como un operador lógico
+    resultado = re.sub(buscar, reemplazar, texto_original)
+    st.success("Resultado:")
+    st.code(resultado)
 
     components.html(
         f"""
