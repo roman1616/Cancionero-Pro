@@ -189,14 +189,13 @@ if archivo:
 # ───────── BUSCAR / REEMPLAZAR ─────────
 if st.session_state.texto_reemplazado:
 
-    st.markdown("### 🔎 Buscar y Reemplazar")
+     st.markdown("### 🔎 Buscar y Reemplazar")
 
     colb, colr = st.columns(2)
     with colb:
-        buscar = st.text_input("Buscar (Regex)", value="C'#, D'#, F'#")
+        buscar = st.text_input("Buscar (Regex)", value="C'#|D'#|F'#|G'#|A'#|B'#")
     with colr:
-        reemplazar = st.text_input("Reemplazar por", value="C#', D#', F#'")
-
+        reemplazar = st.text_input("Reemplazar por", value="C#'|D#'|F#'|G#'|A#'|B#'")    
     if st.button("Aplicar reemplazo", key="btn_replace"):
         if buscar:
             st.session_state.texto_reemplazado = st.session_state.texto_reemplazado.replace(buscar, reemplazar)
