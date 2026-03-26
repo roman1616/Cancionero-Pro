@@ -193,9 +193,9 @@ if st.session_state.texto_reemplazado:
 
     colb, colr = st.columns(2)
     with colb:
-        buscar = "F'#";"C'#"     #st.text_input("Buscar", key="buscar_txt")
+        buscar = "F'#|C'#"     #st.text_input("Buscar", key="buscar_txt")
     with colr:
-        reemplazar = "F#'";"C#'"    #st.text_input("Reemplazar", key="reemplazar_txt")
+        reemplazar = "F#'|C#'"    #st.text_input("Reemplazar", key="reemplazar_txt")
 
     if st.button("Aplicar reemplazo", key="btn_replace"):
         if buscar:
@@ -207,7 +207,6 @@ if st.session_state.texto_reemplazado:
 
     texto_js = (
         texto_final
-        .replace("F'#", "\\F#'")
         .replace("\\", "\\\\")
         .replace("`", "\\`")
         .replace("$", "\\$")
