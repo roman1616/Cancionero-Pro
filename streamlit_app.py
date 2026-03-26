@@ -193,9 +193,9 @@ if st.session_state.texto_reemplazado:
 
     colb, colr = st.columns(2)
     with colb:
-        buscar = st.text_input("Buscar (Regex)", value="F'# C'#")
+        buscar = st.text_input("Buscar (Regex)", value="C'#")
     with colr:
-        reemplazar = st.text_input("Reemplazar por", value="F#' C#'")
+        reemplazar = st.text_input("Reemplazar por", value="C#'")
 
     if st.button("Aplicar reemplazo", key="btn_replace"):
         if buscar:
