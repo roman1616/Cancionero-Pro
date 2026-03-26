@@ -189,28 +189,26 @@ if archivo:
 # ───────── BUSCAR / REEMPLAZAR ─────────
 if st.session_state.texto_reemplazado:
 
-    st.markdown("### 🔎 Buscar y Reemplazar")
+    st.markdown("### 🔎 Buscar y Reemplazar todos los Acordes")
 
-    colb, colr = st.columns(2)
-    with colb:
-        buscar = "F'#|C'#"     #st.text_input("Buscar", key="buscar_txt")
-    with colr:
-        reemplazar = "F#'|C#'"    #st.text_input("Reemplazar", key="reemplazar_txt")
+# Lista de todas las notas musicales
+notas = ["A", "B", "C", "D", "E", "F", "G"]
 
-    if st.button("Aplicar reemplazo", key="btn_replace"):
-        if buscar:
-            st.session_state.texto_reemplazado = st.session_state.texto_reemplazado.replace(buscar, reemplazar)
+texto_input = st.text_area("Pega tu texto aquí:")
 
-    texto_final = st.session_state.texto_reemplazado
-
-    st.code(texto_final, language="text")
-
-    texto_js = (
-        texto_final
-        .replace("\\", "\\\\")
-        .replace("`", "\\`")
-        .replace("$", "\\$")
-    )
+if st.button("Procesar todos"):
+    if texto_input:
+        resultado = texto_input
+        # El bucle recorre cada nota y aplica el reemplazo automáticamente
+        for nota in notas:
+            buscar = f"{nota}'#"
+            reemplazar = f"{nota}#'"
+            resultado = resultado.replace(buscar, reemplazar)
+        
+        st.success("¡Reemplazo completado!")
+        st.code(resultado)
+    else:
+        st.warning("Introduce texto para procesar.")
 
     components.html(
         f"""
