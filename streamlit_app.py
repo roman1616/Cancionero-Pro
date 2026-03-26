@@ -26,7 +26,7 @@ iframe { width: 100% !important; }
 LATINO_A_AMERICANO = {
     'DO': 'C', 'RE': 'D', 'MI': 'E',
     'FA': 'F', 'SOL': 'G', 'LA': 'A', 'SI': 'B',
-    'SIB': 'Bb', 'MIB': 'Eb'  # Bb y Eb
+    'SIB': 'Bb', 'MIB': 'Eb'
 }
 
 # ──────────────────── MEMORIA GLOBAL ────────────────────
@@ -38,6 +38,13 @@ if "conflict_checks" not in st.session_state:
 
 if "archivo_actual" not in st.session_state:
     st.session_state.archivo_actual = None
+
+# NUEVO: memoria buscar reemplazar
+if "buscar" not in st.session_state:
+    st.session_state.buscar = ""
+
+if "reemplazar" not in st.session_state:
+    st.session_state.reemplazar = ""
 
 # ──────────────────── FUNCIONES ────────────────────
 def es_linea_acordes(linea):
@@ -63,14 +70,12 @@ def es_linea_conflictiva(linea):
 def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, corregir_posicion, formato_salida):
     lineas = texto_bruto.replace('\r\n', '\n').split('\n')
 
-    # 1) Corrección de posición (solo en líneas seleccionadas)
     if corregir_posicion == "Activada":
         patron_pos = r'\b(DO|RE|MI|FA|SOL|LA|SI)(M|m|MAJ|MIN|maj|min|aug|dim|sus|add)?([#b])'
         for i in range(len(lineas)):
             if i in lineas_a_procesar:
                 lineas[i] = re.sub(patron_pos, r'\1\3\2', lineas[i], flags=re.IGNORECASE)
 
-    # 2) Traducción Latino → Americano (solo acordes en MAYÚSCULAS)
     resultado_intermedio = []
     if "Latino" in modo_origen:
         patron_latino = r'\b(DO|RE|MI|FA|SOL|LA|SI|SIB|MIB)([#b])?(M|MAJ|MIN|AUG|DIM|SUS|ADD)?([0-9]*)'
@@ -92,7 +97,6 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
 
         for i, l in enumerate(lineas):
             if i in lineas_a_procesar:
-                # SIN IGNORECASE para evitar cambiar palabras normales
                 resultado_intermedio.append(re.sub(patron_latino, traducir, l))
             else:
                 resultado_intermedio.append(l)
@@ -102,7 +106,6 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
     if formato_salida == "Original":
         return "\n".join(resultado_intermedio)
 
-    # 3) Apostrofado correcto (incluye # y b)
     patron_acorde = r'\b[A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add)?[0-9]*(?:/[A-G](?:#|b)?)?\b'
     resultado_final = []
 
@@ -111,7 +114,6 @@ def procesar_texto_selectivo(texto_bruto, lineas_a_procesar, modo_origen, correg
             resultado_final.append(linea)
             continue
 
-        # NORMALIZACIÓN: quitar apóstrofo antes de # o b
         linea = re.sub(r"(?<=\b[A-G])'(?=[#b])", "", linea)
         linea = re.sub(r"(?<=/[A-G])'(?=[#b])", "", linea)
 
@@ -192,6 +194,20 @@ if archivo:
             opt_salida
         )
 
+        # ───── BUSCAR Y REEMPLAZAR ─────
+        st.markdown("### 🔎 Buscar y Reemplazar")
+        colb, colr = st.columns(2)
+        with colb:
+            buscar = st.text_input("Buscar", value=st.session_state.buscar)
+        with colr:
+            reemplazar = st.text_input("Reemplazar", value=st.session_state.reemplazar)
+
+        if st.button("Aplicar reemplazo"):
+            st.session_state.buscar = buscar
+            st.session_state.reemplazar = reemplazar
+            if buscar:
+                texto_final = texto_final.replace(buscar, reemplazar)
+
         st.code(texto_final, language="text")
 
         texto_js = (
@@ -220,8 +236,6 @@ if archivo:
                                 await navigator.share({{ files: [file] }});
                                 return;
                             }} catch (e) {{}}
-                        }} else {{
-                            alert("La opción compartir funciona mejor en móvil.");
                         }}
                     }}
 
